@@ -731,7 +731,8 @@ test("interrupted reads of a previous ZIP keep the original available and can be
 });
 
 test("short public codes migrate old links once and preserve protected alias access", async () => {
-  const { mkdtempSync } = await import("node:fs");
+  const { mkdtempSync, mkdirSync } = await import("node:fs");
+  mkdirSync("work", { recursive: true });
   const { join } = await import("node:path");
   const path = join(mkdtempSync("work/short-links-"), "flash.db");
   let db = openDB(path);

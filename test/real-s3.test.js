@@ -77,6 +77,85 @@ test(
       );
       await service.tick();
       assert.equal(service.get(id).reserved, zip.length);
+      const { id: child, offset } = service.append(id, [
+        { name: "added.txt", size: 5 },
+      ]);
+      await service.init(child, offset);
+      const file = service.get(child).files[offset];
+      await store.send("UploadPart", {
+        Key: file.key,
+        UploadId: file.upload,
+        PartNumber: 1,
+        Body: Buffer.from("added"),
+        ContentLength: 5,
+      });
+      await service.finishFile(child, offset);
+      await service.finish(child);
+      db.close();
+      db = openDB(path);
+      service = new Service(db, store);
+      await service.tick();
+      const merged = service.get(id);
+      assert.equal(merged.files.length, 3);
+      const combined = await store.get(merged.output.key),
+        all = [];
+      for await (const c of combined.Body) all.push(c);
+      const entries = unzipSync(Buffer.concat(all));
+      assert.deepEqual(Buffer.from(entries["данные.bin"]), payload);
+      assert.equal(Buffer.from(entries["added.txt"]).toString(), "added");
+      assert.equal(entries.empty.length, 0);
+      await service.tick();
+      assert.equal(service.get(id).reserved, merged.output.size);
+      service.removeFiles(id, [0]);
+      await service.tick();
+      let reduced = service.get(id);
+      const reducedObj = await store.get(reduced.output.key),
+        reducedChunks = [];
+      for await (const c of reducedObj.Body) reducedChunks.push(c);
+      assert.deepEqual(Object.keys(unzipSync(Buffer.concat(reducedChunks))), [
+        "empty",
+        "added.txt",
+      ]);
+      await service.tick();
+      service.removeFiles(id, [0]);
+      await service.tick();
+      reduced = service.get(id);
+      assert.equal(reduced.output.name, "added.txt");
+      assert.equal(
+        Buffer.from(
+          await (
+            await store.get(reduced.output.key)
+          ).Body.transformToByteArray(),
+        ).toString(),
+        "added",
+      );
+      await service.tick();
+      service.removeFiles(id, [0]);
+      await service.tick();
+      assert.equal(service.get(id).state, "empty");
+      assert.equal(service.get(id).reserved, 0);
+      const reset = service.append(id, [{ name: "reset.txt", size: 5 }]);
+      await service.init(reset.id, 0);
+      const resetFile = service.get(reset.id).files[0];
+      await store.send("UploadPart", {
+        Key: resetFile.key,
+        UploadId: resetFile.upload,
+        PartNumber: 1,
+        Body: Buffer.from("reset"),
+        ContentLength: 5,
+      });
+      await service.finishFile(reset.id, 0);
+      await service.finish(reset.id);
+      await service.tick();
+      assert.equal(service.get(id).state, "ready");
+      assert.equal(
+        Buffer.from(
+          await (
+            await store.get(service.get(id).output.key)
+          ).Body.transformToByteArray(),
+        ).toString(),
+        "reset",
+      );
     } finally {
       if (id) {
         service.delete(id);

@@ -23,7 +23,17 @@ function App() {
     [password, setPassword] = useState(""),
     [error, setError] = useState(""),
     [history, setHistory] = useState([]),
-    [ttl, setTtl] = useState(86400),
+    [ttl, setTtl] = useState(() => {
+      try {
+        const stored = localStorage.getItem("du.ttl");
+        const value = stored === null ? 86400 : Number(stored);
+        return [0, 3600, 21600, 86400, 259200, 604800].includes(value)
+          ? value
+          : 86400;
+      } catch {
+        return 86400;
+      }
+    }),
     [secret, setSecret] = useState(""),
     [upload, setUpload] = useState(null),
     [progress, setProgress] = useState(0),
@@ -38,6 +48,11 @@ function App() {
   useEffect(() => {
     document.title = logged ? "Загрузка" : "Вход";
   }, [logged]);
+  useEffect(() => {
+    try {
+      localStorage.setItem("du.ttl", String(ttl));
+    } catch {}
+  }, [ttl]);
   const reload = () =>
     api("/api/transfers")
       .then(setHistory)
@@ -62,8 +77,11 @@ function App() {
       !running &&
       history.some(
         (t) =>
-          t.id === upload.id &&
-          ["queued", "archiving", "ready"].includes(t.state),
+          t.id === (upload.parentId || upload.id) &&
+          (upload.parentId
+            ? ["queued", "archiving"].includes(t.appendState) ||
+              t.files.length >= upload.offset + upload.files.length
+            : ["queued", "archiving", "ready"].includes(t.state)),
       )
     ) {
       setUpload(null);
@@ -88,7 +106,7 @@ function App() {
     window.addEventListener("beforeunload", fn);
     return () => window.removeEventListener("beforeunload", fn);
   }, []);
-  async function choose(list) {
+  async function choose(list, parentId = null) {
     if (active.current) return;
     const files = Array.from(list);
     if (!files.length) return;
@@ -98,14 +116,23 @@ function App() {
     }
     setError("");
     try {
-      const { id } = await api("/api/transfers", {
-        files: files.map((f) => ({ name: f.name, size: f.size })),
-        ttl,
-        password: secret,
-      });
-      const u = { id, files, total: files.reduce((n, f) => n + f.size, 0) };
+      const { id, offset = 0 } = await api(
+        parentId ? "/api/transfers/" + parentId + "/append" : "/api/transfers",
+        {
+          files: files.map((f) => ({ name: f.name, size: f.size })),
+          ttl,
+          password: secret,
+        },
+      );
+      const u = {
+        id,
+        parentId,
+        offset,
+        files,
+        total: files.reduce((n, f) => n + f.size, 0),
+      };
       setUpload(u);
-      setSelected(id);
+      setSelected(parentId || id);
       setProgress(0);
       setElapsed(0);
       control.current = { paused: false, cancel: false, xhr: null };
@@ -143,7 +170,7 @@ function App() {
       for (let i = 0; i < u.files.length; i++) {
         if (control.current.paused || control.current.cancel) break;
         const f = u.files[i],
-          path = `/api/transfers/${u.id}/files/${i}`,
+          path = `/api/transfers/${u.id}/files/${i + (u.offset || 0)}`,
           init = await api(path + "/init", {});
         if (init.done) {
           done += f.size;
@@ -275,6 +302,20 @@ function App() {
       logout={async () => {
         await api("/api/logout", {});
         setLogged(false);
+      }}
+      removeFiles={async (id, indices, revision) => {
+        try {
+          await api(
+            "/api/transfers/" + id + "/files",
+            { indices, revision },
+            "DELETE",
+          );
+          await reload();
+          return true;
+        } catch (e) {
+          setError(e.message);
+          return false;
+        }
       }}
       remove={async (id) => {
         try {

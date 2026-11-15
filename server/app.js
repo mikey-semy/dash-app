@@ -2,7 +2,7 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import { rateLimit } from "express-rate-limit";
 import { pipeline } from "node:stream/promises";
-import { hash, verify, token, range, archiveName } from "./core.js";
+import { hash, verify, token, range, archiveName, revision } from "./core.js";
 export function createApp(service, env) {
   const app = express(),
     db = service.db,
@@ -76,8 +76,16 @@ export function createApp(service, env) {
   api.use(admin);
   api.get("/session", (req, res) => res.json({ ok: true }));
   function publicOwner(t) {
+    const pending = db
+      .prepare(
+        "SELECT state,error FROM transfers WHERE parent=? AND state NOT IN ('deleted','merged','deleting') ORDER BY created DESC LIMIT 1",
+      )
+      .get(t.id);
     return {
+      appendState: pending?.state || null,
+      appendError: pending?.error || null,
       id: t.id,
+      revision: revision(t),
       state: t.state,
       created: t.created,
       ready: t.ready,
@@ -87,7 +95,8 @@ export function createApp(service, env) {
       size: t.files.reduce((n, f) => n + f.size, 0),
       error: t.error,
       url:
-        t.state === "ready" && t.expires > Date.now()
+        ["ready", "empty"].includes(t.state) &&
+        (t.expires === null || t.expires > Date.now())
           ? `${origin}/t/${t.token}`
           : null,
     };
@@ -95,7 +104,9 @@ export function createApp(service, env) {
   api.get("/transfers", (req, res) =>
     res.json(
       db
-        .prepare("SELECT id FROM transfers ORDER BY created DESC")
+        .prepare(
+          "SELECT id FROM transfers WHERE parent IS NULL ORDER BY created DESC",
+        )
         .all()
         .map((r) => publicOwner(service.get(r.id))),
     ),
@@ -106,6 +117,22 @@ export function createApp(service, env) {
       return res.status(400).json({ error: "Неверный пароль" });
     const id = await service.locked(() => service.create(files, ttl, password));
     res.status(201).json({ id });
+  });
+  api.post("/transfers/:id/append", async (req, res) => {
+    const result = await service.locked(() =>
+      service.append(req.params.id, req.body.files),
+    );
+    res.status(201).json(result);
+  });
+  api.delete("/transfers/:id/files", async (req, res) => {
+    if (typeof req.body.revision !== "string")
+      return res
+        .status(409)
+        .json({ error: "Обновите историю перед выбором файлов" });
+    const result = await service.locked(() =>
+      service.removeFiles(req.params.id, req.body.indices, req.body.revision),
+    );
+    res.json(result);
   });
   const action = (fn) => async (req, res) => {
     await service.locked(async () => {
@@ -164,7 +191,11 @@ export function createApp(service, env) {
       .prepare("SELECT id FROM transfers WHERE token=?")
       .get(req.params.token);
     const t = r && service.get(r.id);
-    if (!t || t.state !== "ready" || t.expires <= Date.now())
+    if (
+      !t ||
+      !["ready", "empty"].includes(t.state) ||
+      (t.expires !== null && t.expires <= Date.now())
+    )
       throw Object.assign(new Error("Передача недоступна или срок истёк"), {
         status: 404,
       });
@@ -190,7 +221,7 @@ export function createApp(service, env) {
       return res.status(503).json({ error: "Повторите позже" });
     grants.set(grant, {
       id: t.id,
-      expires: Math.min(t.expires, Date.now() + 12 * 3600000),
+      expires: Math.min(t.expires ?? Infinity, Date.now() + 12 * 3600000),
     });
     res
       .cookie("grant_" + t.id, grant, {
@@ -218,6 +249,8 @@ export function createApp(service, env) {
     const t = transfer(req);
     if (!allowed(req, t))
       return res.status(401).json({ error: "Нужен пароль передачи" });
+    if (!t.output?.key)
+      return res.status(409).json({ error: "В передаче пока нет файлов" });
     const out = t.output,
       modified = new Date(t.ready).toUTCString();
     res.set({

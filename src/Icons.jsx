@@ -58,8 +58,11 @@ export function Icon({ name }) {
     ),
     chevron: <path d="m7 10 5 5 5-5" />,
     add: <path d="M12 4v16M4 12h16" />,
-    upload: <path d="M12 16V3m-5 5 5-5 5 5M4 15v6h16v-6" />,
-    download: <path d="M12 3v13m-5-5 5 5 5-5M4 17v4h16v-4" />,
+    pause: <path d="M8 5v14M16 5v14" />,
+    play: <path d="m8 4 12 8-12 8Z" />,
+    cancel: <path d="m6 6 12 12M18 6 6 18" />,
+    upload: <path d="M12 20V4m-6 6 6-6 6 6" />,
+    download: <path d="M12 4v16m-6-6 6 6 6-6" />,
   };
   return (
     <svg
@@ -110,6 +113,12 @@ export function CopyButton({ value, label = "Копировать ссылку" 
   );
 }
 export function Expiry({ value }) {
+  if (value === null)
+    return (
+      <span className="expiry-corner" title="Бессрочно" aria-label="Бессрочно">
+        ∞
+      </span>
+    );
   return (
     <time className="expiry-corner" dateTime={new Date(value).toISOString()}>
       {new Date(value).toLocaleString("ru-RU")}

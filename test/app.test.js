@@ -346,3 +346,386 @@ test("ZIP names use stable Moscow upload timestamp with milliseconds, including 
     head.headers["content-disposition"],
   );
 });
+
+test("infinite transfer stays available until manual deletion, including protected access", async () => {
+  const { service, store, db, app, agent } = await setup();
+  const id = service.create([{ name: "keep.txt", size: 0 }], 0, "123456");
+  await service.init(id, 0);
+  await service.finish(id);
+  db.prepare("UPDATE transfers SET created=?,ready=? WHERE id=?").run(0, 0, id);
+  await service.tick();
+  const t = service.get(id);
+  assert.equal(t.expires, null);
+  assert.equal(t.state, "ready");
+  const history = await agent.get("/api/transfers");
+  assert.ok(history.body.find((x) => x.id === id).url);
+  const recipient = request.agent(app),
+    url = "/public/" + t.token;
+  await post(recipient, url + "/unlock", { password: "123456" }).expect(200);
+  assert.equal((await recipient.get(url).expect(200)).body.expires, null);
+  await recipient.head(url + "/download").expect(200);
+  service.delete(id);
+  await recipient.get(url).expect(404);
+  await service.tick();
+  assert.equal(service.get(id).state, "deleted");
+});
+
+async function appendUpload(service, store, parent, contents) {
+  const { id, offset } = service.append(
+    parent,
+    contents.map(([name, b]) => ({ name, size: b.length })),
+  );
+  for (let i = 0; i < contents.length; i++) {
+    await service.init(id, i + offset);
+    const f = service.get(id).files[i + offset],
+      b = contents[i][1];
+    if (b.length) {
+      for (let p = 1; p <= Math.ceil(b.length / PART); p++)
+        await store.send("UploadPart", {
+          Key: f.key,
+          UploadId: f.upload,
+          PartNumber: p,
+          Body: b.subarray((p - 1) * PART, p * PART),
+        });
+      await service.finishFile(id, i + offset);
+    }
+  }
+  await service.finish(id);
+  return id;
+}
+test("append preserves original link/password/expiry, atomically replaces flat ZIP and retains quota until cleanup", async () => {
+  const { db, store, service, app, agent } = await setup();
+  const parent = await upload(
+      service,
+      store,
+      [["same.txt", Buffer.from("old")]],
+      "123456",
+    ),
+    original = service.get(parent),
+    oldKey = original.output.key;
+  const child = await appendUpload(service, store, parent, [
+    ["same.txt", Buffer.from("new")],
+    ["empty", Buffer.alloc(0)],
+  ]);
+  assert.equal(service.get(parent).output.key, oldKey);
+  assert.equal((await agent.get("/api/transfers")).body.length, 1);
+  assert.throws(
+    () => service.append(parent, [{ name: "other", size: 0 }]),
+    /уже выполняется/,
+  );
+  const restarted = new Service(db, store);
+  await restarted.tick();
+  const merged = service.get(parent);
+  assert.equal(merged.token, original.token);
+  assert.equal(merged.password, original.password);
+  assert.equal(merged.expires, original.expires);
+  assert.equal(merged.created, original.created);
+  assert.equal(service.get(child).state, "merged");
+  const files = unzipSync(store.objects.get(merged.output.key));
+  assert.deepEqual(Object.keys(files), ["same.txt", "1_same.txt", "empty"]);
+  assert.equal(Buffer.from(files["same.txt"]).toString(), "old");
+  assert.equal(Buffer.from(files["1_same.txt"]).toString(), "new");
+  assert.ok(merged.reserved > merged.output.size);
+  store.failDelete = true;
+  await restarted.tick();
+  assert.ok(service.get(parent).reserved > merged.output.size);
+  store.failDelete = false;
+  await restarted.tick();
+  assert.equal(service.get(parent).reserved, merged.output.size);
+  assert.equal(store.objects.size, 1);
+  await appendUpload(service, store, parent, [
+    ["third.txt", Buffer.from("third")],
+  ]);
+  await restarted.tick();
+  const again = service.get(parent);
+  assert.equal(again.files.length, 4);
+  assert.equal(
+    Buffer.from(
+      unzipSync(store.objects.get(again.output.key))["third.txt"],
+    ).toString(),
+    "third",
+  );
+  await restarted.tick();
+  assert.equal(store.objects.size, 1);
+  service.delete(parent);
+  await restarted.tick();
+  assert.equal(store.objects.size, 0);
+});
+test("cancelled/failed append never deletes or replaces the original; parent deletion cancels pending append", async () => {
+  const { service, store } = await setup();
+  const parent = await upload(service, store, [
+      ["original", Buffer.from("keep")],
+    ]),
+    key = service.get(parent).output.key;
+  let child = service.append(parent, [{ name: "new", size: 1 }]).id;
+  await service.init(child, 1);
+  service.delete(child);
+  await service.tick();
+  assert.equal(store.objects.get(key).toString(), "keep");
+  assert.equal(service.get(parent).state, "ready");
+  child = await appendUpload(service, store, parent, [
+    ["new", Buffer.from("new")],
+  ]);
+  store.failGet = true;
+  await service.tick();
+  await service.tick();
+  await service.tick();
+  assert.equal(service.get(child).state, "failed");
+  assert.equal(service.get(parent).output.key, key);
+  assert.equal(service.get(parent).state, "ready");
+  store.failGet = false;
+  assert.throws(
+    () => service.append(parent, [{ name: "retry", size: 1 }]),
+    /очищается/,
+  );
+  await service.tick();
+  assert.equal(store.objects.get(key).toString(), "keep");
+  child = await appendUpload(service, store, parent, [
+    ["new", Buffer.from("new")],
+  ]);
+  service.delete(parent);
+  await service.tick();
+  assert.equal(service.get(parent).state, "deleted");
+  assert.equal(service.get(child).state, "deleted");
+  assert.equal(store.objects.size, 0);
+});
+test("append enforces combined size/count quota, and expiry of the parent prevents further multipart permissions", async () => {
+  const { service, store, db } = await setup();
+  const parent = await upload(service, store, [["old", Buffer.from("x")]]);
+  assert.throws(() =>
+    service.append(
+      parent,
+      Array.from({ length: 100 }, () => ({ name: "x", size: 0 })),
+    ),
+  );
+  assert.throws(() =>
+    service.append(parent, [{ name: "huge", size: 2_000_000_000 }]),
+  );
+  const child = service.append(parent, [{ name: "new", size: 1 }]).id;
+  await service.init(child, 1);
+  db.prepare("UPDATE transfers SET expires=? WHERE id=?").run(
+    Date.now() - 1,
+    parent,
+  );
+  await assert.rejects(() => service.sign(child, 1, 1));
+  await service.tick();
+  assert.equal(service.get(child).reserved, 0);
+  assert.equal(store.objects.size, 0);
+});
+
+test("deleting parent while append reads old archive cannot hang or publish the staged ZIP", async () => {
+  const { service, store } = await setup();
+  const parent = await upload(service, store, [
+    ["a", Buffer.from("a")],
+    ["b", Buffer.from("b")],
+  ]);
+  await service.tick();
+  await service.tick();
+  const child = await appendUpload(service, store, parent, [
+    ["c", Buffer.from("c")],
+  ]);
+  const get = store.get.bind(store);
+  store.get = async (...args) => {
+    service.delete(parent);
+    return get(...args);
+  };
+  await service.tick();
+  assert.equal(service.get(parent).state, "deleting");
+  assert.equal(service.get(child).state, "deleting");
+  await service.tick();
+  assert.equal(store.objects.size, 0);
+  assert.equal(service.get(parent).reserved, 0);
+  assert.equal(service.get(child).reserved, 0);
+});
+
+test("selected files can be removed to a single original, then emptied and repopulated under the same protected link", async () => {
+  const { service, store, app } = await setup();
+  const parent = await upload(
+    service,
+    store,
+    [
+      ["a.txt", Buffer.from("aaa")],
+      ["b.txt", Buffer.from("bbb")],
+      ["c.txt", Buffer.from("ccc")],
+    ],
+    "123456",
+  );
+  await service.tick();
+  await service.tick();
+  const original = service.get(parent),
+    url = "/public/" + original.token;
+  const recipient = request.agent(app);
+  await post(recipient, url + "/unlock", { password: "123456" }).expect(200);
+  service.removeFiles(parent, [0, 2]);
+  assert.equal(service.get(parent).files.length, 3);
+  await service.tick();
+  const single = service.get(parent);
+  assert.equal(single.files.length, 1);
+  assert.equal(single.files[0].name, "b.txt");
+  assert.equal(single.output.name, "b.txt");
+  assert.equal(single.files[0].key, single.output.key);
+  assert.equal(store.objects.get(single.output.key).toString(), "bbb");
+  assert.equal(single.expires, original.expires);
+  await service.tick();
+  assert.equal(store.objects.size, 1);
+  service.removeFiles(parent, [0]);
+  assert.equal(service.get(parent).state, "empty");
+  assert.equal((await recipient.get(url).expect(200)).body.files.length, 0);
+  await recipient.get(url + "/download").expect(409);
+  await service.tick();
+  assert.equal(store.objects.size, 0);
+  assert.equal(service.get(parent).reserved, 0);
+  await appendUpload(service, store, parent, [
+    ["replacement.txt", Buffer.from("replacement")],
+  ]);
+  await service.tick();
+  const restored = service.get(parent);
+  assert.equal(restored.token, original.token);
+  assert.equal(restored.password, original.password);
+  assert.equal(restored.files.length, 1);
+  assert.equal(restored.output.name, "replacement.txt");
+  assert.equal(
+    store.objects.get(restored.output.key).toString(),
+    "replacement",
+  );
+  await recipient.get(url + "/download").expect(200);
+  await service.tick();
+  assert.equal(store.objects.size, 1);
+  await appendUpload(service, store, parent, [
+    ["next.txt", Buffer.from("next")],
+  ]);
+  await service.tick();
+  const zip = unzipSync(store.objects.get(service.get(parent).output.key));
+  assert.deepEqual(Object.keys(zip), ["replacement.txt", "next.txt"]);
+  service.delete(parent);
+  await service.tick();
+  assert.equal(store.objects.size, 0);
+});
+test("partial removal produces a flat ZIP and clearing holds quota until S3 confirms deletion", async () => {
+  const { service, store } = await setup();
+  const parent = await upload(service, store, [
+    ["a", Buffer.from("a")],
+    ["b", Buffer.from("b")],
+    ["c", Buffer.from("c")],
+  ]);
+  await service.tick();
+  await service.tick();
+  service.removeFiles(parent, [1]);
+  await service.tick();
+  let t = service.get(parent);
+  assert.deepEqual(Object.keys(unzipSync(store.objects.get(t.output.key))), [
+    "a",
+    "c",
+  ]);
+  await service.tick();
+  const before = service.get(parent).reserved;
+  service.removeFiles(parent, [0, 1]);
+  store.failDelete = true;
+  await service.tick();
+  assert.equal(service.get(parent).state, "empty");
+  assert.equal(service.get(parent).reserved, before);
+  store.failDelete = false;
+  await service.tick();
+  assert.equal(service.get(parent).reserved, 0);
+  assert.equal(store.objects.size, 0);
+});
+
+test("stale selected-file revisions cannot delete files from a newer transfer composition", async () => {
+  const { service, store, agent } = await setup();
+  const parent = await upload(service, store, [
+    ["a", Buffer.from("a")],
+    ["b", Buffer.from("b")],
+  ]);
+  await service.tick();
+  const first = (await agent.get("/api/transfers")).body.find(
+    (t) => t.id === parent,
+  );
+  await appendUpload(service, store, parent, [["c", Buffer.from("c")]]);
+  await service.tick();
+  await agent
+    .delete("/api/transfers/" + parent + "/files")
+    .set("Origin", env.PUBLIC_URL)
+    .send({ indices: [0], revision: first.revision })
+    .expect(409);
+  assert.equal(service.get(parent).files.length, 3);
+});
+
+test("an emptied zero-byte transfer can be deleted without invalid S3 keys", async () => {
+  const { service, store } = await setup();
+  const parent = await upload(service, store, [["empty", Buffer.alloc(0)]]);
+  service.removeFiles(parent, [0]);
+  await service.tick();
+  const purge = store.purge.bind(store);
+  store.purge = async (id, keys) => {
+    assert.ok(keys.every((k) => typeof k === "string" && k.length));
+    return purge(id, keys);
+  };
+  service.delete(parent);
+  await service.tick();
+  assert.equal(service.get(parent).state, "deleted");
+  assert.equal(store.objects.size, 0);
+});
+
+test("removing files after an earlier source-cleanup failure cannot orphan the removed source or free its quota early", async () => {
+  const { service, store } = await setup();
+  const parent = await upload(service, store, [
+    ["a", Buffer.from("a")],
+    ["b", Buffer.from("b")],
+    ["c", Buffer.from("c")],
+  ]);
+  await service.tick();
+  const blocked = service.get(parent).files[1].key,
+    remove = store.remove.bind(store);
+  store.remove = async (key) => {
+    if (key === blocked) throw new Error("blocked deletion");
+    return remove(key);
+  };
+  service.removeFiles(parent, [1]);
+  await service.tick();
+  assert.equal(service.get(parent).files.length, 2);
+  assert.ok(store.objects.has(blocked));
+  assert.ok(service.get(parent).reserved > service.get(parent).output.size);
+  store.remove = remove;
+  await service.tick();
+  assert.equal(store.objects.size, 1);
+  assert.ok(!store.objects.has(blocked));
+  assert.equal(service.get(parent).reserved, service.get(parent).output.size);
+});
+
+test("interrupted reads of a previous ZIP keep the original available and can be retried", async () => {
+  const { Readable } = await import("node:stream");
+  const { service, store } = await setup();
+  const parent = await upload(service, store, [
+    ["a", Buffer.from("a")],
+    ["b", Buffer.from("b")],
+  ]);
+  await service.tick();
+  await service.tick();
+  const key = service.get(parent).output.key,
+    contents = store.objects.get(key);
+  const child = await appendUpload(service, store, parent, [
+      ["c", Buffer.from("c")],
+    ]),
+    get = store.get.bind(store);
+  store.get = async (k, ...args) =>
+    k === key
+      ? {
+          Body: Readable.from(
+            (async function* () {
+              yield contents.subarray(0, 25);
+              throw new Error("connection interrupted");
+            })(),
+          ),
+        }
+      : get(k, ...args);
+  await service.tick();
+  assert.equal(service.get(parent).output.key, key);
+  assert.equal(service.get(child).state, "queued");
+  store.get = get;
+  await service.tick();
+  assert.equal(service.get(child).state, "merged");
+  assert.deepEqual(
+    Object.keys(unzipSync(store.objects.get(service.get(parent).output.key))),
+    ["a", "b", "c"],
+  );
+});

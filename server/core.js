@@ -1,8 +1,17 @@
 import { DatabaseSync } from "node:sqlite";
-import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import {
+  randomBytes,
+  scryptSync,
+  timingSafeEqual,
+  createHash,
+} from "node:crypto";
 export const PART = 8 * 1024 * 1024,
   LIMIT = 2_000_000_000,
   QUOTA = 20_000_000_000;
+export const revision = (t) =>
+  createHash("sha256")
+    .update(t.output?.key || "empty")
+    .digest("base64url");
 export const token = () => randomBytes(32).toString("base64url");
 const archiveDateFormat = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/Moscow",
@@ -70,9 +79,18 @@ export function openDB(path) {
   db.exec(
     `PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000; CREATE TABLE IF NOT EXISTS transfers(id TEXT PRIMARY KEY, token TEXT UNIQUE, state TEXT, created INTEGER, ready INTEGER, expires INTEGER, ttl INTEGER, password TEXT, files TEXT, reserved INTEGER, output TEXT, error TEXT, attempts INTEGER DEFAULT 0); CREATE TABLE IF NOT EXISTS sessions(id TEXT PRIMARY KEY, expires INTEGER);`,
   );
+  const columns = db
+    .prepare("PRAGMA table_info(transfers)")
+    .all()
+    .map((c) => c.name);
+  if (!columns.includes("parent"))
+    db.exec("ALTER TABLE transfers ADD COLUMN parent TEXT");
+  if (!columns.includes("base"))
+    db.exec("ALTER TABLE transfers ADD COLUMN base TEXT");
+  db.exec("CREATE INDEX IF NOT EXISTS transfers_parent ON transfers(parent)");
   return db;
 }
-export function insertTransfer(db, files, ttl, password) {
+export function insertTransfer(db, files, ttl, password, append = null) {
   if (
     !Array.isArray(files) ||
     !files.length ||
@@ -89,11 +107,16 @@ export function insertTransfer(db, files, ttl, password) {
     throw Object.assign(new Error("До 100 файлов, суммарно до 2 ГБ"), {
       status: 400,
     });
-  if (![3600, 21600, 86400, 259200, 604800].includes(ttl))
+  if (![0, 3600, 21600, 86400, 259200, 604800].includes(ttl))
     throw Object.assign(new Error("Неверный срок"), { status: 400 });
   const clean = safeNames(files.map(({ name, size }) => ({ name, size })));
   const id = token(),
-    reserved = reservation(clean);
+    reserved = append
+      ? clean.length === 1
+        ? clean[0].size
+        : reservation(clean) -
+          (append.reuseFiles || append.files).reduce((n, f) => n + f.size, 0)
+      : reservation(clean);
   db.exec("BEGIN IMMEDIATE");
   try {
     const used = db
@@ -102,7 +125,7 @@ export function insertTransfer(db, files, ttl, password) {
     if (used + reserved > QUOTA)
       throw Object.assign(new Error("Недостаточно места"), { status: 409 });
     db.prepare(
-      "INSERT INTO transfers(id,token,state,created,ttl,password,files,reserved) VALUES(?,?,?,?,?,?,?,?)",
+      "INSERT INTO transfers(id,token,state,created,ttl,password,files,reserved,parent,base) VALUES(?,?,?,?,?,?,?,?,?,?)",
     ).run(
       id,
       token(),
@@ -113,12 +136,24 @@ export function insertTransfer(db, files, ttl, password) {
       JSON.stringify(
         clean.map((f, i) => ({
           ...f,
-          key: `${id}/source/${i}`,
+          key:
+            append && i < (append.reuseFiles || append.files).length
+              ? (append.reuseFiles || append.files)[i].key
+              : `${id}/source/${i}`,
           upload: null,
-          done: false,
+          done: !!append && i < (append.reuseFiles || append.files).length,
+          reused: !!append && i < (append.reuseFiles || append.files).length,
         })),
       ),
       reserved,
+      append?.id ?? null,
+      append
+        ? JSON.stringify({
+            output: append.output,
+            files: append.baseFiles || append.files,
+            created: append.created,
+          })
+        : null,
     );
     db.exec("COMMIT");
   } catch (e) {
@@ -134,6 +169,7 @@ export function row(db, id) {
       ...r,
       files: JSON.parse(r.files),
       output: r.output ? JSON.parse(r.output) : null,
+      base: r.base ? JSON.parse(r.base) : null,
     }
   );
 }

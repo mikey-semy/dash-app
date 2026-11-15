@@ -51,6 +51,12 @@ test("empty page, settings, upload, private recipient, ZIP, history and deletion
       exact: true,
     })
     .click();
+  await expect(
+    page.getByRole("button", {
+      name: "Сгенерировать и скопировать пароль",
+      exact: true,
+    }),
+  ).toHaveAttribute("data-active", "true");
   const pin = await page.evaluate(() => navigator.clipboard.readText());
   expect(pin).toMatch(/^\d{6}$/);
   await page.getByLabel("Настройки", { exact: true }).click();
@@ -129,7 +135,7 @@ test("empty page, settings, upload, private recipient, ZIP, history and deletion
   await expect(item.locator(".history-information")).toBeVisible();
   await item.getByRole("button", { name: "QR-код", exact: true }).click();
   await expect(item.getByRole("img", { name: "QR-код ссылки" })).toBeVisible();
-  await expect(item.locator(".share-controls button")).toHaveCount(3);
+  await expect(item.locator(".share-controls button")).toHaveCount(4);
   await item.getByRole("button", { name: "Удалить", exact: true }).click();
   await recipient.reload();
   await expect(recipient.getByRole("alert")).toHaveText(
@@ -189,6 +195,10 @@ test("browser multipart pause/resume and automatic retry in the open page", asyn
     buffer: Buffer.alloc(9 * 1024 * 1024, 7),
   });
   await expect.poll(() => intercepted).toBe(1);
+  await expect(page.locator(".upload-actions button")).toHaveCount(2);
+  expect((await page.locator(".upload-actions").innerText()).trim()).toBe("");
+  await expect(page.locator(".upload-times")).not.toContainText("Прошло");
+  await expect(page.locator(".upload-times")).not.toContainText("осталось");
   await page.getByRole("button", { name: "Пауза", exact: true }).click();
   release();
   await expect(
@@ -212,6 +222,12 @@ test("icon controls generate and copy six-digit password; manifest and icons are
     exact: true,
   });
   await generate.click();
+  await expect(
+    page.getByRole("button", {
+      name: "Сгенерировать и скопировать пароль",
+      exact: true,
+    }),
+  ).toHaveAttribute("data-active", "true");
   const pin = await page.evaluate(() => navigator.clipboard.readText());
   expect(pin).toMatch(/^\d{6}$/);
   await expect(generate).toHaveAttribute("data-active", "true");
@@ -224,6 +240,7 @@ test("icon controls generate and copy six-digit password; manifest and icons are
     "Сутки",
     "3 дня",
     "7 дней",
+    "Бессрочно",
     "1 час",
     "6 часов",
     "Сутки",
@@ -232,8 +249,21 @@ test("icon controls generate and copy six-digit password; manifest and icons are
       "aria-label",
       "Срок хранения: " + name,
     );
-    if (index < 5) await duration.click();
+    if (index < 6) await duration.click();
   }
+  const gear = await page
+      .getByLabel("Настройки", { exact: true })
+      .boundingBox(),
+    menu = await page.locator(".settings-toolbar").boundingBox();
+  expect(menu.x + menu.width).toBeLessThan(gear.x);
+  expect(
+    Math.abs(menu.y + menu.height / 2 - gear.y - gear.height / 2),
+  ).toBeLessThan(2);
+  expect(
+    await page
+      .locator(".settings-toolbar")
+      .evaluate((el) => getComputedStyle(el).borderWidth),
+  ).toBe("0px");
   await page.screenshot({ path: "work/ui-settings.png", fullPage: true });
   const m = await page.request.get("/manifest.webmanifest");
   expect(m.ok()).toBe(true);
@@ -402,7 +432,7 @@ test("history expansion preserves modal and clicked header positions throughout 
   await page.getByLabel("Настройки", { exact: true }).click();
   expect(
     await page
-      .locator(".settings .details-body")
+      .locator(".settings .inline-details-body")
       .evaluate((el) => getComputedStyle(el).transitionDuration),
   ).toBe("0s");
 });
@@ -423,4 +453,204 @@ test("password is enabled only after successful copy", async ({ page }) => {
     "title",
     "Не удалось скопировать. Повторить",
   );
+});
+
+test("double-click removes password without a delayed reactivation or changing the clipboard", async ({
+  page,
+}) => {
+  await login(page);
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.getByLabel("Настройки", { exact: true }).click();
+  const button = page.getByRole("button", {
+    name: "Сгенерировать и скопировать пароль",
+    exact: true,
+  });
+  await button.click();
+  await expect(button).toHaveAttribute("data-active", "true");
+  const before = await page.evaluate(() => navigator.clipboard.readText());
+  await button.dblclick();
+  await expect(button).toHaveAttribute("data-active", "false");
+  await expect(button).toHaveAttribute("title", "Пароль убран");
+  await page.waitForTimeout(600);
+  await expect(button).toHaveAttribute("data-active", "false");
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+    before,
+  );
+  let password;
+  await page.route("**/api/transfers", (route) => {
+    if (route.request().method() === "POST") {
+      password = route.request().postDataJSON().password;
+      return route.fulfill({ status: 409, json: { error: "test stop" } });
+    }
+    return route.continue();
+  });
+  await page.locator("input[type=file]").setInputFiles({
+    name: "test.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("test"),
+  });
+  await expect.poll(() => password).toBe("");
+});
+
+test("infinite retention persists locally; password does not persist", async ({
+  page,
+}) => {
+  await login(page);
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.getByLabel("Настройки", { exact: true }).click();
+  const ttl = page.getByRole("button", { name: /^Срок хранения:/ });
+  for (let i = 0; i < 3; i++) await ttl.click();
+  await expect(ttl).toHaveAttribute("aria-label", "Срок хранения: Бессрочно");
+  await page
+    .getByRole("button", {
+      name: "Сгенерировать и скопировать пароль",
+      exact: true,
+    })
+    .click();
+  await expect(
+    page.getByRole("button", {
+      name: "Сгенерировать и скопировать пароль",
+      exact: true,
+    }),
+  ).toHaveAttribute("data-active", "true");
+  await page.reload();
+  await page.getByLabel("Настройки", { exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: /^Срок хранения:/ }),
+  ).toHaveAttribute("aria-label", "Срок хранения: Бессрочно");
+  await expect(
+    page.getByRole("button", {
+      name: "Сгенерировать и скопировать пароль",
+      exact: true,
+    }),
+  ).toHaveAttribute("data-active", "false");
+});
+
+test("history and ready-view plus append to the same transfer and preserve its link", async ({
+  page,
+}) => {
+  await login(page);
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.locator("input[type=file]").setInputFiles({
+    name: "base.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("base"),
+  });
+  await expect(
+    page.getByRole("button", { name: "Добавить", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Копировать ссылку", exact: true })
+    .click();
+  const original = await page.evaluate(() => navigator.clipboard.readText());
+  await page.getByLabel("Настройки", { exact: true }).click();
+  await page.getByRole("button", { name: "История", exact: true }).click();
+  const first = page.locator(".history-item").first();
+  await expect(first.locator(".share-controls button")).toHaveCount(4);
+  const choosing = page.waitForEvent("filechooser");
+  await first
+    .getByRole("button", { name: "Добавить файлы в передачу", exact: true })
+    .click();
+  await (
+    await choosing
+  ).setFiles({
+    name: "extra.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("extra"),
+  });
+  await expect(page.getByRole("dialog")).toBeHidden();
+  const count = async () => {
+    const list = await (await page.request.get("/api/transfers")).json();
+    return list.find((t) => t.url === original)?.files.length;
+  };
+  await expect.poll(count, { timeout: 15000 }).toBe(2);
+  await expect(
+    page.getByRole("button", { name: "Добавить", exact: true }),
+  ).toBeVisible();
+  const again = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await (
+    await again
+  ).setFiles({
+    name: "third.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("third"),
+  });
+  await expect.poll(count, { timeout: 15000 }).toBe(3);
+  await expect(
+    page.getByRole("button", { name: "Добавить", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Копировать ссылку", exact: true })
+    .click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+    original,
+  );
+});
+
+test("selected history files can be removed while preserving an empty reusable link", async ({
+  page,
+}) => {
+  await login(page);
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.locator("input[type=file]").setInputFiles([
+    { name: "keep.txt", mimeType: "text/plain", buffer: Buffer.from("keep") },
+    {
+      name: "remove.txt",
+      mimeType: "text/plain",
+      buffer: Buffer.from("remove"),
+    },
+  ]);
+  await expect(
+    page.getByRole("button", { name: "Добавить", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Копировать ссылку", exact: true })
+    .click();
+  const url = await page.evaluate(() => navigator.clipboard.readText());
+  const record = async () => {
+    const list = await (await page.request.get("/api/transfers")).json();
+    return list.find((t) => t.url === url);
+  };
+  const open = async () => {
+    await page.getByLabel("Настройки", { exact: true }).click();
+    await page.getByRole("button", { name: "История", exact: true }).click();
+    const first = page.locator(".history-item").first();
+    await first.locator(".history-toggle").click();
+    return first;
+  };
+  let row = await open();
+  await row.getByLabel("Выбрать remove.txt", { exact: true }).check();
+  await row
+    .getByRole("button", { name: "Удалить выбранные файлы", exact: true })
+    .click();
+  await expect
+    .poll(async () => (await record())?.files.length, { timeout: 15000 })
+    .toBe(1);
+  await expect(
+    row.getByLabel("Выбрать keep.txt", { exact: true }),
+  ).toBeVisible();
+  await row.getByLabel("Выбрать все файлы", { exact: true }).check();
+  await row
+    .getByRole("button", { name: "Удалить выбранные файлы", exact: true })
+    .dblclick();
+  await expect.poll(async () => (await record())?.state).toBe("empty");
+  expect((await record()).files).toHaveLength(0);
+  const choice = page.waitForEvent("filechooser");
+  await row
+    .getByRole("button", { name: "Добавить файлы в передачу", exact: true })
+    .click();
+  await (
+    await choice
+  ).setFiles({
+    name: "replacement.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("replacement"),
+  });
+  await expect
+    .poll(async () => (await record())?.files[0]?.name, { timeout: 15000 })
+    .toBe("replacement.txt");
+  await expect(
+    page.getByRole("button", { name: "Добавить", exact: true }),
+  ).toBeVisible();
 });

@@ -56,7 +56,7 @@ export function Disclosure({ open, children, className = "", id }) {
   );
 }
 export const AnimatedDetails = forwardRef(function AnimatedDetails(
-  { className, label, title, summary, children },
+  { className, label, title, summary, children, inline = false },
   ref,
 ) {
   const [open, setOpen] = useState(false),
@@ -92,9 +92,21 @@ export const AnimatedDetails = forwardRef(function AnimatedDetails(
       >
         {summary}
       </button>
-      <Disclosure id={id} open={open} className="details-body">
-        {children}
-      </Disclosure>
+      {inline ? (
+        <div
+          id={id}
+          className="inline-details-body"
+          data-open={open}
+          aria-hidden={!open}
+          inert={!open}
+        >
+          {children}
+        </div>
+      ) : (
+        <Disclosure id={id} open={open} className="details-body">
+          {children}
+        </Disclosure>
+      )}
     </div>
   );
 });

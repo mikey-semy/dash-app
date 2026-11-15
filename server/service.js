@@ -1,5 +1,7 @@
 import { ZipArchive } from "archiver";
-import { PART, row, insertTransfer, archiveName } from "./core.js";
+import { Parse } from "unzipper";
+import { Readable, PassThrough } from "node:stream";
+import { PART, row, insertTransfer, archiveName, revision } from "./core.js";
 export class Service {
   constructor(db, store) {
     this.db = db;
@@ -22,6 +24,247 @@ export class Service {
   create(files, ttl, password) {
     return insertTransfer(this.db, files, ttl, password);
   }
+  append(id, files) {
+    const parent = this.get(id);
+    if (
+      !parent ||
+      !["ready", "empty"].includes(parent.state) ||
+      (parent.expires !== null && parent.expires <= Date.now())
+    )
+      throw Object.assign(new Error("Передача недоступна для добавления"), {
+        status: 409,
+      });
+    const pending = this.db
+      .prepare(
+        "SELECT id,state FROM transfers WHERE parent=? AND state NOT IN ('deleted','merged') LIMIT 1",
+      )
+      .get(id);
+    if (pending) {
+      if (pending.state === "failed") {
+        this.delete(pending.id);
+        throw Object.assign(
+          new Error("Неудачное добавление очищается; повторите через минуту"),
+          { status: 409 },
+        );
+      }
+      throw Object.assign(new Error("Добавление уже выполняется"), {
+        status: 409,
+      });
+    }
+    if (!Array.isArray(files) || !files.length)
+      throw Object.assign(new Error("Выберите файлы"), { status: 400 });
+    const next = insertTransfer(
+      this.db,
+      [...parent.files.map(({ name, size }) => ({ name, size })), ...files],
+      parent.ttl,
+      "",
+      parent,
+    );
+    return { id: next, offset: parent.files.length };
+  }
+  removeFiles(id, indices, expectedRevision) {
+    const parent = this.get(id);
+    if (
+      !parent ||
+      !["ready", "empty"].includes(parent.state) ||
+      (parent.expires !== null && parent.expires <= Date.now())
+    )
+      throw Object.assign(new Error("Передача недоступна"), { status: 409 });
+    if (expectedRevision !== undefined && expectedRevision !== revision(parent))
+      throw Object.assign(
+        new Error("Состав передачи изменился; выберите файлы заново"),
+        { status: 409 },
+      );
+    if (
+      !Array.isArray(indices) ||
+      !indices.length ||
+      indices.some(
+        (i) => !Number.isInteger(i) || i < 0 || i >= parent.files.length,
+      ) ||
+      new Set(indices).size !== indices.length
+    )
+      throw Object.assign(new Error("Неверный выбор файлов"), { status: 400 });
+    if (
+      this.db
+        .prepare(
+          "SELECT 1 FROM transfers WHERE parent=? AND state NOT IN ('deleted','merged','deleting')",
+        )
+        .get(id)
+    )
+      throw Object.assign(
+        new Error("Дождитесь завершения изменения передачи"),
+        { status: 409 },
+      );
+    const kept = parent.files.filter((f, i) => !indices.includes(i));
+    if (!kept.length) {
+      const output = {
+        key: null,
+        size: 0,
+        name: null,
+        etag: null,
+        garbage: [
+          ...new Set(
+            [
+              parent.output?.key,
+              ...(parent.output?.garbage || []),
+              ...parent.files.map((f) => f.key),
+            ].filter(Boolean),
+          ),
+        ],
+      };
+      this.db
+        .prepare(
+          "UPDATE transfers SET state='empty',files='[]',output=?,error=NULL WHERE id=?",
+        )
+        .run(JSON.stringify(output), id);
+      return { empty: true };
+    }
+    const child = insertTransfer(
+      this.db,
+      kept.map(({ name, size }) => ({ name, size })),
+      parent.ttl,
+      "",
+      { ...parent, reuseFiles: kept, baseFiles: parent.files },
+    );
+    this.db
+      .prepare("UPDATE transfers SET state='queued' WHERE id=?")
+      .run(child);
+    return { id: child };
+  }
+  async *sources(t, marker) {
+    if (t.base?.files.length) {
+      const source = await this.store.get(t.base.output.key);
+      const stop = () => source.Body.destroy(new Error("Cancelled"));
+      marker.once("close", stop);
+      try {
+        if (marker.destroyed) throw new Error("Cancelled");
+        if (t.base.files.length === 1) {
+          const file = t.files.find(
+            (f) => f.reused && f.key === t.base.files[0].key,
+          );
+          if (file) yield { body: source.Body, file };
+        } else {
+          const parser = source.Body.pipe(Parse({ forceStream: true }));
+          source.Body.once("error", (e) => parser.destroy(e));
+          try {
+            let index = 0;
+            for await (const entry of parser) {
+              const original = t.base.files[index++];
+              if (
+                !original ||
+                entry.type !== "File" ||
+                entry.path !== original.name
+              ) {
+                entry.autodrain();
+                throw new Error("Stored ZIP composition mismatch");
+              }
+              const file = t.files.find(
+                (f) => f.reused && f.key === original.key,
+              );
+              if (file) yield { body: entry, file };
+              else await entry.autodrain().promise();
+            }
+            if (index !== t.base.files.length)
+              throw new Error("Stored ZIP incomplete");
+          } finally {
+            parser.destroy();
+          }
+        }
+      } finally {
+        marker.off("close", stop);
+        source.Body.destroy();
+      }
+    }
+    for (const file of t.files.filter((f) => !f.reused)) {
+      if (marker.destroyed) throw new Error("Cancelled");
+      const object = await this.store.get(file.key);
+      try {
+        yield { body: object.Body, file };
+      } finally {
+        object.Body.destroy();
+      }
+    }
+  }
+  async single(t) {
+    const marker = new PassThrough();
+    marker.on("error", () => {});
+    this.activeZip = marker;
+    const file = t.files[0];
+    if (!file.reused) {
+      const h = await this.store.head(file.key);
+      if (h.ContentLength !== file.size) throw new Error("Size mismatch");
+      await this.ready(t, {
+        key: file.key,
+        name: file.name,
+        size: file.size,
+        etag: h.ETag,
+      });
+      return;
+    }
+    const key = t.id + "/content";
+    await this.store.purge(t.id, [key]);
+    let upload;
+    try {
+      if (file.size) upload = await this.store.create(key);
+      let buffer = Buffer.alloc(0),
+        parts = [],
+        size = 0;
+      for await (const { body } of this.sources(t, marker)) {
+        const stop = () => body.destroy(new Error("Cancelled"));
+        marker.once("close", stop);
+        try {
+          for await (const chunk of body) {
+            if (marker.destroyed) throw new Error("Cancelled");
+            size += chunk.length;
+            if (size > file.size) throw new Error("Size exceeded");
+            buffer = Buffer.concat([buffer, chunk]);
+            while (buffer.length >= PART) {
+              const data = buffer.subarray(0, PART),
+                r = await this.store.send("UploadPart", {
+                  Key: key,
+                  UploadId: upload,
+                  PartNumber: parts.length + 1,
+                  Body: data,
+                  ContentLength: data.length,
+                });
+              parts.push({ PartNumber: parts.length + 1, ETag: r.ETag });
+              buffer = buffer.subarray(PART);
+            }
+          }
+        } finally {
+          marker.off("close", stop);
+        }
+        break;
+      }
+      if (size !== file.size || marker.destroyed)
+        throw new Error("Incomplete content");
+      if (!size) await this.store.empty(key);
+      else {
+        if (buffer.length) {
+          const r = await this.store.send("UploadPart", {
+            Key: key,
+            UploadId: upload,
+            PartNumber: parts.length + 1,
+            Body: buffer,
+            ContentLength: buffer.length,
+          });
+          parts.push({ PartNumber: parts.length + 1, ETag: r.ETag });
+        }
+        await this.store.complete(key, upload, parts);
+      }
+      const h = await this.store.head(key);
+      if (h.ContentLength !== file.size) throw new Error("Size mismatch");
+      await this.ready(t, {
+        key,
+        name: file.name,
+        size: file.size,
+        etag: h.ETag,
+      });
+    } catch (e) {
+      if (upload) await this.store.abort(key, upload);
+      throw e;
+    }
+  }
   async init(id, index) {
     const t = this.get(id);
     this.uploadable(t);
@@ -41,6 +284,17 @@ export class Service {
     };
   }
   uploadable(t) {
+    if (t?.parent) {
+      const parent = this.get(t.parent);
+      if (
+        !parent ||
+        !["ready", "empty"].includes(parent.state) ||
+        (parent.expires !== null && parent.expires <= Date.now())
+      )
+        throw Object.assign(new Error("Исходная передача недоступна"), {
+          status: 409,
+        });
+    }
     if (!t || t.state !== "uploading" || Date.now() - t.created >= 86400000)
       throw Object.assign(new Error("Загрузка недоступна"), { status: 409 });
   }
@@ -111,21 +365,95 @@ export class Service {
     this.uploadable(t);
     if (t.files.some((f) => !f.done))
       throw Object.assign(new Error("Не все файлы готовы"), { status: 409 });
+    if (t.parent) {
+      this.db
+        .prepare("UPDATE transfers SET state='queued' WHERE id=?")
+        .run(t.id);
+      return;
+    }
     if (t.files.length === 1) {
       const f = t.files[0],
         h = await this.store.head(f.key);
       if (h.ContentLength !== f.size) throw new Error("Размер изменён");
-      this.ready(t, { key: f.key, name: f.name, size: f.size, etag: h.ETag });
+      await this.ready(t, {
+        key: f.key,
+        name: f.name,
+        size: f.size,
+        etag: h.ETag,
+      });
     } else
       this.db.prepare("UPDATE transfers SET state='queued' WHERE id=?").run(id);
   }
-  ready(t, out) {
+  async ready(t, out) {
+    if (t.parent)
+      return this.locked(() => {
+        const parent = this.get(t.parent),
+          child = this.get(t.id);
+        if (
+          !parent ||
+          !["ready", "empty"].includes(parent.state) ||
+          child.state !== "archiving" ||
+          (parent.expires !== null && parent.expires <= Date.now()) ||
+          (parent.output?.key || null) !== (t.base.output?.key || null)
+        )
+          throw new Error("Append cancelled or superseded");
+        const output = {
+          ...out,
+          name: t.files.length === 1 ? out.name : archiveName(parent.created),
+          garbage: [
+            ...new Set(
+              [
+                parent.output?.key,
+                ...(parent.output?.garbage || []),
+                ...parent.files.map((f) => f.key),
+              ].filter(Boolean),
+            ),
+          ],
+        };
+        const reserved =
+          parent.reserved +
+          out.size +
+          t.files
+            .filter((f) => !f.reused && f.key !== out.key)
+            .reduce((n, f) => n + f.size, 0);
+        this.db.exec("BEGIN IMMEDIATE");
+        try {
+          this.db
+            .prepare(
+              "UPDATE transfers SET state='ready',files=?,output=?,reserved=?,error=NULL WHERE id=?",
+            )
+            .run(
+              JSON.stringify(
+                t.files.length === 1
+                  ? t.files.map((f) => ({ ...f, key: out.key }))
+                  : t.files,
+              ),
+              JSON.stringify(output),
+              reserved,
+              parent.id,
+            );
+          this.db
+            .prepare(
+              "UPDATE transfers SET state='merged',reserved=0,output=?,error=NULL WHERE id=?",
+            )
+            .run(JSON.stringify(out), t.id);
+          this.db.exec("COMMIT");
+        } catch (e) {
+          this.db.exec("ROLLBACK");
+          throw e;
+        }
+      });
     const now = Date.now();
     this.db
       .prepare(
         "UPDATE transfers SET state='ready',ready=?,expires=?,output=?,error=NULL WHERE id=? AND state IN ('uploading','archiving')",
       )
-      .run(now, now + t.ttl * 1000, JSON.stringify(out), t.id);
+      .run(
+        now,
+        t.ttl === 0 ? null : now + t.ttl * 1000,
+        JSON.stringify(out),
+        t.id,
+      );
   }
   async zip(t) {
     const key = t.id + "/bundle.zip";
@@ -179,36 +507,60 @@ export class Service {
     })();
     consume.catch(() => zip.destroy());
     try {
-      for (const f of t.files) {
-        if (zip.destroyed) throw new Error("Cancelled");
-        const obj = await this.store.get(f.key);
+      const appendStream = async (body, file) => {
         if (zip.destroyed) {
-          obj.Body.destroy();
+          body.destroy();
           throw new Error("Cancelled");
         }
+        let count = 0;
+        const checked = Readable.from(
+          (async function* () {
+            for await (const chunk of body) {
+              count += chunk.length;
+              if (count > file.size) throw new Error("Source size exceeded");
+              yield chunk;
+            }
+            if (count !== file.size) throw new Error("Source size mismatch");
+          })(),
+        );
         await new Promise((resolve, reject) => {
           const fail = (e) => {
-            obj.Body.destroy();
+            body.destroy();
+            checked.destroy();
             reject(e || new Error("ZIP closed"));
           };
           zip.once("error", fail);
           zip.once("close", fail);
-          obj.Body.once("error", reject);
-          obj.Body.once("end", () => {
+          checked.once("error", reject);
+          checked.once("end", () => {
             zip.off("error", fail);
             zip.off("close", fail);
             resolve();
           });
-          zip.append(obj.Body, { name: f.name, date: new Date(t.created) });
+          zip.append(checked, {
+            name: file.name,
+            date: new Date(t.base?.created || t.created),
+          });
         });
-      }
+      };
+      for await (const { body, file } of this.sources(t, zip))
+        await appendStream(body, file);
       await zip.finalize();
       const size = await consume;
-      if (size > t.reserved - t.files.reduce((n, f) => n + f.size, 0))
+      if (
+        size >
+        t.reserved -
+          t.files.filter((f) => !f.reused).reduce((n, f) => n + f.size, 0)
+      )
         throw new Error("Архив превысил резерв");
       const h = await this.store.head(key);
       if (h.ContentLength !== size) throw new Error("Архив не подтверждён");
-      this.ready(t, { key, name: archiveName(t.created), size, etag: h.ETag });
+      await this.ready(t, {
+        key,
+        name: archiveName(t.created),
+        size,
+        etag: h.ETag,
+      });
     } catch (e) {
       zip.destroy();
       await consume.catch(() => {});
@@ -221,9 +573,22 @@ export class Service {
       const now = Date.now();
       this.db
         .prepare(
-          "UPDATE transfers SET state='deleting' WHERE (state='ready' AND expires<=?) OR (state='uploading' AND created<=?)",
+          "UPDATE transfers SET state='deleting' WHERE (state IN ('ready','empty') AND expires<=?) OR (state='uploading' AND created<=?)",
         )
         .run(now, now - 86400000);
+      this.db
+        .prepare(
+          "UPDATE transfers SET state='deleting' WHERE parent IN (SELECT id FROM transfers WHERE state IN ('deleting','deleted')) AND state!='deleted'",
+        )
+        .run();
+      if (this.archiving) {
+        const active = this.get(this.archiving);
+        if (
+          active?.parent &&
+          !["ready", "empty"].includes(this.get(active.parent)?.state)
+        )
+          this.activeZip?.destroy(new Error("Parent unavailable"));
+      }
       this.db.prepare("DELETE FROM sessions WHERE expires<=?").run(now);
       if (!this.archiving)
         this.db
@@ -233,27 +598,49 @@ export class Service {
           .run();
       for (const r of this.db
         .prepare(
-          "SELECT id FROM transfers WHERE state='deleting' OR (state='ready' AND reserved>0)",
+          "SELECT id FROM transfers WHERE state='deleting' OR (state IN ('ready','empty') AND (reserved>0 OR output LIKE '%garbage%'))",
         )
         .all()) {
         if (r.id === this.archiving) continue;
         const t = this.get(r.id);
         try {
           if (t.state === "deleting") {
-            await this.store.purge(t.id, [
-              ...t.files.map((f) => f.key),
-              t.id + "/bundle.zip",
-            ]);
+            await this.store.purge(
+              t.id,
+              [
+                ...t.files
+                  .filter((f) => !t.parent || !f.reused)
+                  .map((f) => f.key),
+                t.id + "/bundle.zip",
+                t.id + "/content",
+                ...(t.output
+                  ? [t.output.key, ...(t.output.garbage || [])]
+                  : []),
+              ].filter(Boolean),
+            );
             this.db
               .prepare(
                 "UPDATE transfers SET state='deleted',reserved=0,error=NULL,password=NULL WHERE id=?",
               )
               .run(t.id);
-          } else if (t.files.length > 1 && t.reserved !== t.output.size) {
-            for (const f of t.files) await this.store.remove(f.key);
+          } else if (
+            t.output &&
+            (t.reserved !== t.output.size || (t.output.garbage || []).length)
+          ) {
+            const keys = [
+              ...new Set([
+                ...t.files.map((f) => f.key),
+                ...(t.output.garbage || []),
+              ]),
+            ].filter((k) => k && k !== t.output.key);
+            for (const key of keys) await this.store.remove(key);
+            const cleaned = { ...t.output };
+            delete cleaned.garbage;
             this.db
-              .prepare("UPDATE transfers SET reserved=?,error=NULL WHERE id=?")
-              .run(t.output.size, t.id);
+              .prepare(
+                "UPDATE transfers SET reserved=?,output=?,error=NULL WHERE id=?",
+              )
+              .run(t.output.size, JSON.stringify(cleaned), t.id);
           }
         } catch {
           this.db
@@ -279,7 +666,8 @@ export class Service {
     });
     if (!job) return;
     try {
-      await this.zip(job);
+      if (job.parent && job.files.length === 1) await this.single(job);
+      else await this.zip(job);
     } catch {
       this.db
         .prepare(
@@ -297,6 +685,15 @@ export class Service {
         "UPDATE transfers SET state='deleting' WHERE id=? AND state!='deleted'",
       )
       .run(id);
-    if (this.archiving === id) this.activeZip?.destroy(new Error("Cancelled"));
+    this.db
+      .prepare(
+        "UPDATE transfers SET state='deleting' WHERE parent=? AND state!='deleted'",
+      )
+      .run(id);
+    if (
+      this.archiving === id ||
+      (this.archiving && this.get(this.archiving)?.parent === id)
+    )
+      this.activeZip?.destroy(new Error("Cancelled"));
   }
 }

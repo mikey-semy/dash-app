@@ -11,19 +11,38 @@ export const bytes = (n) =>
       " " +
       (n >= 1e9 ? "ГБ" : n >= 1e6 ? "МБ" : "КБ");
 export const date = (n) => new Date(n).toLocaleString("ru-RU");
-export function FileList({ files }) {
+export function FileList({ files, selection, onToggle, disabled = false }) {
   return (
     <ul className="files">
       {files.map((f, i) => (
         <li key={i}>
-          <span>{f.name}</span>
+          {selection ? (
+            <label className="file-choice">
+              <input
+                type="checkbox"
+                checked={selection.has(i)}
+                disabled={disabled}
+                aria-label={"Выбрать " + f.name}
+                onChange={() => onToggle(i)}
+              />
+              <span>{f.name}</span>
+            </label>
+          ) : (
+            <span>{f.name}</span>
+          )}
           <small>{bytes(f.size)}</small>
         </li>
       ))}
     </ul>
   );
 }
-export function Share({ url, onAdd, onDelete }) {
+export function Share({
+  url,
+  onAdd,
+  onDelete,
+  compact = false,
+  deleteLabel = "Удалить",
+}) {
   const [qr, setQr] = useState(""),
     [open, setOpen] = useState(false);
   useEffect(() => {
@@ -35,8 +54,8 @@ export function Share({ url, onAdd, onDelete }) {
       }).then(setQr);
   }, [url, open]);
   return (
-    <div className={onAdd ? "share share-ready" : "share"}>
-      {onAdd && (
+    <div className={onAdd && !compact ? "share share-ready" : "share"}>
+      {onAdd && !compact && (
         <button
           className="primary-action"
           onClick={onAdd}
@@ -47,6 +66,18 @@ export function Share({ url, onAdd, onDelete }) {
         </button>
       )}
       <div className="share-controls">
+        {compact && (
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Добавить файлы в передачу"
+            title="Добавить файлы"
+            disabled={!onAdd}
+            onClick={onAdd}
+          >
+            <Icon name="add" />
+          </button>
+        )}
         <button
           type="button"
           className="icon-button"
@@ -62,10 +93,12 @@ export function Share({ url, onAdd, onDelete }) {
         <button
           type="button"
           className="icon-button"
-          aria-label="Удалить"
-          title="Удалить"
+          aria-label={deleteLabel}
+          title={deleteLabel}
           disabled={!onDelete}
-          onClick={onDelete}
+          onClick={(event) => {
+            if (event.detail <= 1) onDelete?.();
+          }}
         >
           <Icon name="delete" />
         </button>
@@ -90,6 +123,7 @@ const states = {
   failed: "Ошибка архивации",
   deleting: "Удаление",
   deleted: "Удалено",
+  empty: "Пусто",
 };
 function Gear() {
   return (
@@ -107,8 +141,18 @@ function Gear() {
     </svg>
   );
 }
-function HistoryItem({ transfer: t, onDelete }) {
-  const [open, setOpen] = useState(false);
+function HistoryItem({ transfer: t, onDelete, onAdd, onRemoveFiles }) {
+  const [open, setOpen] = useState(false),
+    [selection, setSelection] = useState(new Set());
+  const signature = JSON.stringify([t.revision, t.files]),
+    busy = t.appendState && t.appendState !== "failed";
+  useEffect(() => setSelection(new Set()), [signature]);
+  const toggle = (i) =>
+    setSelection((previous) => {
+      const next = new Set(previous);
+      next.has(i) ? next.delete(i) : next.add(i);
+      return next;
+    });
   return (
     <article className="history-item">
       <div className="history-row">
@@ -122,9 +166,13 @@ function HistoryItem({ transfer: t, onDelete }) {
           <span>
             <time>{date(t.created)}</time>
             <small key={t.state}>
-              {t.state === "ready" && t.expires <= Date.now()
+              {t.state === "ready" &&
+              t.expires !== null &&
+              t.expires <= Date.now()
                 ? "Срок истёк"
-                : states[t.state]}
+                : t.appendState && t.appendState !== "failed"
+                  ? "Обновление файлов"
+                  : states[t.state]}
             </small>
           </span>
           <span className={open ? "chevron expanded" : "chevron"}>
@@ -133,29 +181,75 @@ function HistoryItem({ transfer: t, onDelete }) {
         </button>
         <Share
           url={t.url}
+          compact
+          onAdd={
+            t.url && (!t.appendState || t.appendState === "failed")
+              ? () => onAdd(t.id)
+              : undefined
+          }
+          deleteLabel={selection.size ? "Удалить выбранные файлы" : "Удалить"}
           onDelete={
-            ["deleted", "deleting"].includes(t.state)
-              ? undefined
-              : () => onDelete(t.id)
+            selection.size
+              ? busy
+                ? undefined
+                : async () => {
+                    if (await onRemoveFiles(t.id, [...selection], t.revision))
+                      setSelection(new Set());
+                  }
+              : ["deleted", "deleting"].includes(t.state)
+                ? undefined
+                : () => onDelete(t.id)
           }
         />
       </div>
       <Disclosure open={open} id={"history-" + t.id}>
         <section className="history-information">
-          <FileList files={t.files} />
+          {t.files.length > 0 && (
+            <label className="select-all">
+              <input
+                type="checkbox"
+                aria-label="Выбрать все файлы"
+                checked={selection.size === t.files.length}
+                disabled={!!busy || ["deleted", "deleting"].includes(t.state)}
+                ref={(el) => {
+                  if (el)
+                    el.indeterminate =
+                      selection.size > 0 && selection.size < t.files.length;
+                }}
+                onChange={() =>
+                  setSelection(
+                    selection.size === t.files.length
+                      ? new Set()
+                      : new Set(t.files.map((f, i) => i)),
+                  )
+                }
+              />
+            </label>
+          )}
+          <FileList
+            files={t.files}
+            selection={selection}
+            onToggle={toggle}
+            disabled={!!busy || ["deleted", "deleting"].includes(t.state)}
+          />
+          {!t.files.length && <p className="muted">Пока нет файлов</p>}
           <p className="muted">{bytes(t.size)}</p>
-          {t.error && <p role="alert">{t.error}</p>}
+          {(t.error || t.appendError) && (
+            <p role="alert">{t.error || t.appendError}</p>
+          )}
           <p className="muted">
             {t.expires
               ? date(t.expires)
-              : "Срок: " + t.ttl / 3600 + " ч после готовности"}
+              : t.ttl === 0
+                ? "Бессрочно"
+                : "Срок: " + t.ttl / 3600 + " ч после готовности"}
           </p>
         </section>
       </Disclosure>
     </article>
   );
 }
-function History({ items, onClose, onDelete }) {
+function History({ items, onClose, onDelete, onAdd, onRemoveFiles }) {
   const ref = useRef(),
     timer = useRef(),
     [closing, setClosing] = useState(false);
@@ -192,19 +286,31 @@ function History({ items, onClose, onDelete }) {
     >
       <header className="dialog-header">
         <h2>История</h2>
-        <button
-          className="icon-button"
-          onClick={close}
-          aria-label="Закрыть историю"
-          title="Закрыть историю"
-        >
-          ×
-        </button>
+        <div className="dialog-header-actions">
+          <button
+            className="icon-button"
+            onClick={close}
+            aria-label="Закрыть историю"
+            title="Закрыть историю"
+          >
+            ×
+          </button>
+        </div>
       </header>
       <div className="dialog-body">
         {!items.length && <p className="muted">Нет передач</p>}
         {items.map((t) => (
-          <HistoryItem key={t.id} transfer={t} onDelete={onDelete} />
+          <HistoryItem
+            key={t.id}
+            transfer={t}
+            onDelete={onDelete}
+            onRemoveFiles={onRemoveFiles}
+            onAdd={(id) => {
+              ref.current.close();
+              onClose();
+              onAdd(id);
+            }}
+          />
         ))}
       </div>
     </dialog>
@@ -214,9 +320,47 @@ export function OwnerView(p) {
   const [historyOpen, setHistoryOpen] = useState(false),
     [passwordState, setPasswordState] = useState("idle"),
     input = useRef(),
-    settings = useRef();
+    appendTarget = useRef(null),
+    settings = useRef(),
+    passwordClick = useRef(),
+    passwordVersion = useRef(0);
+  useEffect(
+    () => () => {
+      clearTimeout(passwordClick.current);
+      passwordVersion.current++;
+    },
+    [],
+  );
   useEffect(() => {
-    if (passwordState === "copied") {
+    if (p.upload) {
+      clearTimeout(passwordClick.current);
+      passwordVersion.current++;
+    }
+  }, [p.upload]);
+  const clearPassword = () => {
+    clearTimeout(passwordClick.current);
+    passwordVersion.current++;
+    p.setSecret("");
+    setPasswordState("removed");
+  };
+  const generatePassword = async () => {
+    const version = ++passwordVersion.current;
+    const a = new Uint32Array(1);
+    do {
+      crypto.getRandomValues(a);
+    } while (a[0] >= 4294000000);
+    const pin = String(a[0] % 1000000).padStart(6, "0");
+    try {
+      await navigator.clipboard.writeText(pin);
+      if (version !== passwordVersion.current) return;
+      p.setSecret(pin);
+      setPasswordState("copied");
+    } catch {
+      if (version === passwordVersion.current) setPasswordState("failed");
+    }
+  };
+  useEffect(() => {
+    if (passwordState === "copied" || passwordState === "removed") {
       const timer = setTimeout(() => setPasswordState("idle"), 1600);
       return () => clearTimeout(timer);
     }
@@ -227,13 +371,20 @@ export function OwnerView(p) {
     [86400, "24", "ч", "Сутки"],
     [259200, "3", "д", "3 дня"],
     [604800, "7", "д", "7 дней"],
+    [0, "∞", "", "Бессрочно"],
   ];
   const durationIndex = durations.findIndex(([value]) => value === p.ttl),
     duration = durations[durationIndex];
   const latest = p.history.find((t) => t.id === p.selected);
-  const completed = !p.upload && latest?.state === "ready" && latest.url;
+  const busyAppend = latest?.appendState && latest.appendState !== "failed";
+  const completed =
+    !p.upload &&
+    !busyAppend &&
+    ["ready", "empty"].includes(latest?.state) &&
+    latest.url;
   const preparing =
-    !p.upload && ["queued", "archiving"].includes(latest?.state);
+    !p.upload &&
+    (["queued", "archiving"].includes(latest?.state) || busyAppend);
   const speed = p.elapsed ? p.progress / p.elapsed : 0,
     eta = speed ? Math.max(0, (p.upload?.total - p.progress) / speed) : 0;
   return (
@@ -258,6 +409,7 @@ export function OwnerView(p) {
     >
       <AnimatedDetails
         className="settings"
+        inline
         ref={settings}
         label="Настройки"
         summary={<Gear />}
@@ -294,28 +446,29 @@ export function OwnerView(p) {
             className="icon-button"
             aria-label="Сгенерировать и скопировать пароль"
             title={
-              passwordState === "copied"
-                ? "Пароль скопирован"
-                : passwordState === "failed"
-                  ? "Не удалось скопировать. Повторить"
-                  : p.secret
-                    ? "Пароль установлен. Сгенерировать новый и скопировать"
-                    : "Сгенерировать и скопировать пароль"
+              passwordState === "removed"
+                ? "Пароль убран"
+                : passwordState === "copied"
+                  ? "Пароль скопирован"
+                  : passwordState === "failed"
+                    ? "Не удалось скопировать. Повторить"
+                    : p.secret
+                      ? "Пароль установлен. Один клик — новый пароль, двойной — убрать"
+                      : "Один клик — сгенерировать и скопировать пароль, двойной — убрать"
             }
             data-active={!!p.secret}
             disabled={!!p.upload}
-            onClick={async () => {
-              const a = new Uint32Array(1);
-              do {
-                crypto.getRandomValues(a);
-              } while (a[0] >= 4294000000);
-              const pin = String(a[0] % 1000000).padStart(6, "0");
-              try {
-                await navigator.clipboard.writeText(pin);
-                p.setSecret(pin);
-                setPasswordState("copied");
-              } catch {
-                setPasswordState("failed");
+            onClick={(e) => {
+              clearTimeout(passwordClick.current);
+              if (e.detail === 0) generatePassword();
+              else if (e.detail === 1)
+                passwordClick.current = setTimeout(generatePassword, 350);
+            }}
+            onDoubleClick={clearPassword}
+            onKeyDown={(e) => {
+              if (e.key === "Delete" || e.key === "Backspace") {
+                e.preventDefault();
+                clearPassword();
               }
             }}
           >
@@ -329,11 +482,13 @@ export function OwnerView(p) {
               }
             />
             <span className="sr-only" role="status">
-              {passwordState === "copied"
-                ? "Пароль скопирован"
-                : passwordState === "failed"
-                  ? "Не удалось скопировать пароль"
-                  : ""}
+              {passwordState === "removed"
+                ? "Пароль убран"
+                : passwordState === "copied"
+                  ? "Пароль скопирован"
+                  : passwordState === "failed"
+                    ? "Не удалось скопировать пароль"
+                    : ""}
             </span>
           </button>
           <button
@@ -351,8 +506,10 @@ export function OwnerView(p) {
         type="file"
         multiple
         hidden
+        onCancel={() => (appendTarget.current = null)}
         onChange={(e) => {
-          p.choose(e.target.files);
+          p.choose(e.target.files, appendTarget.current);
+          appendTarget.current = null;
           e.target.value = "";
         }}
       />
@@ -361,29 +518,51 @@ export function OwnerView(p) {
           {p.upload ? (
             <>
               <FileList files={p.upload.files} />
-              <progress value={p.progress} max={p.upload.total || 1} />
-              <p className="muted">
-                {bytes(p.progress)} / {bytes(p.upload.total)} · {bytes(speed)}/с
-              </p>
-              <p className="muted">
-                Прошло: {Math.round(p.elapsed)} с · осталось ≈ {Math.round(eta)}{" "}
-                с
-              </p>
-              <div className="actions">
+              <div className="upload-times">
+                <time title="Прошло">{Math.round(p.elapsed)} с</time>
+                <time title="Осталось">≈ {Math.round(eta)} с</time>
+              </div>
+              <progress
+                aria-label="Прогресс загрузки"
+                value={p.progress}
+                max={p.upload.total || 1}
+              />
+              <div className="upload-metrics">
+                <span title="Загружено / общий размер">
+                  {bytes(p.progress)} / {bytes(p.upload.total)}
+                </span>
+                <span title="Скорость">{bytes(speed)}/с</span>
+              </div>
+              <div className="upload-actions">
                 <button
+                  type="button"
+                  className="icon-button"
                   disabled={p.paused && p.running}
+                  aria-label={p.paused ? "Продолжить" : "Пауза"}
+                  title={p.paused ? "Продолжить" : "Пауза"}
                   onClick={() => (p.paused ? p.run(p.upload) : p.pause())}
                 >
-                  {p.paused ? "Продолжить" : "Пауза"}
+                  <Icon name={p.paused ? "play" : "pause"} />
                 </button>
-                <button onClick={p.cancel}>Отменить</button>
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label="Отменить"
+                  title="Отменить"
+                  onClick={p.cancel}
+                >
+                  <Icon name="cancel" />
+                </button>
               </div>
             </>
           ) : completed ? (
             <>
               <Share
                 url={latest.url}
-                onAdd={() => p.setSelected(null)}
+                onAdd={() => {
+                  appendTarget.current = latest.id;
+                  input.current.click();
+                }}
                 onDelete={() => p.remove(latest.id)}
               />
             </>
@@ -394,12 +573,17 @@ export function OwnerView(p) {
               className="primary-action"
               aria-label="ЗАГРУЗИТЬ"
               title="Загрузить"
-              onClick={() => input.current.click()}
+              onClick={() => {
+                appendTarget.current = null;
+                input.current.click();
+              }}
             >
               <Icon name="upload" />
             </button>
           )}
-          {p.error && <p role="alert">{p.error}</p>}
+          {(p.error || latest?.appendError) && (
+            <p role="alert">{p.error || latest?.appendError}</p>
+          )}
         </div>
       </section>
       {completed && <Expiry value={latest.expires} />}
@@ -408,6 +592,11 @@ export function OwnerView(p) {
           items={p.history}
           onClose={() => setHistoryOpen(false)}
           onDelete={p.remove}
+          onRemoveFiles={p.removeFiles}
+          onAdd={(id) => {
+            appendTarget.current = id;
+            input.current.click();
+          }}
         />
       )}
     </main>

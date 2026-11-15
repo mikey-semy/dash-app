@@ -30,17 +30,7 @@ export function Recipient({ token, api }) {
         aria-label="Перейти к загрузке"
         title="Перейти к загрузке"
       >
-        <svg
-          width="22"
-          height="22"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.4"
-          aria-hidden="true"
-        >
-          <path d="M12 16V3m-5 5 5-5 5 5M4 15v6h16v-6" />
-        </svg>
+        <Icon name="upload" />
       </a>
       <div className="content">
         {error && <p role="alert">{error}</p>}
@@ -71,14 +61,28 @@ export function Recipient({ token, api }) {
         ) : (
           info && (
             <>
-              <a
-                className="primary-action"
-                aria-label="СКАЧАТЬ"
-                title="Скачать"
-                href={"/public/" + token + "/download"}
-              >
-                <Icon name="download" />
-              </a>
+              {info.files.length ? (
+                <>
+                  {" "}
+                  <a
+                    className="primary-action"
+                    aria-label="СКАЧАТЬ"
+                    title="Скачать"
+                    href={"/public/" + token + "/download"}
+                  >
+                    <Icon name="download" />
+                  </a>
+                </>
+              ) : (
+                <button
+                  className="primary-action"
+                  disabled
+                  aria-label="СКАЧАТЬ"
+                  title="В передаче пока нет файлов"
+                >
+                  <Icon name="download" />
+                </button>
+              )}
               <AnimatedDetails
                 className="transfer-details"
                 label="Подробности передачи"

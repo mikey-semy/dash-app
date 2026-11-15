@@ -485,6 +485,9 @@ dialog[open],
   font-weight: 500;
   margin: 0;
 }
+.dialog-header h2:focus {
+  outline: none;
+}
 .dialog-body {
   padding: 0 24px;
   overflow-y: auto;

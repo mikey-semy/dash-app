@@ -334,6 +334,7 @@ function History({
   };
   useEffect(() => {
     ref.current.showModal();
+    ref.current.querySelector("h2").focus({ preventScroll: true });
     document.title = "История";
     return () => {
       clearTimeout(timer.current);
@@ -357,7 +358,7 @@ function History({
     >
       <header className="dialog-header">
         <div className="dialog-header-start">
-          <h2 aria-label="История">
+          <h2 aria-label="История" tabIndex={-1}>
             <Icon name="history" />
           </h2>
           <div className="dialog-header-actions history-bulk-actions">

@@ -851,6 +851,9 @@ test("history selection deletes multiple records without expanding and supports 
     "Удалено",
     "Готово",
   ]);
+  await expect(page.locator(".dialog-header h2")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.locator(".dialog-header input")).toBeFocused();
   const closeBox = await page.locator(".dialog-header > button").boundingBox();
   const deleteBox = await page
     .locator(".history-bulk-actions button")

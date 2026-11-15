@@ -202,8 +202,8 @@ function HistoryItem({
                 {
                   ready: "check",
                   empty: "archive",
-                  deleted: "delete",
-                  deleting: "delete",
+                  deleted: "cancel",
+                  deleting: "cancel",
                   failed: "warning",
                   archiving: "archive",
                   queued: "archive",

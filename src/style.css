@@ -989,6 +989,9 @@ a {
   max-height: 40dvh;
   overflow: auto;
   scrollbar-width: thin;
+  width: calc(100% + 18px);
+  margin-right: -18px;
+  padding-right: 18px;
 }
 .share-ready {
   display: flex;
@@ -1065,6 +1068,11 @@ a {
   overflow-y: auto;
   scrollbar-width: thin;
   overscroll-behavior: contain;
+  padding-right: 18px;
+  padding-left: 18px;
+}
+.recipient .transfer-details {
+  width: min(516px, calc(100% - 12px));
 }
 
 .history-row {

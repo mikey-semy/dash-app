@@ -1130,3 +1130,13 @@ body:has(.owner) {
     gap: 0;
   }
 }
+
+.dialog-header-start {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.dialog-header > .icon-button {
+  width: 32px;
+  height: 32px;
+}

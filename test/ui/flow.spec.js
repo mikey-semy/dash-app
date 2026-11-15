@@ -851,6 +851,13 @@ test("history selection deletes multiple records without expanding and supports 
     "Удалено",
     "Готово",
   ]);
+  const closeBox = await page.locator(".dialog-header > button").boundingBox();
+  const deleteBox = await page
+    .locator(".history-bulk-actions button")
+    .boundingBox();
+  expect(closeBox.width).toBe(deleteBox.width);
+  expect(closeBox.height).toBe(deleteBox.height);
+  expect(closeBox.x - deleteBox.x - deleteBox.width).toBeGreaterThan(100);
   const rows = page.locator(".history-item");
   await rows.nth(0).locator(".history-select").check();
   await rows.nth(1).locator(".history-select").check();
@@ -862,13 +869,13 @@ test("history selection deletes multiple records without expanding and supports 
       .locator(".dialog-header input")
       .evaluate((el) => el.indeterminate),
   ).toBe(true);
-  await confirmDelete(page.locator(".dialog-header button:has(svg)"));
+  await confirmDelete(page.locator(".history-bulk-actions button"));
   await expect(rows).toHaveCount(1);
   expect(removed[0]).toEqual(["row0", "row1"]);
   await page.locator(".dialog-header input").check();
-  await confirmDelete(page.locator(".dialog-header button:has(svg)"));
+  await confirmDelete(page.locator(".history-bulk-actions button"));
   await expect(rows).toHaveCount(0);
-  await expect(page.locator(".dialog-header button:has(svg)")).toBeDisabled();
+  await expect(page.locator(".history-bulk-actions button")).toBeDisabled();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,

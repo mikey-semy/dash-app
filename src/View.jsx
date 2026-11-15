@@ -356,52 +356,55 @@ function History({
       aria-label="История"
     >
       <header className="dialog-header">
-        <h2 aria-label="История">
-          <Icon name="history" />
-        </h2>
-        <div className="dialog-header-actions">
-          <input
-            className="history-select"
-            type="checkbox"
-            aria-label="Выбрать все передачи"
-            checked={allSelected}
-            disabled={!items.length || removing}
-            ref={(el) => {
-              if (el)
-                el.indeterminate = selectedItems.length > 0 && !allSelected;
-            }}
-            onChange={() =>
-              setSelection(
-                allSelected ? new Set() : new Set(items.map((t) => t.id)),
-              )
-            }
-          />
-          <DeleteButton
-            label="Удалить выбранные передачи"
-            confirmationKey={selectedItems.map((t) => t.id).join(",")}
-            disabled={!selectedItems.length || removing}
-            onDelete={async () => {
-              setRemoving(true);
-              setError("");
-              try {
-                await onRemoveHistory(selectedItems.map((t) => t.id));
-                setSelection(new Set());
-              } catch (e) {
-                setError(e.message);
-              } finally {
-                setRemoving(false);
+        <div className="dialog-header-start">
+          <h2 aria-label="История">
+            <Icon name="history" />
+          </h2>
+          <div className="dialog-header-actions history-bulk-actions">
+            <input
+              className="history-select"
+              type="checkbox"
+              aria-label="Выбрать все передачи"
+              checked={allSelected}
+              disabled={!items.length || removing}
+              ref={(el) => {
+                if (el)
+                  el.indeterminate = selectedItems.length > 0 && !allSelected;
+              }}
+              onChange={() =>
+                setSelection(
+                  allSelected ? new Set() : new Set(items.map((t) => t.id)),
+                )
               }
-            }}
-          />
-          <button
-            className="icon-button"
-            onClick={close}
-            aria-label="Закрыть историю"
-            title="Закрыть историю"
-          >
-            ×
-          </button>
+            />
+            <DeleteButton
+              label="Удалить выбранные передачи"
+              confirmationKey={selectedItems.map((t) => t.id).join(",")}
+              disabled={!selectedItems.length || removing}
+              onDelete={async () => {
+                setRemoving(true);
+                setError("");
+                try {
+                  await onRemoveHistory(selectedItems.map((t) => t.id));
+                  setSelection(new Set());
+                } catch (e) {
+                  setError(e.message);
+                } finally {
+                  setRemoving(false);
+                }
+              }}
+            />
+          </div>
         </div>
+        <button
+          type="button"
+          className="icon-button"
+          onClick={close}
+          aria-label="Закрыть историю"
+          title="Закрыть историю"
+        >
+          <Icon name="cancel" />
+        </button>
       </header>
       <div className="dialog-body">
         {error && <p role="alert">{error}</p>}

@@ -1,13 +1,7 @@
-Настройки применяются администратором к **новому отдельному приватному бакету**. Сначала замените домен, BUCKET и SERVICE_ACCOUNT_ID в JSON. Не применяйте эти команды к бакету других приложений: они заменяют соответствующую конфигурацию.
+# Существующий бакет example-bucket
 
-```sh
-aws --endpoint-url https://storage.yandexcloud.net s3api put-bucket-cors --bucket YOUR_BUCKET --cors-configuration file://deploy/cors.json
-aws --endpoint-url https://storage.yandexcloud.net s3api put-bucket-lifecycle-configuration --bucket YOUR_BUCKET --lifecycle-configuration file://deploy/lifecycle.json
-aws --endpoint-url https://storage.yandexcloud.net s3api put-bucket-policy --bucket YOUR_BUCKET --policy file://deploy/bucket-policy.json
-```
+Приложение использует только `holder/`, задайте `S3_BUCKET=example-bucket` и `S3_PREFIX=holder/`. Это префикс объектов S3, отдельный объект-папку создавать не требуется.
 
-AWS CLI должен быть заранее авторизован административным аккаунтом; административные ключи приложению не передавайте. Приложению нужны только статические ключи отдельного сервисного аккаунта с операциями из policy. Убедитесь, что аккаунт не наследует широкие роли на каталог/облако, а бакет не разрешает публичное чтение/запись. Versioning и Object Lock должны быть выключены, иначе подтверждённое удаление текущего объекта не гарантирует освобождение физического места.
+JSON-файлы — шаблоны для проверки и слияния, а не готовые команды замены конфигурации общего бакета. Сначала прочитайте существующие CORS, lifecycle, policy и versioning. Затем добавьте CORS для https://files.example.com и lifecycle AbortIncompleteMultipartUpload через 1 день только для holder/, сохранив все существующие правила и доступ example-app. Если нет прав прочитать или безопасно обновить настройки, изменение останавливается.
 
-После настройки проверьте прямую загрузку из браузера, HEAD/Range через backend, удаление и отсутствие незавершённых multipart после отмены. Lifecycle через сутки страхует аварийные multipart, но не заменяет ежеминутную уборку приложения.
-
-Официальные инструкции: [CORS](https://yandex.cloud/en/docs/storage/operations/buckets/cors), [bucket policy](https://yandex.cloud/en/docs/storage/operations/buckets/policy), [разрешения S3](https://yandex.cloud/en/docs/storage/s3/api-ref/policy/actions), [lifecycle](https://yandex.cloud/en/docs/storage/operations/buckets/lifecycles).
+Объектные права нового сервисного аккаунта по возможности ограничьте arn:aws:s3:::example-bucket/holder/*. Существующие credentials example-app не печатать, не сохранять в git и не отзывать. Для безопасного освобождения физического места требуется выключенное versioning/Object Lock либо отдельная доработка учёта версий. Не отключать общие настройки бакета без согласования.

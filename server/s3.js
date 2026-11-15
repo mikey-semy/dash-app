@@ -3,6 +3,13 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 export class Store {
   constructor(env) {
     this.bucket = env.S3_BUCKET;
+    this.prefix = (env.S3_PREFIX || "").replace(/\/+$/, "");
+    if (
+      this.prefix &&
+      !/^[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)*$/.test(this.prefix)
+    )
+      throw new Error("Invalid S3_PREFIX");
+    if (this.prefix) this.prefix += "/";
     this.client = new S.S3Client({
       endpoint: env.S3_ENDPOINT,
       region: env.S3_REGION || "ru-central1",
@@ -22,9 +29,22 @@ export class Store {
     });
   }
   send(name, args) {
+    args = { ...args };
+    if (args.Key !== undefined) args.Key = this.key(args.Key);
+    if (args.Prefix !== undefined) args.Prefix = this.key(args.Prefix);
     return this.client.send(
       new S[name + "Command"]({ Bucket: this.bucket, ...args }),
     );
+  }
+  key(key) {
+    if (
+      typeof key !== "string" ||
+      !key ||
+      key.startsWith("/") ||
+      key.split("/").includes("..")
+    )
+      throw new Error("Invalid object key");
+    return this.prefix + key;
   }
   async create(key) {
     return (
@@ -39,7 +59,7 @@ export class Store {
       this.client,
       new S.UploadPartCommand({
         Bucket: this.bucket,
-        Key: key,
+        Key: this.key(key),
         UploadId: upload,
         PartNumber: part,
         ContentLength: size,
@@ -101,7 +121,11 @@ export class Store {
         KeyMarker: keyMarker,
         UploadIdMarker: marker,
       });
-      for (const u of r.Uploads || []) await this.abort(u.Key, u.UploadId);
+      for (const u of r.Uploads || []) {
+        if (!u.Key.startsWith(this.prefix + id + "/"))
+          throw new Error("S3 returned an object outside transfer prefix");
+        await this.abort(u.Key.slice(this.prefix.length), u.UploadId);
+      }
       keyMarker = r.IsTruncated ? r.NextKeyMarker : undefined;
       marker = r.IsTruncated ? r.NextUploadIdMarker : undefined;
     } while (keyMarker);

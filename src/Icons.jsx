@@ -51,6 +51,9 @@ export function Icon({ name }) {
       </>
     ),
     chevron: <path d="m7 10 5 5 5-5" />,
+    add: <path d="M12 4v16M4 12h16" />,
+    upload: <path d="M12 16V3m-5 5 5-5 5 5M4 15v6h16v-6" />,
+    download: <path d="M12 3v13m-5-5 5 5 5-5M4 17v4h16v-4" />,
   };
   return (
     <svg

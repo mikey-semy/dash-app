@@ -37,8 +37,13 @@ export function Share({ url, onAdd, onDelete }) {
   return (
     <div className={onAdd ? "share share-ready" : "share"}>
       {onAdd && (
-        <button className="primary-action" onClick={onAdd}>
-          Добавить
+        <button
+          className="primary-action"
+          onClick={onAdd}
+          aria-label="Добавить"
+          title="Добавить"
+        >
+          <Icon name="add" />
         </button>
       )}
       <div className="share-controls">
@@ -361,9 +366,11 @@ export function OwnerView(p) {
           ) : (
             <button
               className="primary-action"
+              aria-label="ЗАГРУЗИТЬ"
+              title="Загрузить"
               onClick={() => input.current.click()}
             >
-              ЗАГРУЗИТЬ
+              <Icon name="upload" />
             </button>
           )}
           {p.error && <p role="alert">{p.error}</p>}

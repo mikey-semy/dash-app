@@ -41,7 +41,7 @@ test("empty page, settings, upload, private recipient, ZIP, history and deletion
   await page.getByRole("button", { name: "Войти" }).click();
   await expect(page.getByRole("alert")).toHaveText("Неверный пароль");
   await login(page);
-  expect((await page.locator("body").innerText()).trim()).toBe("ЗАГРУЗИТЬ");
+  expect((await page.locator("body").innerText()).trim()).toBe("");
   await page.screenshot({ path: "work/ui-desktop.png", fullPage: true });
   await page.getByLabel("Настройки", { exact: true }).click();
   await page.getByLabel("Пароль скачивания").fill("recipient-secret");
@@ -135,7 +135,7 @@ test("mobile empty page, monochrome and no horizontal overflow", async ({
   await login(page);
   await checkAction(page, "button", "ЗАГРУЗИТЬ");
   await page.setViewportSize({ width: 390, height: 844 });
-  expect((await page.locator("body").innerText()).trim()).toBe("ЗАГРУЗИТЬ");
+  expect((await page.locator("body").innerText()).trim()).toBe("");
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -350,6 +350,30 @@ test("history expansion preserves modal and clicked header positions throughout 
         expect(Math.abs(p.headerY - header.y)).toBeLessThan(1);
       }
     }
+    const rapid = await page.evaluate(async () => {
+      const button = document.querySelector(".history-toggle"),
+        panel = document.querySelector(".history-item .disclosure");
+      button.click();
+      await new Promise((r) => setTimeout(r, 70));
+      const partial = panel.getBoundingClientRect().height;
+      button.click();
+      await new Promise(requestAnimationFrame);
+      const reversed = panel.getBoundingClientRect().height;
+      button.click();
+      await new Promise((r) => setTimeout(r, 300));
+      const opened = panel.getBoundingClientRect().height;
+      button.click();
+      await new Promise((r) => setTimeout(r, 300));
+      return {
+        partial,
+        reversed,
+        opened,
+        closed: panel.getBoundingClientRect().height,
+      };
+    });
+    expect(rapid.partial).toBeGreaterThan(0);
+    expect(rapid.reversed).toBeLessThan(rapid.opened);
+    expect(rapid.closed).toBeLessThan(1);
     await page.getByRole("button", { name: "Закрыть историю" }).click();
     await expect(dialog).toBeHidden();
   }

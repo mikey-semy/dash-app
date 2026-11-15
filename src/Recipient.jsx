@@ -73,9 +73,11 @@ export function Recipient({ token, api }) {
             <>
               <a
                 className="primary-action"
+                aria-label="СКАЧАТЬ"
+                title="Скачать"
                 href={"/public/" + token + "/download"}
               >
-                СКАЧАТЬ
+                <Icon name="download" />
               </a>
               <AnimatedDetails
                 className="transfer-details"

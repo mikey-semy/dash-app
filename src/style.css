@@ -752,3 +752,38 @@ main,
     scroll-behavior: auto !important;
   }
 }
+
+/* Animate measured pixels; grid fractions can snap at intrinsic content limits. */
+.disclosure,
+.disclosure[data-open="true"] {
+  display: block;
+  height: 0;
+  overflow: hidden;
+  opacity: 1;
+  visibility: hidden;
+  transition: none;
+}
+.disclosure-inner {
+  display: flow-root;
+  overflow: visible;
+}
+/* Keep the clicked history header still even while pressing it. */
+.history-toggle:active {
+  scale: 1;
+}
+
+.primary-action > svg {
+  display: block;
+  width: 22px;
+  height: 22px;
+}
+
+button,
+a {
+  transition-property:
+    opacity, transform, scale, border-color, background-color;
+  transition-duration: 0.18s;
+}
+.icon-button:not(:disabled):active {
+  scale: 1;
+}

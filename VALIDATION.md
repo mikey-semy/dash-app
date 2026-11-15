@@ -21,3 +21,7 @@ GitHub CLI сообщает `You are not logged into any GitHub hosts`. Репо
 Файл был сохранён как `.env.txt`, переименован в `.env` и исключён из git. Реальная интеграция Yandex S3 в `example-bucket/holder/` прошла: multipart 9 MiB, восстановление SQLite, потоковый ZIP, побайтовая проверка, Range и очистка тестовых объектов. CORS и lifecycle в бакете отсутствуют, versioning выключен.
 
 Проверка приватности выявила блокер запуска: временный объект под holder/ читается анонимно (HTTP 200). Тестовый объект удалён. До запуска необходимо ограничить публичное чтение holder/ без нарушения публичного доступа к остальным объектам example-app. Настройки общего бакета этой проверкой не изменялись. ADMIN_PASSWORD в .env остаётся шаблонным; значение не выводилось.
+
+## Публикация и CI/CD
+
+Авторизация GitHub найдена в Windows Credential Manager (gh auth status сам по себе её не видел). Создан приватный example-user/s3-flash-drive, main отправлен. Первый GitHub Actions run 43709217136 завершён success: тесты и сборка Docker на GitHub, передача образа, запуск holder-flash-1 healthy, HTTPS-проверка files.example.com. S3 CORS для домена и lifecycle AbortIncompleteMultipartUpload только holder/ добавлены с сохранением существующих правил; публичность бакета не менялась по решению владельца. Случайный пароль входа сохранён в локальном и серверном .env; секреты в git не включались.

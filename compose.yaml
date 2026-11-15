@@ -32,11 +32,13 @@ services:
       - traefik.http.routers.flash.rule=Host(`${DOMAIN}`)
       - traefik.http.routers.flash.entrypoints=websecure
       - traefik.http.routers.flash.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}
+      - traefik.http.routers.flash.observability.accesslogs=false
       - traefik.http.services.flash.loadbalancer.server.port=3000
       - traefik.http.routers.flash-http.rule=Host(`${DOMAIN}`)
       - traefik.http.routers.flash-http.entrypoints=web
       - traefik.http.routers.flash-http.middlewares=redirect-to-https@file
       - traefik.http.routers.flash-http.service=flash
+      - traefik.http.routers.flash-http.observability.accesslogs=false
     healthcheck:
       test:
         [

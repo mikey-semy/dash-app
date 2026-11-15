@@ -6,7 +6,7 @@
 
 ## Запуск на server
 
-Прод не изменялся. Используется существующий бакет `example-bucket`, исключительно префикс `holder/` (`S3_PREFIX=holder/`). Ключи объектов и multipart-запросы ограничены этим префиксом на уровне S3-адаптера. До запуска проверьте приватность, versioning/Object Lock и права на запись/удаление. Чужие префиксы не изменяются. У приложения должен быть ровно один процесс/контейнер: SQLite и сериализованная очередь рассчитаны на один экземпляр.
+Приложение развёрнуто отдельным Compose-проектом `holder` на https://files.example.com; сервисы example-app и example-app не изменяются. Используется существующий бакет `example-bucket`, исключительно префикс `holder/` (`S3_PREFIX=holder/`). Ключи объектов и multipart-запросы ограничены этим префиксом на уровне S3-адаптера. До запуска проверьте приватность, versioning/Object Lock и права на запись/удаление. Чужие префиксы не изменяются. У приложения должен быть ровно один процесс/контейнер: SQLite и сериализованная очередь рассчитаны на один экземпляр.
 
 1. Скопируйте `.env.example` в `.env`, заполните параметры. `PUBLIC_URL` — точный origin HTTPS без пути; `ADMIN_PASSWORD` — случайный пароль ≥16 символов. `DOMAIN`, имя существующей внешней Docker-сети и resolver Traefik нужно согласовать с текущей конфигурацией сервера. `.env` не включён в git.
 2. Настройте CORS по `deploy/cors.json`, заменив origin. Браузер должен видеть публичный S3 endpoint. Для multipart разрешены PUT и заголовки; ETag открыт. Сервер инициирует/завершает multipart, браузер получает только короткие разрешения конкретной части.
@@ -44,3 +44,11 @@ HTTP→HTTPS redirect должен быть настроен на Traefik. Пу�
 Документация провайдеров: [Yandex multipart](https://yandex.cloud/en/docs/storage/concepts/multipart), [Yandex lifecycle](https://yandex.cloud/en/docs/storage/operations/buckets/lifecycles), [AWS multipart limits](https://docs.aws.amazon.com/AmazonS3/latest/userguide/qfacts.html).
 
 Реальная S3-проверка: задайте `TEST_S3_ENDPOINT`, `TEST_S3_REGION`, `TEST_S3_BUCKET`, `TEST_S3_ACCESS_KEY`, `TEST_S3_SECRET_KEY` в окружении **отдельного тестового бакета**, затем `node --test test/real-s3.test.js`. Тест создаёт случайный префикс, загружает 9 MiB + пустой файл, пересоздаёт SQLite-соединение, собирает ZIP, проверяет байты, Range и удаление. Без endpoint он явно пропускается. Секреты не сохраняйте в командную историю или git.
+
+## Автодеплой main
+
+Приватный репозиторий: https://github.com/example-user/s3-flash-drive. Каждый push в main запускает backend-тесты, production-сборку и Chrome UI-тесты. Только после их успеха GitHub Actions собирает Docker image, передаёт его по SSH на server и обновляет исключительно Compose-проект holder через deploy/release.sh. Образ собирается на GitHub, не на занятом production-сервере. Релизы сериализованы, SHA фиксируется в .deployed-sha; при неуспешном healthcheck возвращается предыдущий образ/Compose.
+
+Настройки Actions: vars.DEPLOY_TARGET, secrets.DEPLOY_SSH_KEY и secrets.DEPLOY_KNOWN_HOSTS. Ключ отдельный для этого проекта, host key закреплён. S3-ключи и пароль хранятся только в /root/apps/s3-flash-drive/.env на сервере и локальном .env, в GitHub и Docker image их нет. Шаблонный ADMIN_PASSWORD заменён случайным паролем в локальном .env. На server нужен Docker Compose с поддержкой --wait. Исходные файлы и образы релизов не смешиваются с example-app/example-app; чужие контейнеры/образы/тома не очищаются.
+
+Для files.example.com access log Traefik отключён отдельными labels обоих routers, чтобы URL передач не попадали в общий журнал. Публичность бакета сохранена по явному решению владельца; пароль и срок строго проверяются при скачивании через домен, но прямой адрес S3 при его получении обходит эти проверки до физического удаления.

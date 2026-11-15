@@ -1,6 +1,7 @@
 services:
   flash:
     build: .
+    image: ${FLASH_IMAGE:-s3-flash-drive:local}
     restart: unless-stopped
     init: true
     env_file: .env
@@ -32,6 +33,10 @@ services:
       - traefik.http.routers.flash.entrypoints=websecure
       - traefik.http.routers.flash.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}
       - traefik.http.services.flash.loadbalancer.server.port=3000
+      - traefik.http.routers.flash-http.rule=Host(`${DOMAIN}`)
+      - traefik.http.routers.flash-http.entrypoints=web
+      - traefik.http.routers.flash-http.middlewares=redirect-to-https@file
+      - traefik.http.routers.flash-http.service=flash
     healthcheck:
       test:
         [

@@ -1,5 +1,7 @@
 name: checks
 on: [push, pull_request]
+permissions:
+  contents: read
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -16,3 +18,37 @@ jobs:
       - run: npx playwright test
         env:
           PLAYWRIGHT_BUNDLED: "1"
+  deploy:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: holder-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure SSH
+        env:
+          KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "$KEY" && test -n "$KNOWN_HOSTS"
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/id_deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_deploy ~/.ssh/known_hosts
+      - name: Build image
+        run: docker build -t "s3-flash-drive:$GITHUB_SHA" .
+      - name: Transfer and release
+        env:
+          DEPLOY_TARGET: ${{ vars.DEPLOY_TARGET }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_TARGET"
+          ssh -i ~/.ssh/id_deploy "$DEPLOY_TARGET" "mkdir -p /root/apps/s3-flash-drive/releases/$GITHUB_SHA"
+          scp -i ~/.ssh/id_deploy compose.yaml deploy/release.sh "$DEPLOY_TARGET:/root/apps/s3-flash-drive/releases/$GITHUB_SHA/"
+          docker save "s3-flash-drive:$GITHUB_SHA" | gzip | ssh -i ~/.ssh/id_deploy "$DEPLOY_TARGET" 'gunzip | docker load >/dev/null'
+          ssh -i ~/.ssh/id_deploy "$DEPLOY_TARGET" "bash /root/apps/s3-flash-drive/releases/$GITHUB_SHA/release.sh $GITHUB_SHA"
+          curl --fail --retry 6 --retry-all-errors --retry-delay 5 https://files.example.com/ -o /dev/null

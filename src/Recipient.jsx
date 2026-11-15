@@ -1,22 +1,34 @@
 import { AnimatedDetails } from "./Disclosure.jsx";
 import { Icon } from "./Icons.jsx";
 import { PasswordInput } from "./PasswordInput.jsx";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { Expiry } from "./Icons.jsx";
 import { RecipientShare } from "./RecipientShare.jsx";
 import { FileList, bytes, date } from "./View.jsx";
+const TextPreview = lazy(() => import("./TextPreview.jsx"));
 export function Recipient({ token, api }) {
   const [info, setInfo] = useState(null),
     [password, setPassword] = useState(""),
     [error, setError] = useState("");
   const requestVersion = useRef(0);
+  const [textUnavailable, setTextUnavailable] = useState(false);
+  useEffect(() => setTextUnavailable(false), [token, info?.etag, info?.name]);
   useEffect(() => {
     document.title = info?.locked
       ? "Пароль передачи"
       : error
         ? "Передача недоступна"
-        : "Скачивание";
-  }, [info, error]);
+        : info?.preview && !textUnavailable
+          ? info.name
+          : "Скачивание";
+  }, [info, error, textUnavailable]);
   const load = useCallback(
     async (background = false) => {
       const version = ++requestVersion.current;
@@ -53,7 +65,13 @@ export function Recipient({ token, api }) {
     };
   }, [load]);
   return (
-    <main className="recipient center">
+    <main
+      className={
+        info?.preview && !info.locked && !textUnavailable
+          ? "recipient center has-text"
+          : "recipient center"
+      }
+    >
       <a
         className="upload-link"
         href="/"
@@ -102,7 +120,22 @@ export function Recipient({ token, api }) {
         ) : (
           info && (
             <>
-              {info.files.length ? (
+              {info.preview ? (
+                <Suspense
+                  fallback={
+                    <div className="archive-status">
+                      <Icon name="code" />
+                    </div>
+                  }
+                >
+                  <TextPreview
+                    token={token}
+                    info={info}
+                    onUnavailable={() => load(true)}
+                    onUnsupported={() => setTextUnavailable(true)}
+                  />
+                </Suspense>
+              ) : info.files.length ? (
                 <>
                   {" "}
                   <a

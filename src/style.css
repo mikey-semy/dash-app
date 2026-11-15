@@ -1157,3 +1157,142 @@ body:has(.owner) {
   width: 32px;
   height: 32px;
 }
+/* Text and code use the same plain surface as file transfers. */
+.text-dialog[open] {
+  display: flex;
+  flex-direction: column;
+  width: min(1100px, calc(100% - 24px));
+  height: 85dvh;
+  max-height: 85dvh;
+  overflow: hidden;
+}
+.text-dialog .dialog-header {
+  padding: 14px 18px;
+}
+.text-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.language-label {
+  font-size: 12px;
+  color: #777;
+  white-space: nowrap;
+}
+.text-dialog-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.text-error {
+  font-size: 12px;
+  padding: 0 18px;
+}
+.code-editor,
+.code-editor .cm-editor {
+  height: 100%;
+  min-height: 0;
+}
+.code-editor .cm-editor {
+  background: #fff;
+  color: #111;
+  font-size: 16px;
+}
+.code-editor .cm-scroller {
+  overflow: auto;
+  font-family:
+    ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  line-height: 1.6;
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
+}
+.code-editor .cm-content {
+  padding: 12px 0;
+}
+.code-editor .cm-line {
+  padding: 0 16px;
+}
+.code-editor .cm-gutters {
+  background: #fff;
+  color: #8c959f;
+  border: 0;
+  padding: 0;
+  user-select: none;
+}
+.code-editor .cm-lineNumbers .cm-gutterElement {
+  padding: 0 8px 0 16px;
+}
+.code-editor .cm-editor.cm-focused,
+.code-editor .cm-content:focus {
+  outline: none;
+}
+.keyboard-navigation .code-editor .cm-editor.cm-focused {
+  outline: 1px solid #111;
+  outline-offset: -1px;
+}
+.recipient.has-text {
+  display: block;
+  padding: 68px 24px 48px;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+.recipient.has-text > .content {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.text-preview {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.text-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 0 0 10px;
+  border-bottom: 1px solid #eee;
+}
+.text-preview-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.raw-link {
+  font-size: 12px;
+  text-decoration: none;
+  padding: 8px 0;
+}
+.recipient.has-text .transfer-details {
+  position: relative;
+  top: auto;
+  left: auto;
+  transform: none;
+  width: 100%;
+  flex-shrink: 0;
+}
+.recipient.has-text .transfer-information {
+  max-height: 25dvh;
+  padding: 12px 0;
+}
+@media (max-width: 600px) {
+  .recipient.has-text {
+    padding: 60px 12px 40px;
+  }
+  .text-dialog[open] {
+    width: calc(100% - 12px);
+    height: 90dvh;
+    max-height: 90dvh;
+  }
+  .text-dialog .dialog-header {
+    padding: 10px 12px;
+  }
+  .settings .settings-toolbar {
+    gap: 3px;
+  }
+}

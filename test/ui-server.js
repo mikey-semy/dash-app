@@ -30,11 +30,15 @@ host.put(
   },
 );
 host.use(
-  createApp(service, {
-    PUBLIC_URL: "http://127.0.0.1:3001",
-    ADMIN_PASSWORD: "123456",
-    S3_ENDPOINT: "http://127.0.0.1:3001",
-  }),
+  createApp(
+    service,
+    {
+      PUBLIC_URL: "http://127.0.0.1:3001",
+      ADMIN_PASSWORD: "123456",
+      S3_ENDPOINT: "http://127.0.0.1:3001",
+    },
+    { authLimit: 1000 },
+  ),
 );
 const server = host.listen(3001, "127.0.0.1");
 const timer = setInterval(() => service.tick(), 1000);

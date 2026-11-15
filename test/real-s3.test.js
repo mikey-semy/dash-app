@@ -1,3 +1,5 @@
+import request from "supertest";
+import { createApp } from "../server/app.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync } from "node:fs";
@@ -156,6 +158,20 @@ test(
         ).toString(),
         "reset",
       );
+      const app = createApp(service, {
+        PUBLIC_URL: "http://localhost",
+        ADMIN_PASSWORD: "123456",
+        S3_ENDPOINT: process.env.TEST_S3_ENDPOINT,
+      });
+      const raw = await request(app)
+        .get("/raw/" + service.get(id).token)
+        .expect(200);
+      assert.equal(raw.text, "reset");
+      await request(app)
+        .get("/raw/" + service.get(id).token)
+        .set("Range", "bytes=1-3")
+        .expect(206)
+        .expect("ese");
     } finally {
       if (id) {
         service.delete(id);

@@ -130,12 +130,12 @@ function App() {
     return () => window.removeEventListener("beforeunload", fn);
   }, []);
   async function choose(list, parentId = null) {
-    if (active.current) return;
+    if (active.current) return false;
     const files = Array.from(list);
-    if (!files.length) return;
+    if (!files.length) return false;
     if (files.length > 100 || files.reduce((n, f) => n + f.size, 0) > 2e9) {
       setError("Максимум 100 файлов и 2 ГБ суммарно");
-      return;
+      return false;
     }
     setError("");
     try {
@@ -161,8 +161,10 @@ function App() {
       control.current = { paused: false, cancel: false, xhr: null };
       start.current = Date.now();
       run(u);
+      return true;
     } catch (e) {
       setError(e.message);
+      return false;
     }
   }
   function put(url, blob, offset) {

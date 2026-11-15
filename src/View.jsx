@@ -1,7 +1,8 @@
 import { Disclosure, AnimatedDetails } from "./Disclosure.jsx";
-import React, { useEffect, useRef, useState } from "react";
+import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { Icon, CopyButton, DeleteButton, Expiry } from "./Icons.jsx";
+const TextComposer = lazy(() => import("./TextComposer.jsx"));
 export const bytes = (n) =>
   n < 1000
     ? Math.round(n) + " Б"
@@ -435,7 +436,8 @@ function History({
   );
 }
 export function OwnerView(p) {
-  const [historyOpen, setHistoryOpen] = useState(false),
+  const [draft, setDraft] = useState(null),
+    [historyOpen, setHistoryOpen] = useState(false),
     [passwordState, setPasswordState] = useState("idle"),
     input = useRef(),
     appendTarget = useRef(null),
@@ -467,6 +469,32 @@ export function OwnerView(p) {
       passwordVersion.current++;
     }
   }, [p.upload]);
+  useEffect(() => {
+    const paste = (event) => {
+      if (
+        event.defaultPrevented ||
+        p.upload ||
+        historyOpen ||
+        draft !== null ||
+        (event.target instanceof Element &&
+          event.target.closest("input,textarea,[contenteditable=true]"))
+      )
+        return;
+      if (event.clipboardData.files.length) {
+        event.preventDefault();
+        p.choose(event.clipboardData.files);
+      } else {
+        const text = event.clipboardData.getData("text/plain");
+        if (text) {
+          event.preventDefault();
+          settings.current.open = false;
+          setDraft(text);
+        }
+      }
+    };
+    document.addEventListener("paste", paste);
+    return () => document.removeEventListener("paste", paste);
+  }, [p.upload, p.choose, historyOpen, draft]);
   const clearPassword = () => {
     clearTimeout(passwordClick.current);
     passwordVersion.current++;
@@ -532,10 +560,6 @@ export function OwnerView(p) {
         if (!p.upload) p.choose(e.dataTransfer.files);
       }}
       className={p.drag ? "owner dragging" : "owner"}
-      onPaste={(e) => {
-        if (e.clipboardData.files.length && !p.upload)
-          p.choose(e.clipboardData.files);
-      }}
     >
       <AnimatedDetails
         className="settings"
@@ -587,6 +611,7 @@ export function OwnerView(p) {
                       : "Один клик — сгенерировать и скопировать пароль, двойной — убрать"
             }
             data-active={!!p.secret}
+            aria-pressed={!!p.secret}
             disabled={!!p.upload}
             onClick={(e) => {
               clearTimeout(passwordClick.current);
@@ -602,15 +627,7 @@ export function OwnerView(p) {
               }
             }}
           >
-            <Icon
-              name={
-                passwordState === "copied"
-                  ? "check"
-                  : passwordState === "failed"
-                    ? "warning"
-                    : "generate"
-              }
-            />
+            <Icon name={p.secret ? "lock" : "unlock"} />
             <span className="sr-only" role="status">
               {passwordState === "removed"
                 ? "Пароль убран"
@@ -622,6 +639,19 @@ export function OwnerView(p) {
             </span>
           </button>
           <button
+            type="button"
+            className="icon-button"
+            aria-label="Текст или код"
+            title="Текст или код"
+            disabled={!!p.upload}
+            onClick={() => {
+              settings.current.open = false;
+              setDraft("");
+            }}
+          >
+            <Icon name="code" />
+          </button>
+          <button
             className="icon-button"
             aria-label="Выйти"
             title="Выйти"
@@ -631,6 +661,15 @@ export function OwnerView(p) {
           </button>
         </div>
       </AnimatedDetails>
+      {draft !== null && (
+        <Suspense fallback={null}>
+          <TextComposer
+            initial={draft}
+            onClose={() => setDraft(null)}
+            onSend={p.choose}
+          />
+        </Suspense>
+      )}
       <input
         ref={input}
         type="file"

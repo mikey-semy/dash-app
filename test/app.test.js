@@ -833,3 +833,117 @@ test("bulk history removal hides records and denies downloads while preserving q
   assert.equal((await agent.get("/api/transfers")).body.length, 1);
   db.close();
 });
+
+test("Raw preserves UTF-8 bytes, validates content and obeys password, aliases, ranges, expiry and deletion", async () => {
+  const { db, service, store, app } = await setup();
+  const source = Buffer.from(
+    '\ufeff{\r\n\t"message": "Привет 🌍",\r\n\r\n\t"html": "<script>alert(1)</script>"\r\n}\r\n',
+  );
+  const id = await upload(service, store, [["package.json", source]], "123456"),
+    t = service.get(id),
+    url = "/raw/" + t.token,
+    publicURL = "/public/" + t.token;
+  const guest = request.agent(app);
+  await guest
+    .get(publicURL)
+    .expect(200)
+    .expect((r) => assert.deepEqual(r.body, { locked: true }));
+  await guest
+    .get(url)
+    .expect(401)
+    .expect("Content-Type", /text\/plain/);
+  await post(guest, publicURL + "/unlock", { password: "123456" }).expect(200);
+  const info = await guest.get(publicURL).expect(200);
+  assert.equal(info.body.preview, true);
+  assert.equal(info.body.etag, t.output.etag);
+  const raw = await guest
+    .get(url)
+    .buffer(true)
+    .parse((res, cb) => {
+      const chunks = [];
+      res.on("data", (c) => chunks.push(c));
+      res.on("end", () => cb(null, Buffer.concat(chunks)));
+    })
+    .expect(200)
+    .expect("Content-Type", /text\/plain; charset=utf-8/)
+    .expect("X-Content-Type-Options", "nosniff");
+  assert.deepEqual(raw.body, source);
+  await guest
+    .head(url)
+    .expect(200)
+    .expect("Content-Length", String(source.length));
+  await guest
+    .get(url)
+    .set("Range", "bytes=0-2")
+    .expect(206)
+    .expect("Content-Range", `bytes 0-2/${source.length}`);
+  await guest.get(url).set("If-Match", '"stale"').expect(412);
+  await guest.get(url).set("If-None-Match", t.output.etag).expect(304);
+  const old = "L".repeat(43);
+  db.prepare("INSERT INTO share_aliases(token,transfer_id) VALUES(?,?)").run(
+    old,
+    id,
+  );
+  const alias = request.agent(app);
+  await post(alias, "/public/" + old + "/unlock", {
+    password: "123456",
+  }).expect(200);
+  await alias.get("/raw/" + old).expect(200);
+  db.prepare("UPDATE transfers SET expires=? WHERE id=?").run(
+    Date.now() - 1,
+    id,
+  );
+  await guest.get(url).expect(404);
+  db.prepare("UPDATE transfers SET expires=NULL WHERE id=?").run(id);
+  service.delete(id);
+  await guest.get(url).expect(404);
+  const binary = await upload(service, store, [
+    ["not-text.txt", Buffer.from([0, 255, 1])],
+  ]);
+  await request(app)
+    .get("/raw/" + service.get(binary).token)
+    .expect(415);
+  const huge = await upload(service, store, [
+    ["huge.txt", Buffer.alloc(5 * 1024 * 1024 + 1, 65)],
+  ]);
+  await request(app)
+    .get("/public/" + service.get(huge).token)
+    .expect(200)
+    .expect((r) => assert.equal(r.body.preview, false));
+  await request(app)
+    .get("/raw/" + service.get(huge).token)
+    .expect(415);
+  const multi = await upload(service, store, [
+    ["a.txt", Buffer.from("a")],
+    ["b.txt", Buffer.from("b")],
+  ]);
+  await service.tick();
+  await request(app)
+    .get("/raw/" + service.get(multi).token)
+    .expect(415);
+  db.close();
+});
+
+test("deleting a transfer while Raw is reading cannot disclose cached or newly read content", async () => {
+  const { db, service, store, app } = await setup();
+  const id = await upload(service, store, [
+    ["code.py", Buffer.from("print(1)")],
+  ]);
+  const original = store.get.bind(store);
+  let release, started;
+  const reading = new Promise((r) => (started = r)),
+    gate = new Promise((r) => (release = r));
+  store.get = async (...args) => {
+    started();
+    await gate;
+    return original(...args);
+  };
+  const result = request(app)
+    .get("/raw/" + service.get(id).token)
+    .then((r) => r);
+  await reading;
+  service.delete(id);
+  release();
+  assert.equal((await result).status, 404);
+  db.close();
+});

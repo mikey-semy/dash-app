@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 export function Icon({ name }) {
   const paths = {
+    code: <path d="m8 5-6 7 6 7m8-14 6 7-6 7M14 3l-4 18" />,
     archive: (
       <>
         <path d="M5 3h14v18H5zM12 3v3m0 2v2m0 2v2" />
@@ -25,14 +26,16 @@ export function Icon({ name }) {
       </>
     ),
     check: <path d="m4 12 5 5L20 6" />,
-    generate: (
+    lock: (
       <>
-        <rect x="3" y="3" width="18" height="18" rx="4" />
-        <circle cx="8" cy="8" r=".8" />
-        <circle cx="16" cy="8" r=".8" />
-        <circle cx="12" cy="12" r=".8" />
-        <circle cx="8" cy="16" r=".8" />
-        <circle cx="16" cy="16" r=".8" />
+        <rect x="5" y="11" width="14" height="10" rx="2" />
+        <path d="M8 11V7a4 4 0 0 1 8 0v4M12 15v2" />
+      </>
+    ),
+    unlock: (
+      <>
+        <rect x="5" y="11" width="14" height="10" rx="2" />
+        <path d="M8 11V7a4 4 0 0 1 7.5-2M12 15v2" />
       </>
     ),
     history: (

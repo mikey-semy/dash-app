@@ -1,9 +1,12 @@
+import { readFile } from "node:fs/promises";
+import { randomBytes } from "node:crypto";
+import { textCandidate, textReader } from "./text.js";
 import express from "express";
 import cookieParser from "cookie-parser";
 import { rateLimit } from "express-rate-limit";
 import { pipeline } from "node:stream/promises";
 import { hash, verify, token, range, archiveName, revision } from "./core.js";
-export function createApp(service, env) {
+export function createApp(service, env, { authLimit = 15 } = {}) {
   const app = express(),
     db = service.db,
     origin = new URL(env.PUBLIC_URL).origin,
@@ -32,7 +35,7 @@ export function createApp(service, env) {
   });
   const limited = rateLimit({
     windowMs: 15 * 60000,
-    limit: 15,
+    limit: authLimit,
     standardHeaders: "draft-8",
     legacyHeaders: false,
     message: { error: "Слишком много попыток. Подождите 15 минут." },
@@ -237,6 +240,13 @@ export function createApp(service, env) {
     return t;
   }
   const grants = new Map();
+  const readText = textReader(service.store);
+  const rawCookie = (req, res, t, grant) =>
+    res.cookie("grant_" + t.id, grant, {
+      ...options,
+      path: "/raw/" + req.params.token,
+      maxAge: Math.max(0, grants.get(grant).expires - Date.now()),
+    });
   function allowed(req, t) {
     const g = grants.get(req.cookies["grant_" + t.id]);
     return !t.password || (g?.id === t.id && g.expires > Date.now());
@@ -257,19 +267,23 @@ export function createApp(service, env) {
       id: t.id,
       expires: Math.min(t.expires ?? Infinity, Date.now() + 12 * 3600000),
     });
-    res
-      .cookie("grant_" + t.id, grant, {
-        ...options,
-        path: "/public/" + req.params.token,
-      })
-      .json({ ok: true });
+    res.cookie("grant_" + t.id, grant, {
+      ...options,
+      path: "/public/" + req.params.token,
+    });
+    rawCookie(req, res, t, grant);
+    res.json({ ok: true });
   });
   app.get("/public/:token", (req, res) => {
     const t = transfer(req);
+    if (t.password && allowed(req, t))
+      rawCookie(req, res, t, req.cookies["grant_" + t.id]);
     res.json(
       allowed(req, t)
         ? {
             locked: false,
+            preview: textCandidate(t),
+            etag: t.output?.etag,
             files: t.files.map(({ name, size }) => ({ name, size })),
             expires: t.expires,
             size: t.output.size,
@@ -278,21 +292,42 @@ export function createApp(service, env) {
         : { locked: true },
     );
   });
-  app.all("/public/:token/download", async (req, res) => {
-    if (!["GET", "HEAD"].includes(req.method)) return res.sendStatus(405);
+  app.all(["/public/:token/download", "/raw/:token"], async (req, res) => {
+    const raw = req.path.startsWith("/raw/");
+    if (!["GET", "HEAD"].includes(req.method))
+      return raw
+        ? res.status(405).type("text/plain").send("Method Not Allowed")
+        : res.sendStatus(405);
     const t = transfer(req);
     if (!allowed(req, t))
-      return res.status(401).json({ error: "Нужен пароль передачи" });
+      return raw
+        ? res.status(401).type("text/plain").send("Нужен пароль передачи")
+        : res.status(401).json({ error: "Нужен пароль передачи" });
     if (!t.output?.key)
-      return res.status(409).json({ error: "В передаче пока нет файлов" });
+      return raw
+        ? res.status(409).type("text/plain").send("В передаче пока нет файлов")
+        : res.status(409).json({ error: "В передаче пока нет файлов" });
+    let text;
+    if (raw) {
+      if (!textCandidate(t))
+        throw Object.assign(new Error("Текстовый просмотр недоступен"), {
+          status: 415,
+        });
+      text = await readText(t);
+      const current = transfer(req);
+      if (current.output?.key !== t.output.key)
+        throw Object.assign(new Error("Передача обновилась"), { status: 412 });
+    }
     const out = t.output,
       modified = new Date(t.ready).toUTCString();
     res.set({
       "Accept-Ranges": "bytes",
       ETag: out.etag,
       "Last-Modified": modified,
-      "Content-Type": "application/octet-stream",
-      "Content-Disposition": `attachment; filename="${t.files.length > 1 ? out.name : "download"}"; filename*=UTF-8''${encodeURIComponent(out.name).replace(/['()*]/g, (c) => "%" + c.charCodeAt(0).toString(16))}`,
+      "Content-Type": raw
+        ? "text/plain; charset=utf-8"
+        : "application/octet-stream",
+      "Content-Disposition": `${raw ? "inline" : "attachment"}; filename="${t.files.length > 1 ? out.name : "download"}"; filename*=UTF-8''${encodeURIComponent(out.name).replace(/['()*]/g, (c) => "%" + c.charCodeAt(0).toString(16))}`,
     });
     const match = (h, strong = false) =>
       h
@@ -336,6 +371,7 @@ export function createApp(service, env) {
     res.status(r ? 206 : 200).set("Content-Length", String(length));
     if (r) res.set("Content-Range", `bytes ${r.start}-${r.end}/${out.size}`);
     if (req.method === "HEAD") return res.end();
+    if (raw) return res.end(r ? text.subarray(r.start, r.end + 1) : text);
     const object = await service.store.get(
       out.key,
       r ? { Range: `bytes=${r.start}-${r.end}` } : {},
@@ -346,15 +382,31 @@ export function createApp(service, env) {
       res.destroy();
     }
   });
+  let index;
+  async function html(req, res) {
+    index ??= await readFile("dist/index.html", "utf8");
+    const nonce = randomBytes(18).toString("base64");
+    res.set(
+      "Content-Security-Policy",
+      res
+        .get("Content-Security-Policy")
+        .replace(
+          "style-src 'self'",
+          `style-src 'self' 'nonce-${nonce}'; worker-src 'self'`,
+        ),
+    );
+    res.type("html").send(index.replace("__CSP_NONCE__", nonce));
+  }
+  app.get(["/", "/index.html", "/t/:token"], html);
+  app.get(/^\/[A-Za-z0-9]{6}$/, html);
   app.use(express.static("dist", { index: false }));
-  app.get(["/", "/t/:token"], (req, res) =>
-    res.sendFile("index.html", { root: "dist" }),
-  );
-  app.get(/^\/[A-Za-z0-9]{6}$/, (req, res) =>
-    res.sendFile("index.html", { root: "dist" }),
-  );
   app.use((err, req, res, next) => {
     if (res.headersSent) return res.destroy();
+    if (req.path.startsWith("/raw/"))
+      return res
+        .status(err.status || 503)
+        .type("text/plain")
+        .send(err.status ? err.message : "Повторите позже");
     res.status(err.status || 503).json({
       error: err.status
         ? err.message

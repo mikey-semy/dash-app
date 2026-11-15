@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 async function login(page) {
   await page.goto("/");
-  await page.getByLabel("Пароль", { exact: true }).fill("test-owner-password");
+  await page.getByLabel("Пароль", { exact: true }).fill("123456");
   await page.getByRole("button", { name: "Войти", exact: true }).click();
   await expect(
     page.getByRole("button", {
@@ -14,7 +14,11 @@ async function checkAction(page, role, text) {
     await page.setViewportSize({ width, height: 844 });
     await page.evaluate(() => document.fonts.ready);
     const action = page.getByRole(role, { name: text, exact: true });
+    await page.emulateMedia({ reducedMotion: "reduce" });
     const box = await action.boundingBox();
+    expect(await action.evaluate((el) => getComputedStyle(el).fontSize)).toBe(
+      "16px",
+    );
     expect(box.width).toBeLessThan(width);
     expect(Math.abs(box.x + box.width / 2 - width / 2)).toBeLessThan(2);
     expect(Math.abs(box.y + box.height / 2 - 844 / 2)).toBeLessThan(2);
@@ -33,7 +37,7 @@ test("empty page, settings, upload, private recipient, ZIP, history and deletion
   browser,
 }) => {
   await page.goto("/");
-  await page.getByLabel("Пароль", { exact: true }).fill("wrong");
+  await page.getByLabel("Пароль", { exact: true }).fill("000000");
   await page.getByRole("button", { name: "Войти" }).click();
   await expect(page.getByRole("alert")).toHaveText("Неверный пароль");
   await login(page);
@@ -50,9 +54,30 @@ test("empty page, settings, upload, private recipient, ZIP, history and deletion
     },
     { name: "empty", mimeType: "text/plain", buffer: Buffer.alloc(0) },
   ]);
-  const link = page.locator(".center .share a");
-  await expect(link).toBeVisible();
-  const url = await link.getAttribute("href");
+  await expect(
+    page.getByRole("button", { name: "Добавить", exact: true }),
+  ).toBeVisible();
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page
+    .getByRole("button", { name: "Копировать ссылку", exact: true })
+    .click();
+  const url = await page.evaluate(() => navigator.clipboard.readText());
+  await expect(page.locator(".center .share a")).toHaveCount(0);
+  await expect(page.locator(".expiry-corner")).toBeVisible();
+  await expect(page.locator("body")).not.toContainText("Удаление:");
+  expect(await page.locator("body").innerText()).not.toContain(url);
+  for (const width of [320, 390, 1280]) {
+    await page.setViewportSize({ width, height: 844 });
+    const box = await page.locator(".center .share-controls").boundingBox();
+    expect(box.x + box.width).toBeLessThanOrEqual(width - 12);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+  }
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.screenshot({ path: "work/ui-share.png", fullPage: true });
   await expect(page.locator(".center .share img")).toBeVisible();
   const context = await browser.newContext(),
     recipient = await context.newPage();
@@ -114,7 +139,7 @@ test("mobile empty page, monochrome and no horizontal overflow", async ({
   ).toBe("rgba(0, 0, 0, 0)");
   await page.screenshot({ path: "work/ui-mobile.png", fullPage: true });
   await page.getByLabel("Настройки", { exact: true }).click();
-  await expect(page.getByLabel("Хранить")).toBeVisible();
+  await expect(page.getByLabel("Срок хранения")).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -149,6 +174,40 @@ test("browser multipart pause/resume and automatic retry in the open page", asyn
     page.getByRole("button", { name: "Продолжить", exact: true }),
   ).toBeEnabled();
   await page.getByRole("button", { name: "Продолжить", exact: true }).click();
-  await expect(page.locator(".center .share a")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Добавить", exact: true }),
+  ).toBeVisible();
   expect(intercepted).toBeGreaterThanOrEqual(4);
+});
+
+test("icon controls generate and copy six-digit password; manifest and icons are available", async ({
+  page,
+}) => {
+  await login(page);
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.getByLabel("Настройки", { exact: true }).click();
+  await page
+    .getByRole("button", { name: "Сгенерировать пароль", exact: true })
+    .click();
+  const pin = await page.getByLabel("Пароль скачивания").inputValue();
+  expect(pin).toMatch(/^\d{6}$/);
+  await page
+    .getByRole("button", { name: "Копировать пароль", exact: true })
+    .click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(pin);
+  expect(await page.locator(".settings-actions").innerText()).toBe("");
+  await expect(page.locator(".settings-panel")).not.toContainText("Хранить");
+  await expect(page.locator(".settings-panel")).not.toContainText(
+    "Пароль скачивания",
+  );
+  const m = await page.request.get("/manifest.webmanifest");
+  expect(m.ok()).toBe(true);
+  const manifest = await m.json();
+  expect(manifest.start_url).toBe("/");
+  for (const i of manifest.icons)
+    expect((await page.request.get(i.src)).ok()).toBe(true);
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute(
+    "href",
+    "/icon.svg",
+  );
 });

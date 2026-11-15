@@ -238,7 +238,10 @@ function App() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                maxLength="256"
+                maxLength="6"
+                minLength="6"
+                pattern="[0-9]{6}"
+                inputMode="numeric"
               />
             </label>
             <button>Войти</button>

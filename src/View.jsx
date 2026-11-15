@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
+import { Icon, CopyButton, Expiry } from "./Icons.jsx";
 export const bytes = (n) =>
   n < 1000
     ? Math.round(n) + " Б"
@@ -21,35 +22,26 @@ export function FileList({ files }) {
     </ul>
   );
 }
-export function Share({ url, expires }) {
-  const [qr, setQr] = useState(""),
-    [copied, setCopied] = useState(false);
+export function Share({ url, onAdd }) {
+  const [qr, setQr] = useState("");
   useEffect(() => {
     QRCode.toDataURL(url, {
-      margin: 1,
-      width: 144,
-      color: { dark: "#000000", light: "#ffffff" },
+      margin: 0,
+      width: 96,
+      color: { dark: "#111111", light: "#ffffff" },
     }).then(setQr);
   }, [url]);
   return (
-    <div className="share">
-      <a href={url}>{url}</a>
-      <div className="share-controls">
-        <button
-          onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(url);
-              setCopied(true);
-            } catch {
-              setCopied(false);
-            }
-          }}
-        >
-          {copied ? "Скопировано" : "Копировать"}
+    <div className={onAdd ? "share share-ready" : "share"}>
+      {onAdd && (
+        <button className="primary-action" onClick={onAdd}>
+          Добавить
         </button>
-        {qr && <img src={qr} alt="QR-код ссылки" width="96" height="96" />}
+      )}
+      <div className="share-controls">
+        <CopyButton value={url} />
+        {qr && <img src={qr} alt="QR-код ссылки" width="64" height="64" />}
       </div>
-      <p className="muted">Удаление: {date(expires)}</p>
     </div>
   );
 }
@@ -119,9 +111,12 @@ function History({ items, onClose, onDelete }) {
             <FileList files={t.files} />
             {t.error && <p role="alert">{t.error}</p>}
             {t.url ? (
-              <Share url={t.url} expires={t.expires} />
+              <>
+                <Share url={t.url} />
+                <p className="muted">{date(t.expires)}</p>
+              </>
             ) : t.expires ? (
-              <p className="muted">Удаление: {date(t.expires)}</p>
+              <p className="muted">{date(t.expires)}</p>
             ) : (
               <p className="muted">Срок: {t.ttl / 3600} ч после готовности</p>
             )}
@@ -167,8 +162,9 @@ export function OwnerView(p) {
         </summary>
         <div className="settings-panel">
           <label>
-            Хранить
             <select
+              aria-label="Срок хранения"
+              title="Срок хранения"
               value={p.ttl}
               disabled={!!p.upload}
               onChange={(e) => p.setTtl(Number(e.target.value))}
@@ -186,27 +182,56 @@ export function OwnerView(p) {
               ))}
             </select>
           </label>
-          <label>
-            Пароль скачивания
+          <div className="password-field">
             <input
+              aria-label="Пароль скачивания"
               type="password"
-              placeholder="Необязательно"
+              placeholder="Пароль"
               maxLength="256"
               disabled={!!p.upload}
               value={p.secret}
               onChange={(e) => p.setSecret(e.target.value)}
               autoComplete="new-password"
             />
-          </label>
-          <button
-            onClick={() => {
-              settings.current.open = false;
-              setHistoryOpen(true);
-            }}
-          >
-            История
-          </button>
-          <button onClick={p.logout}>Выйти</button>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="Сгенерировать пароль"
+              title="Сгенерировать пароль"
+              disabled={!!p.upload}
+              onClick={() => {
+                const a = new Uint32Array(1);
+                do {
+                  crypto.getRandomValues(a);
+                } while (a[0] >= 4294000000);
+                p.setSecret(String(a[0] % 1000000).padStart(6, "0"));
+              }}
+            >
+              <Icon name="generate" />
+            </button>
+            <CopyButton value={p.secret} label="Копировать пароль" />
+          </div>
+          <div className="settings-actions">
+            <button
+              className="icon-button"
+              aria-label="История"
+              title="История"
+              onClick={() => {
+                settings.current.open = false;
+                setHistoryOpen(true);
+              }}
+            >
+              <Icon name="history" />
+            </button>
+            <button
+              className="icon-button"
+              aria-label="Выйти"
+              title="Выйти"
+              onClick={p.logout}
+            >
+              <Icon name="logout" />
+            </button>
+          </div>
         </div>
       </details>
       <input
@@ -244,13 +269,7 @@ export function OwnerView(p) {
             </>
           ) : completed ? (
             <>
-              <Share url={latest.url} expires={latest.expires} />
-              <button
-                className="new-upload"
-                onClick={() => p.setSelected(null)}
-              >
-                Добавить файлы
-              </button>
+              <Share url={latest.url} onAdd={() => p.setSelected(null)} />
             </>
           ) : preparing ? (
             <p>Сборка ZIP…</p>
@@ -265,6 +284,7 @@ export function OwnerView(p) {
           {p.error && <p role="alert">{p.error}</p>}
         </div>
       </section>
+      {completed && <Expiry value={latest.expires} />}
       {historyOpen && (
         <History
           items={p.history}

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Expiry } from "./Icons.jsx";
 import { FileList, bytes, date } from "./View.jsx";
 export function Recipient({ token, api }) {
   const [info, setInfo] = useState(null),
@@ -88,11 +89,10 @@ export function Recipient({ token, api }) {
                 </summary>
                 <div className="transfer-information">
                   <FileList files={info.files} />
-                  <p className="muted">
-                    {bytes(info.size)} · Удаление: {date(info.expires)}
-                  </p>
+                  <p className="muted">{bytes(info.size)}</p>
                 </div>
               </details>
+              <Expiry value={info.expires} />
             </>
           )
         )}

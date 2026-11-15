@@ -12,8 +12,8 @@ for (const key of [
   "S3_SECRET_KEY",
 ])
   if (!process.env[key]) throw new Error("Missing " + key);
-if (process.env.ADMIN_PASSWORD.length < 16)
-  throw new Error("ADMIN_PASSWORD must contain at least 16 characters");
+if (!/^\d{6}$/.test(process.env.ADMIN_PASSWORD))
+  throw new Error("ADMIN_PASSWORD must contain exactly six digits");
 mkdirSync("data", { recursive: true });
 const service = new Service(openDB("data/flash.db"), new Store(process.env));
 const app = createApp(service, process.env);

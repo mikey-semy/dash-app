@@ -32,7 +32,7 @@ host.put(
 host.use(
   createApp(service, {
     PUBLIC_URL: "http://127.0.0.1:3001",
-    ADMIN_PASSWORD: "test-owner-password",
+    ADMIN_PASSWORD: "123456",
     S3_ENDPOINT: "http://127.0.0.1:3001",
   }),
 );

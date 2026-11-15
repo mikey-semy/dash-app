@@ -33,7 +33,18 @@ export function Recipient({ token, api }) {
         <Icon name="upload" />
       </a>
       <div className="content">
-        {error && <p role="alert">{error}</p>}
+        {error &&
+          (info ? (
+            <p role="alert">{error}</p>
+          ) : (
+            <div
+              className="unavailable"
+              role="img"
+              aria-label="Передача недоступна"
+            >
+              <Icon name="cancel" />
+            </div>
+          ))}
         {info?.locked ? (
           <form
             className="login"

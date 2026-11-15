@@ -729,3 +729,54 @@ test("interrupted reads of a previous ZIP keep the original available and can be
     ["a", "b", "c"],
   );
 });
+
+test("short public codes migrate old links once and preserve protected alias access", async () => {
+  const { mkdtempSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const path = join(mkdtempSync("work/short-links-"), "flash.db");
+  let db = openDB(path);
+  let service = new Service(db, new FakeStore());
+  const id = service.create([{ name: "file", size: 0 }], 0, "123456");
+  assert.match(service.get(id).token, /^[A-Za-z0-9]{6}$/);
+  assert.equal(id.length, 43);
+  const old = "A".repeat(43);
+  db.prepare(
+    "UPDATE transfers SET token=?,state='ready',expires=NULL,output=? WHERE id=?",
+  ).run(
+    old,
+    JSON.stringify({ key: id + "/source/0", size: 0, name: "file" }),
+    id,
+  );
+  db.close();
+  db = openDB(path);
+  service = new Service(db, new FakeStore());
+  const short = service.get(id).token;
+  assert.match(short, /^[A-Za-z0-9]{6}$/);
+  assert.equal(
+    db.prepare("SELECT transfer_id FROM share_aliases WHERE token=?").get(old)
+      .transfer_id,
+    id,
+  );
+  const app = createApp(service, env),
+    guest = request.agent(app);
+  await guest
+    .get("/public/" + old)
+    .expect(200)
+    .expect((r) => assert.equal(r.body.locked, true));
+  const unlock = await post(guest, "/public/" + old + "/unlock", {
+    password: "123456",
+  }).expect(200);
+  assert.ok(unlock.headers["set-cookie"][0].includes("Path=/public/" + old));
+  await guest
+    .get("/public/" + old)
+    .expect(200)
+    .expect((r) => assert.equal(r.body.files[0].name, "file"));
+  db.close();
+  db = openDB(path);
+  assert.equal(
+    db.prepare("SELECT token FROM transfers WHERE id=?").get(id).token,
+    short,
+  );
+  assert.equal(db.prepare("SELECT count(*) n FROM share_aliases").get().n, 1);
+  db.close();
+});

@@ -328,7 +328,9 @@ function App() {
     />
   );
 }
-const token = location.pathname.match(/^\/t\/([\w-]+)$/)?.[1];
+const token =
+  location.pathname.match(/^\/t\/([\w-]+)$/)?.[1] ||
+  location.pathname.match(/^\/([A-Za-z0-9]{6})$/)?.[1];
 createRoot(document.getElementById("root")).render(
   token ? <Recipient token={token} api={api} /> : <App />,
 );

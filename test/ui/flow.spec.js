@@ -138,9 +138,10 @@ test("empty page, settings, upload, private recipient, ZIP, history and deletion
   await expect(item.locator(".share-controls button")).toHaveCount(4);
   await item.getByRole("button", { name: "Удалить", exact: true }).click();
   await recipient.reload();
-  await expect(recipient.getByRole("alert")).toHaveText(
-    "Передача недоступна или срок истёк",
-  );
+  await expect(
+    recipient.getByRole("img", { name: "Передача недоступна" }),
+  ).toBeVisible();
+  await expect(recipient.getByRole("alert")).toHaveCount(0);
   await page.getByRole("button", { name: "Закрыть историю" }).click();
   await context.close();
 });

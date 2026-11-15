@@ -97,7 +97,7 @@ export function createApp(service, env) {
       url:
         ["ready", "empty"].includes(t.state) &&
         (t.expires === null || t.expires > Date.now())
-          ? `${origin}/t/${t.token}`
+          ? `${origin}/${t.token}`
           : null,
     };
   }
@@ -188,8 +188,10 @@ export function createApp(service, env) {
   app.use("/api", api);
   function transfer(req) {
     const r = db
-      .prepare("SELECT id FROM transfers WHERE token=?")
-      .get(req.params.token);
+      .prepare(
+        "SELECT id FROM transfers WHERE token=? UNION ALL SELECT transfer_id AS id FROM share_aliases WHERE token=?",
+      )
+      .get(req.params.token, req.params.token);
     const t = r && service.get(r.id);
     if (
       !t ||
@@ -226,7 +228,7 @@ export function createApp(service, env) {
     res
       .cookie("grant_" + t.id, grant, {
         ...options,
-        path: "/public/" + t.token,
+        path: "/public/" + req.params.token,
       })
       .json({ ok: true });
   });
@@ -314,6 +316,9 @@ export function createApp(service, env) {
   });
   app.use(express.static("dist", { index: false }));
   app.get(["/", "/t/:token"], (req, res) =>
+    res.sendFile("index.html", { root: "dist" }),
+  );
+  app.get(/^\/[A-Za-z0-9]{6}$/, (req, res) =>
     res.sendFile("index.html", { root: "dist" }),
   );
   app.use((err, req, res, next) => {

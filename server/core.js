@@ -1,6 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import {
   randomBytes,
+  randomInt,
   scryptSync,
   timingSafeEqual,
   createHash,
@@ -13,6 +14,23 @@ export const revision = (t) =>
     .update(t.output?.key || "empty")
     .digest("base64url");
 export const token = () => randomBytes(32).toString("base64url");
+const alphabet =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+export const shareToken = () =>
+  Array.from({ length: 6 }, () => alphabet[randomInt(62)]).join("");
+function uniqueShareToken(db) {
+  let value;
+  do {
+    value = shareToken();
+  } while (
+    db
+      .prepare(
+        "SELECT 1 FROM transfers WHERE token=? UNION ALL SELECT 1 FROM share_aliases WHERE token=?",
+      )
+      .get(value, value)
+  );
+  return value;
+}
 const archiveDateFormat = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/Moscow",
   year: "numeric",
@@ -88,6 +106,28 @@ export function openDB(path) {
   if (!columns.includes("base"))
     db.exec("ALTER TABLE transfers ADD COLUMN base TEXT");
   db.exec("CREATE INDEX IF NOT EXISTS transfers_parent ON transfers(parent)");
+  db.exec(
+    "CREATE TABLE IF NOT EXISTS share_aliases(token TEXT PRIMARY KEY, transfer_id TEXT NOT NULL)",
+  );
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    for (const t of db
+      .prepare(
+        "SELECT id,token FROM transfers WHERE parent IS NULL AND length(token)>6 AND state NOT IN ('deleted','expired')",
+      )
+      .all()) {
+      const short = uniqueShareToken(db);
+      db.prepare(
+        "INSERT OR IGNORE INTO share_aliases(token,transfer_id) VALUES(?,?)",
+      ).run(t.token, t.id);
+      db.prepare("UPDATE transfers SET token=? WHERE id=?").run(short, t.id);
+    }
+    db.exec("COMMIT");
+  } catch (e) {
+    db.exec("ROLLBACK");
+    db.close();
+    throw e;
+  }
   return db;
 }
 export function insertTransfer(db, files, ttl, password, append = null) {
@@ -128,7 +168,7 @@ export function insertTransfer(db, files, ttl, password, append = null) {
       "INSERT INTO transfers(id,token,state,created,ttl,password,files,reserved,parent,base) VALUES(?,?,?,?,?,?,?,?,?,?)",
     ).run(
       id,
-      token(),
+      uniqueShareToken(db),
       "uploading",
       Date.now(),
       ttl,

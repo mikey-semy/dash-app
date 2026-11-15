@@ -407,9 +407,13 @@ function History({
           <Icon name="cancel" />
         </button>
       </header>
-      <div className="dialog-body">
+      <div className={items.length ? "dialog-body" : "dialog-body is-empty"}>
         {error && <p role="alert">{error}</p>}
-        {!items.length && <p className="muted">Нет передач</p>}
+        {!items.length && (
+          <span className="history-empty" role="img" aria-label="Нет передач">
+            <Icon name="cancel" />
+          </span>
+        )}
         {items.map((t) => (
           <HistoryItem
             key={t.id}

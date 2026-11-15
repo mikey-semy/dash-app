@@ -461,7 +461,7 @@ dialog[open],
 
 .login-field input {
   padding: 11px 10px;
-  font-size: 14px;
+  font-size: 16px;
 }
 .login .login-field button {
   margin: 0;
@@ -497,6 +497,18 @@ dialog[open],
   scrollbar-width: thin;
   scrollbar-color: #b9b9b9 transparent;
   min-height: 0;
+}
+.dialog-body.is-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  scrollbar-gutter: auto;
+}
+.history-empty {
+  display: flex;
+  color: #111;
 }
 .dialog-body::-webkit-scrollbar {
   width: 4px;

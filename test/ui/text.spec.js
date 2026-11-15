@@ -457,13 +457,11 @@ test("owner reopens uploaded text full screen, cancels or saves to the same link
       async () => (await (await fetch("/api/transfers")).json())[0].url,
     );
   await login(page);
-  await page
-    .locator("input[type=file]")
-    .setInputFiles({
-      name: "edit.py",
-      mimeType: "text/plain",
-      buffer: Buffer.from("print('old')\n"),
-    });
+  await page.locator("input[type=file]").setInputFiles({
+    name: "edit.py",
+    mimeType: "text/plain",
+    buffer: Buffer.from("print('old')\n"),
+  });
   await expect(page.locator(".share-ready")).toBeVisible();
   const url = await currentURL();
   await page
@@ -515,3 +513,38 @@ test("owner reopens uploaded text full screen, cancels or saves to the same link
   ).toBe(false);
   await recipient.close();
 });
+
+for (const [language, extension, source] of [
+  [
+    "Markdown",
+    "md",
+    "# Heading\n\n## Section\n\n**Strong** and [link](https://example.com).\n\n- one\n- two\n\n> quote\n",
+  ],
+  [
+    "Python",
+    "py",
+    "#!/usr/bin/env python3\nimport json\n\ndef main():\n    print(json.dumps({'ok': True}))\n\nif __name__ == '__main__':\n    main()\n",
+  ],
+  ["JSON", "json", '{"name":"example","enabled":true,"items":[1,2,3]}'],
+  ["?", "txt", "Just some ordinary words for a personal note."],
+]) {
+  test(`new ${language} text is saved with .${extension}`, async ({ page }) => {
+    await login(page);
+    await paste(page, source);
+    await expect(page.locator(".code-editor")).toHaveAttribute(
+      "data-language",
+      language,
+      { timeout: 15000 },
+    );
+    await page
+      .getByRole("button", { name: "Отправить текст", exact: true })
+      .click();
+    await expect(page.locator(".share-ready")).toBeVisible();
+    const transfer = await page.evaluate(
+      async () => (await (await fetch("/api/transfers")).json())[0],
+    );
+    expect(transfer.files[0].name).toMatch(
+      new RegExp("^text-\\d{8}-\\d{9}\\." + extension + "$"),
+    );
+  });
+}

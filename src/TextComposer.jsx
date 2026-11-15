@@ -1,5 +1,6 @@
 import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Icon } from "./Icons.jsx";
+import languages from "./text-languages.json";
 const CodeEditor = lazy(() => import("./CodeEditor.jsx"));
 export const TEXT_LIMIT = 5 * 1024 * 1024;
 export default function TextComposer({
@@ -24,7 +25,7 @@ export default function TextComposer({
     };
   }, []);
   const send = async () => {
-    const file = new File([text], filename || textName(), {
+    const file = new File([text], filename || textName(language), {
       type: "text/plain;charset=utf-8",
     });
     if (file.size > TEXT_LIMIT) {
@@ -117,7 +118,21 @@ export default function TextComposer({
     </dialog>
   );
 }
-function textName() {
+function textName(language) {
+  const preferred = {
+    Python: "py",
+    LaTeX: "tex",
+    PostgreSQL: "sql",
+    Nginx: "conf",
+    Dockerfile: "dockerfile",
+    EBNF: "ebnf",
+    HTTP: "http",
+    XQuery: "xq",
+  };
+  const extension =
+    preferred[language] ||
+    languages.find((item) => item.name === language)?.extensions[0] ||
+    "txt";
   const now = new Date();
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat("en-GB", {
@@ -133,5 +148,5 @@ function textName() {
       .formatToParts(now)
       .map((p) => [p.type, p.value]),
   );
-  return `text-${parts.year}${parts.month}${parts.day}-${parts.hour}${parts.minute}${parts.second}${String(now.getMilliseconds()).padStart(3, "0")}.txt`;
+  return `text-${parts.year}${parts.month}${parts.day}-${parts.hour}${parts.minute}${parts.second}${String(now.getMilliseconds()).padStart(3, "0")}.${extension}`;
 }

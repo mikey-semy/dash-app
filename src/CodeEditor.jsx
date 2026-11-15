@@ -26,6 +26,7 @@ const colors = HighlightStyle.define([
 function useDetection(text, filename) {
   const [result, setResult] = useState({ name: null, label: "?" });
   useEffect(() => {
+    setResult({ name: null, label: "?" });
     let worker,
       deadline,
       active = true;

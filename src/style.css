@@ -1618,3 +1618,26 @@ body:has(.owner) {
     padding: 5px;
   }
 }
+/* Interface controls never select text during clicks, taps or dragging. */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+}
+input,
+textarea,
+[contenteditable="true"],
+.cm-content,
+.cm-content *,
+.markdown-document,
+.markdown-document * {
+  -webkit-user-select: text;
+  user-select: text;
+}
+button,
+button *,
+summary,
+summary * {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none;
+}

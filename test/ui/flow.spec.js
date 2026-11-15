@@ -5,9 +5,28 @@ async function login(page) {
   await page.getByRole("button", { name: "Войти", exact: true }).click();
   await expect(
     page.getByRole("button", {
-      name: "Перетащите файлы сюда или нажмите для выбора",
+      name: "ЗАГРУЗИТЬ",
     }),
   ).toBeVisible();
+}
+async function checkAction(page, role, text) {
+  for (const width of [320, 390, 768, 1280, 2560]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.evaluate(() => document.fonts.ready);
+    const action = page.getByRole(role, { name: text, exact: true });
+    const box = await action.boundingBox();
+    expect(box.width).toBeLessThan(width);
+    expect(Math.abs(box.x + box.width / 2 - width / 2)).toBeLessThan(2);
+    expect(Math.abs(box.y + box.height / 2 - 844 / 2)).toBeLessThan(2);
+    expect(await action.evaluate((el) => getComputedStyle(el).whiteSpace)).toBe(
+      "nowrap",
+    );
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+  }
 }
 test("empty page, settings, upload, private recipient, ZIP, history and deletion", async ({
   page,
@@ -18,9 +37,7 @@ test("empty page, settings, upload, private recipient, ZIP, history and deletion
   await page.getByRole("button", { name: "Войти" }).click();
   await expect(page.getByRole("alert")).toHaveText("Неверный пароль");
   await login(page);
-  expect((await page.locator("body").innerText()).trim()).toBe(
-    "Перетащите файлы сюда или нажмите для выбора",
-  );
+  expect((await page.locator("body").innerText()).trim()).toBe("ЗАГРУЗИТЬ");
   await page.screenshot({ path: "work/ui-desktop.png", fullPage: true });
   await page.getByLabel("Настройки", { exact: true }).click();
   await page.getByLabel("Пароль скачивания").fill("recipient-secret");
@@ -46,11 +63,25 @@ test("empty page, settings, upload, private recipient, ZIP, history and deletion
   await recipient.getByLabel("Пароль передачи").fill("recipient-secret");
   await recipient.getByRole("button", { name: "Открыть" }).click();
   await expect(
+    recipient.getByRole("link", { name: "СКАЧАТЬ", exact: true }),
+  ).toBeVisible();
+  await expect(recipient.getByText("привет.txt", { exact: true })).toBeHidden();
+  await expect(
+    recipient.getByRole("link", { name: "Перейти к загрузке" }),
+  ).toHaveAttribute("href", "/");
+  await checkAction(recipient, "link", "СКАЧАТЬ");
+  await recipient.setViewportSize({ width: 1280, height: 720 });
+  await recipient.screenshot({
+    path: "work/ui-recipient-collapsed.png",
+    fullPage: true,
+  });
+  await recipient.getByLabel("Подробности передачи", { exact: true }).click();
+  await expect(
     recipient.getByText("привет.txt", { exact: true }),
   ).toBeVisible();
   await recipient.screenshot({ path: "work/ui-recipient.png", fullPage: true });
   const download = recipient.waitForEvent("download");
-  await recipient.getByRole("link", { name: "Скачать ZIP" }).click();
+  await recipient.getByRole("link", { name: "СКАЧАТЬ" }).click();
   expect((await download).suggestedFilename()).toBe("Файлы.zip");
   await page.getByLabel("Настройки", { exact: true }).click();
   await page.getByRole("button", { name: "История", exact: true }).click();
@@ -68,9 +99,9 @@ test("mobile empty page, monochrome and no horizontal overflow", async ({
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await login(page);
-  expect((await page.locator("body").innerText()).trim()).toBe(
-    "Перетащите файлы сюда или нажмите для выбора",
-  );
+  await checkAction(page, "button", "ЗАГРУЗИТЬ");
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect((await page.locator("body").innerText()).trim()).toBe("ЗАГРУЗИТЬ");
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -106,13 +137,11 @@ test("browser multipart pause/resume and automatic retry in the open page", asyn
       await route.fulfill({ status: 503, body: "retry" });
     else await route.continue();
   });
-  await page
-    .locator("input[type=file]")
-    .setInputFiles({
-      name: "multipart.bin",
-      mimeType: "application/octet-stream",
-      buffer: Buffer.alloc(9 * 1024 * 1024, 7),
-    });
+  await page.locator("input[type=file]").setInputFiles({
+    name: "multipart.bin",
+    mimeType: "application/octet-stream",
+    buffer: Buffer.alloc(9 * 1024 * 1024, 7),
+  });
   await expect.poll(() => intercepted).toBe(1);
   await page.getByRole("button", { name: "Пауза", exact: true }).click();
   release();

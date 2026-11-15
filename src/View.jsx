@@ -255,8 +255,11 @@ export function OwnerView(p) {
           ) : preparing ? (
             <p>Сборка ZIP…</p>
           ) : (
-            <button className="drop-text" onClick={() => input.current.click()}>
-              Перетащите файлы сюда или нажмите для выбора
+            <button
+              className="primary-action"
+              onClick={() => input.current.click()}
+            >
+              ЗАГРУЗИТЬ
             </button>
           )}
           {p.error && <p role="alert">{p.error}</p>}

@@ -118,7 +118,11 @@ export function Share({
 const states = {
   uploading: "Загрузка",
   queued: "В очереди",
-  archiving: "Сборка ZIP",
+  archiving: (
+    <span className="archive-status" aria-label="Сборка ZIP">
+      <Icon name="archive" />
+    </span>
+  ),
   ready: "Готово",
   failed: "Ошибка архивации",
   deleting: "Удаление",
@@ -285,7 +289,9 @@ function History({ items, onClose, onDelete, onAdd, onRemoveFiles }) {
       aria-label="История"
     >
       <header className="dialog-header">
-        <h2>История</h2>
+        <h2 aria-label="История">
+          <Icon name="history" />
+        </h2>
         <div className="dialog-header-actions">
           <button
             className="icon-button"
@@ -401,7 +407,7 @@ export function OwnerView(p) {
         p.setDrag(false);
         if (!p.upload) p.choose(e.dataTransfer.files);
       }}
-      className={p.drag ? "dragging" : ""}
+      className={p.drag ? "owner dragging" : "owner"}
       onPaste={(e) => {
         if (e.clipboardData.files.length && !p.upload)
           p.choose(e.clipboardData.files);
@@ -567,7 +573,13 @@ export function OwnerView(p) {
               />
             </>
           ) : preparing ? (
-            <p>Сборка ZIP…</p>
+            <div
+              className="archive-status"
+              role="status"
+              aria-label="Сборка ZIP"
+            >
+              <Icon name="archive" />
+            </div>
           ) : (
             <button
               className="primary-action"

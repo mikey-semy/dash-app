@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from "react";
 export function Icon({ name }) {
   const paths = {
+    archive: (
+      <>
+        <path d="M5 3h14v18H5zM12 3v3m0 2v2m0 2v2" />
+        <rect x="10" y="16" width="4" height="3" rx="1" />
+      </>
+    ),
     copy: (
       <>
         <rect x="8" y="8" width="12" height="13" rx="1" />

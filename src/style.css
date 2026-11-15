@@ -972,3 +972,78 @@ a {
   width: 24px;
   height: 24px;
 }
+
+/* Keep the owner screen inside the visible mobile viewport after file selection. */
+.owner {
+  height: 100dvh;
+  min-height: 0;
+  overflow: clip;
+}
+.owner > .center {
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.owner .content > .files {
+  max-height: 40dvh;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+.share-ready {
+  display: flex;
+  width: max-content;
+  max-width: 100%;
+  gap: 24px;
+}
+.share-ready .share-controls {
+  position: relative;
+  left: auto;
+  top: auto;
+  transform: none;
+  gap: 24px;
+}
+.archive-status {
+  display: flex;
+  justify-content: center;
+}
+.archive-status svg {
+  animation: archive-pulse 1.2s ease-in-out infinite;
+}
+@keyframes archive-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(1px);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-1px);
+  }
+}
+@media (max-width: 600px) {
+  .share-ready {
+    gap: 12px;
+  }
+  .share-ready .share-controls {
+    left: auto;
+    gap: 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .archive-status svg {
+    animation: none;
+  }
+}
+
+.history-toggle .archive-status {
+  justify-content: flex-start;
+}
+.history-toggle .archive-status svg {
+  width: 14px;
+  height: 14px;
+}
+.dialog-header h2 {
+  display: flex;
+  align-items: center;
+}

@@ -655,3 +655,43 @@ test("selected history files can be removed while preserving an empty reusable l
     page.getByRole("button", { name: "Добавить", exact: true }),
   ).toBeVisible();
 });
+
+test("mobile completed controls stay centered with no document overflow after a tall upload", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 650 });
+  await login(page);
+  await page
+    .locator("input[type=file]")
+    .setInputFiles(
+      Array.from({ length: 32 }, (_, i) => ({
+        name: `file-${i}.txt`,
+        mimeType: "text/plain",
+        buffer: Buffer.from("x"),
+      })),
+    );
+  await expect(page.locator(".share-ready")).toBeVisible({ timeout: 20000 });
+  for (const height of [650, 520, 844]) {
+    await page.setViewportSize({ width: 390, height });
+    await expect
+      .poll(async () => {
+        const r = await page.locator(".share-ready").boundingBox();
+        return (
+          Math.abs(r.x + r.width / 2 - 195) < 2 &&
+          Math.abs(r.y + r.height / 2 - height / 2) < 2
+        );
+      })
+      .toBe(true);
+    expect(
+      await page.evaluate(
+        () =>
+          document.documentElement.scrollHeight <= innerHeight + 1 &&
+          document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+  }
+  await page.locator(".settings > button").click();
+  await page.locator(".settings-toolbar button").first().click();
+  await expect(page.locator(".dialog-header h2 svg")).toBeVisible();
+  expect(await page.locator(".dialog-header h2").innerText()).toBe("");
+});

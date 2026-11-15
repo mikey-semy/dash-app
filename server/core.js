@@ -101,6 +101,8 @@ export function openDB(path) {
     .prepare("PRAGMA table_info(transfers)")
     .all()
     .map((c) => c.name);
+  if (!columns.includes("password_cipher"))
+    db.exec("ALTER TABLE transfers ADD COLUMN password_cipher TEXT");
   if (!columns.includes("parent"))
     db.exec("ALTER TABLE transfers ADD COLUMN parent TEXT");
   if (!columns.includes("base"))

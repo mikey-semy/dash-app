@@ -1116,3 +1116,67 @@ test("owner text replacement preserves link, password, name and expiry; stale sa
     revision: rev,
   }).expect(400);
 });
+
+test("owner can update retention and a recoverable encrypted PIN; old grants are revoked and public data never exposes PIN", async () => {
+  const { app, agent, service, store, db } = await setup();
+  const id = await upload(service, store, [
+      ["settings.txt", Buffer.from("content")],
+    ]),
+    t = service.get(id),
+    path = "/api/transfers/" + id;
+  await request(app)
+    .get(path + "/password")
+    .expect(401);
+  await request(app)
+    .patch(path + "/settings")
+    .set("Origin", env.PUBLIC_URL)
+    .send({ password: "123456" })
+    .expect(401);
+  const patch = (body) =>
+    agent
+      .patch(path + "/settings")
+      .set("Origin", env.PUBLIC_URL)
+      .send(body);
+  await patch({ password: "123456", ttl: 0 }).expect(200);
+  assert.equal(service.get(id).expires, null);
+  assert.equal(
+    (await agent.get(path + "/password").expect(200)).body.password,
+    "123456",
+  );
+  assert.ok(
+    !db
+      .prepare("SELECT password_cipher FROM transfers WHERE id=?")
+      .get(id)
+      .password_cipher.includes("123456"),
+  );
+  const reader = request.agent(app),
+    url = "/public/" + t.token;
+  await post(reader, url + "/unlock", { password: "123456" }).expect(200);
+  await reader.get("/raw/" + t.token).expect(200);
+  await patch({ password: "654321", ttl: 3600 }).expect(200);
+  assert.equal(service.get(id).output.key, t.output.key);
+  assert.ok(Math.abs(service.get(id).expires - Date.now() - 3600000) < 2000);
+  assert.equal((await reader.get(url).expect(200)).body.locked, true);
+  await reader.get("/raw/" + t.token).expect(401);
+  await post(reader, url + "/unlock", { password: "123456" }).expect(401);
+  await post(reader, url + "/unlock", { password: "654321" }).expect(200);
+  assert.equal(
+    (await reader.get("/raw/" + t.token).expect(200)).text,
+    "content",
+  );
+  const data = (await reader.get(url)).body;
+  assert.ok(!JSON.stringify(data).includes("654321"));
+  assert.ok(!("hasPassword" in data));
+  await patch({ password: "" }).expect(200);
+  assert.equal((await agent.get(path + "/password")).body.hasPassword, false);
+  await request(app)
+    .get("/raw/" + t.token)
+    .expect(200);
+  await patch({ password: "bad" }).expect(400);
+  await patch({ ttl: 123 }).expect(400);
+  db.prepare("UPDATE transfers SET expires=? WHERE id=?").run(
+    Date.now() - 1,
+    id,
+  );
+  await patch({ ttl: 0 }).expect(404);
+});

@@ -119,16 +119,20 @@ export function Recipient({ token, api }) {
       </a>
       <div className="content">
         {error &&
-          (info ? (
+          !info?.locked &&
+          (info && !info.locked ? (
             <p role="alert">{error}</p>
           ) : (
-            <div
+            <a
+              href="/"
               className="unavailable"
-              role="img"
-              aria-label="Передача недоступна"
+              aria-label="Вернуться к загрузке"
+              title="Вернуться к загрузке"
             >
-              <Icon name="cancel" />
-            </div>
+              <span role="img" aria-label="Передача недоступна">
+                <Icon name="cancel" />
+              </span>
+            </a>
           ))}
         {info?.locked ? (
           <form
@@ -140,16 +144,21 @@ export function Recipient({ token, api }) {
                 setError("");
                 load();
               } catch (e) {
+                setPassword("");
                 setError(e.message);
               }
             }}
           >
             <PasswordInput
+              error={error}
               label="Пароль передачи"
               submitLabel="Открыть"
               autoFocus
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setError("");
+              }}
               maxLength={256}
               required
             />

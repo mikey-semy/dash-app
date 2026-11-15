@@ -247,7 +247,7 @@ function App() {
       if (!control.current.paused && !control.current.cancel) {
         await api(`/api/transfers/${u.id}/complete`, {});
         setUpload(null);
-        if (!u.parentId) setSecret("");
+
         await reload();
       }
     } catch (e) {
@@ -291,14 +291,19 @@ function App() {
                 setPassword("");
                 setError("");
               } catch (e) {
+                setPassword("");
                 setError(e.message);
               }
             }}
           >
             <PasswordInput
+              error={error}
               autoComplete="current-password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setError("");
+              }}
               required
               maxLength={6}
               minLength={6}
@@ -306,7 +311,6 @@ function App() {
               inputMode="numeric"
             />
           </form>
-          {error && <p role="alert">{error}</p>}
         </div>
       </main>
     );
@@ -350,6 +354,11 @@ function App() {
       replaceText={(files, transfer) =>
         choose(files, transfer.id, transfer.revision)
       }
+      settingsApi={async (path, body, method) => {
+        const result = await api(path, body, method);
+        if (method) await reload();
+        return result;
+      }}
       refresh={reload}
       logout={async () => {
         await api("/api/logout", {});

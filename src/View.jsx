@@ -1,8 +1,11 @@
 import { Disclosure, AnimatedDetails } from "./Disclosure.jsx";
 import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import QRButton from "./QRButton.jsx";
+import { captureFiles } from "./folders.js";
+const FolderUpload = lazy(() => import("./FolderUpload.jsx"));
 import { Icon, CopyButton, DeleteButton, Expiry } from "./Icons.jsx";
 const TextComposer = lazy(() => import("./TextComposer.jsx"));
+const TransferSettings = lazy(() => import("./TransferSettings.jsx"));
 const TextViewer = lazy(() => import("./TextViewer.jsx"));
 export const bytes = (n) =>
   n < 1000
@@ -58,6 +61,7 @@ export function Share({
   onAdd,
   onDelete,
   onEdit,
+  onSettings,
   compact = false,
   deleteLabel = "Удалить",
   confirmationKey,
@@ -100,6 +104,17 @@ export function Share({
             <Icon name="add" />
           </button>
         )}
+        {onSettings && (
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Параметры передачи"
+            title="Срок и пароль передачи"
+            onClick={onSettings}
+          >
+            <Icon name="settings" />
+          </button>
+        )}
         <QRButton url={url} />
         <CopyButton value={url} />
         <DeleteButton
@@ -135,6 +150,7 @@ function HistoryItem({
   onAdd,
   onRemoveFiles,
   onEdit,
+  onSettings,
   selected,
   onSelect,
   selectionDisabled,
@@ -219,9 +235,7 @@ function HistoryItem({
         </button>
         <Share
           url={t.url}
-          onEdit={
-            t.preview && t.url && !busy && onEdit ? () => onEdit(t) : undefined
-          }
+          onSettings={t.url && !busy ? () => onSettings(t) : undefined}
           compact
           onAdd={
             t.url && (!t.appendState || t.appendState === "failed")
@@ -299,6 +313,7 @@ function History({
   onRemoveFiles,
   onRemoveHistory,
   onEdit,
+  onSettings,
 }) {
   const [selection, setSelection] = useState(new Set()),
     [removing, setRemoving] = useState(false),
@@ -408,6 +423,7 @@ function History({
           <HistoryItem
             key={t.id}
             transfer={t}
+            onSettings={onSettings}
             onEdit={(item) => {
               ref.current.close();
               onClose();
@@ -431,6 +447,8 @@ function History({
 }
 export function OwnerView(p) {
   const [draft, setDraft] = useState(null),
+    [folders, setFolders] = useState(null),
+    [config, setConfig] = useState(null),
     [opening, setOpening] = useState(false),
     [editorError, setEditorError] = useState(""),
     [viewing, setViewing] = useState(null),
@@ -466,6 +484,11 @@ export function OwnerView(p) {
       passwordVersion.current++;
     }
   }, [p.upload]);
+  const receiveFiles = (data) => {
+    const source = captureFiles(data);
+    if (source.folders) setFolders(source);
+    else p.choose(source.files);
+  };
   useEffect(() => {
     const paste = (event) => {
       if (
@@ -473,13 +496,14 @@ export function OwnerView(p) {
         p.upload ||
         historyOpen ||
         draft !== null ||
+        folders !== null ||
         (event.target instanceof Element &&
           event.target.closest("input,textarea,[contenteditable=true]"))
       )
         return;
       if (event.clipboardData.files.length) {
         event.preventDefault();
-        p.choose(event.clipboardData.files);
+        receiveFiles(event.clipboardData);
       } else {
         const text = event.clipboardData.getData("text/plain");
         if (text) {
@@ -491,7 +515,7 @@ export function OwnerView(p) {
     };
     document.addEventListener("paste", paste);
     return () => document.removeEventListener("paste", paste);
-  }, [p.upload, p.choose, historyOpen, draft]);
+  }, [p.upload, p.choose, historyOpen, draft, folders]);
   const editText = async (transfer) => {
     if (opening) return;
     setOpening(true);
@@ -585,7 +609,7 @@ export function OwnerView(p) {
       onDrop={(e) => {
         e.preventDefault();
         p.setDrag(false);
-        if (!p.upload) p.choose(e.dataTransfer.files);
+        if (!p.upload && !folders) receiveFiles(e.dataTransfer);
       }}
       className={p.drag ? "owner dragging" : "owner"}
     >
@@ -610,6 +634,7 @@ export function OwnerView(p) {
           </button>
           <button
             type="button"
+            hidden={completed}
             className="icon-button duration-button"
             aria-label={"Срок хранения: " + duration[3]}
             title={duration[3] + ". Нажмите, чтобы сменить срок"}
@@ -626,6 +651,7 @@ export function OwnerView(p) {
           <button
             type="button"
             className="icon-button"
+            hidden={completed}
             aria-label="Сгенерировать и скопировать пароль"
             title={
               passwordState === "removed"
@@ -655,7 +681,15 @@ export function OwnerView(p) {
               }
             }}
           >
-            <Icon name={p.secret ? "lock" : "unlock"} />
+            <Icon
+              name={
+                passwordState === "copied"
+                  ? "check"
+                  : p.secret
+                    ? "lock"
+                    : "unlock"
+              }
+            />
             <span className="sr-only" role="status">
               {passwordState === "removed"
                 ? "Пароль убран"
@@ -689,6 +723,25 @@ export function OwnerView(p) {
           </button>
         </div>
       </AnimatedDetails>
+      {config && p.history.find((t) => t.id === config)?.url && (
+        <Suspense fallback={null}>
+          <TransferSettings
+            transfer={p.history.find((t) => t.id === config)}
+            api={p.settingsApi}
+            onClose={() => setConfig(null)}
+            onEdit={editText}
+          />
+        </Suspense>
+      )}
+      {folders && (
+        <Suspense fallback={null}>
+          <FolderUpload
+            source={folders}
+            onClose={() => setFolders(null)}
+            onSend={p.choose}
+          />
+        </Suspense>
+      )}
       {draft !== null && (
         <Suspense fallback={null}>
           <TextComposer
@@ -765,6 +818,7 @@ export function OwnerView(p) {
                   input.current.click();
                 }}
                 onDelete={() => p.remove(latest.id)}
+                onSettings={() => setConfig(latest.id)}
                 onEdit={
                   latest.preview && !opening
                     ? () => editText(latest)
@@ -865,6 +919,7 @@ export function OwnerView(p) {
           onRemoveFiles={p.removeFiles}
           onRemoveHistory={p.removeHistory}
           onEdit={editText}
+          onSettings={(item) => setConfig(item.id)}
           onAdd={(id) => {
             appendTarget.current = id;
             input.current.click();

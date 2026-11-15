@@ -1,3 +1,4 @@
+import { passwordVault } from "./password-vault.js";
 import { readFile } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
 import { fileTextCandidate, textCandidate, textReader } from "./text.js";
@@ -12,6 +13,7 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
     origin = new URL(env.PUBLIC_URL).origin,
     adminHash = hash(env.ADMIN_PASSWORD),
     secure = origin.startsWith("https:");
+  const vault = passwordVault(env);
   app.disable("x-powered-by");
   app.set("trust proxy", Number(env.TRUST_PROXY_HOPS || 0));
   app.use(express.json({ limit: "64kb" }), cookieParser());
@@ -96,6 +98,7 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
       ready: t.ready,
       expires: t.expires,
       ttl: t.ttl,
+      hasPassword: !!t.password,
       files: t.files.map(({ name, size }) => ({
         name,
         size,
@@ -157,7 +160,61 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
     if (typeof password !== "string" || password.length > 256)
       return res.status(400).json({ error: "Неверный пароль" });
     const id = await service.locked(() => service.create(files, ttl, password));
+    if (password)
+      db.prepare("UPDATE transfers SET password_cipher=? WHERE id=?").run(
+        vault.seal(id, password),
+        id,
+      );
     res.status(201).json({ id });
+  });
+  api.get("/transfers/:id/password", (req, res) => {
+    const t = service.get(req.params.id);
+    if (
+      !t ||
+      t.parent ||
+      !["ready", "empty"].includes(t.state) ||
+      (t.expires !== null && t.expires <= Date.now())
+    )
+      return res.status(404).json({ error: "Передача недоступна" });
+    res.json({
+      password: vault.open(t.id, t.password_cipher),
+      hasPassword: !!t.password,
+    });
+  });
+  api.patch("/transfers/:id/settings", async (req, res) => {
+    const { ttl, password } = req.body;
+    if (
+      (ttl === undefined && password === undefined) ||
+      (ttl !== undefined &&
+        ![0, 3600, 21600, 86400, 259200, 604800].includes(ttl)) ||
+      (password !== undefined && password !== "" && !/^\d{6}$/.test(password))
+    )
+      return res.status(400).json({ error: "Неверные настройки" });
+    await service.locked(() => {
+      const t = service.get(req.params.id);
+      if (
+        !t ||
+        t.parent ||
+        !["ready", "empty"].includes(t.state) ||
+        (t.expires !== null && t.expires <= Date.now())
+      )
+        throw Object.assign(new Error("Передача недоступна"), { status: 404 });
+      if (password !== undefined)
+        db.prepare(
+          "UPDATE transfers SET password=?,password_cipher=? WHERE id=?",
+        ).run(
+          password ? hash(password) : null,
+          vault.seal(t.id, password),
+          t.id,
+        );
+      if (ttl !== undefined)
+        db.prepare("UPDATE transfers SET ttl=?,expires=? WHERE id=?").run(
+          ttl,
+          ttl ? Date.now() + ttl * 1000 : null,
+          t.id,
+        );
+    });
+    res.json(publicOwner(service.get(req.params.id)));
   });
   api.post("/transfers/:id/append", async (req, res) => {
     const result = await service.locked(() =>
@@ -327,7 +384,10 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
     });
   function allowed(req, t) {
     const g = grants.get(req.cookies["grant_" + t.id]);
-    return !t.password || (g?.id === t.id && g.expires > Date.now());
+    return (
+      !t.password ||
+      (g?.id === t.id && g.password === t.password && g.expires > Date.now())
+    );
   }
   app.post("/public/:token/unlock", limited, (req, res) => {
     const t = transfer(req);
@@ -343,6 +403,7 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
       return res.status(503).json({ error: "Повторите позже" });
     grants.set(grant, {
       id: t.id,
+      password: t.password,
       expires: Math.min(t.expires ?? Infinity, Date.now() + 12 * 3600000),
     });
     res.cookie("grant_" + t.id, grant, {

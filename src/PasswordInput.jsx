@@ -3,6 +3,7 @@ import { Icon } from "./Icons.jsx";
 export function PasswordInput({
   label = "Пароль",
   submitLabel = "Войти",
+  error,
   ...props
 }) {
   const [visible, setVisible] = useState(false);
@@ -24,6 +25,16 @@ export function PasswordInput({
       >
         <Icon name={visible ? "hidden" : "eye"} />
       </button>
+      {error && (
+        <span
+          className="password-error"
+          role="img"
+          aria-label="Неверный пароль"
+          title={error}
+        >
+          <Icon name="cancel" />
+        </span>
+      )}
       <button
         type="submit"
         className="icon-button"

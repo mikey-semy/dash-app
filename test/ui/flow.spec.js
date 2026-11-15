@@ -45,7 +45,9 @@ test("empty page, settings, upload, private recipient, ZIP, history and deletion
   await page.goto("/");
   await page.getByLabel("Пароль", { exact: true }).fill("000000");
   await page.getByRole("button", { name: "Войти" }).click();
-  await expect(page.getByRole("alert")).toHaveText("Неверный пароль");
+  await expect(
+    page.getByRole("img", { name: "Неверный пароль", exact: true }),
+  ).toBeVisible();
   await login(page);
   expect((await page.locator("body").innerText()).trim()).toBe("");
   await page.screenshot({ path: "work/ui-desktop.png", fullPage: true });
@@ -141,7 +143,7 @@ test("empty page, settings, upload, private recipient, ZIP, history and deletion
   await expect(item.locator(".history-information")).toBeVisible();
   await item.getByRole("button", { name: "QR-код", exact: true }).click();
   await expect(page.getByRole("img", { name: "QR-код ссылки" })).toBeVisible();
-  await expect(item.locator(".share-controls button")).toHaveCount(4);
+  await expect(item.locator(".share-controls button")).toHaveCount(5);
   await confirmDelete(
     item.getByRole("button", { name: "Удалить", exact: true }),
   );

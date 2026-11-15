@@ -7,6 +7,12 @@ export function Icon({ name }) {
         <path d="M16 8V3H3v13h5" />
       </>
     ),
+    warning: (
+      <>
+        <path d="m12 3 10 18H2Z" />
+        <path d="M12 9v5m0 3v.1" />
+      </>
+    ),
     check: <path d="m4 12 5 5L20 6" />,
     generate: (
       <>

@@ -212,8 +212,24 @@ function History({ items, onClose, onDelete }) {
 }
 export function OwnerView(p) {
   const [historyOpen, setHistoryOpen] = useState(false),
+    [passwordState, setPasswordState] = useState("idle"),
     input = useRef(),
     settings = useRef();
+  useEffect(() => {
+    if (passwordState === "copied") {
+      const timer = setTimeout(() => setPasswordState("idle"), 1600);
+      return () => clearTimeout(timer);
+    }
+  }, [passwordState]);
+  const durations = [
+    [3600, "1", "ч", "1 час"],
+    [21600, "6", "ч", "6 часов"],
+    [86400, "24", "ч", "Сутки"],
+    [259200, "3", "д", "3 дня"],
+    [604800, "7", "д", "7 дней"],
+  ];
+  const durationIndex = durations.findIndex(([value]) => value === p.ttl),
+    duration = durations[durationIndex];
   const latest = p.history.find((t) => t.id === p.selected);
   const completed = !p.upload && latest?.state === "ready" && latest.url;
   const preparing =
@@ -246,78 +262,88 @@ export function OwnerView(p) {
         label="Настройки"
         summary={<Gear />}
       >
-        <div className="settings-panel">
-          <label>
-            <select
-              aria-label="Срок хранения"
-              title="Срок хранения"
-              value={p.ttl}
-              disabled={!!p.upload}
-              onChange={(e) => p.setTtl(Number(e.target.value))}
-            >
-              {[
-                [3600, "1 час"],
-                [21600, "6 часов"],
-                [86400, "Сутки"],
-                [259200, "3 дня"],
-                [604800, "7 дней"],
-              ].map(([v, l]) => (
-                <option key={v} value={v}>
-                  {l}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="password-field">
-            <input
-              aria-label="Пароль скачивания"
-              type="password"
-              placeholder="Пароль"
-              maxLength="256"
-              disabled={!!p.upload}
-              value={p.secret}
-              onChange={(e) => p.setSecret(e.target.value)}
-              autoComplete="new-password"
+        <div className="settings-panel settings-toolbar">
+          <button
+            className="icon-button"
+            aria-label="История"
+            title="История"
+            onClick={() => {
+              settings.current.open = false;
+              setHistoryOpen(true);
+            }}
+          >
+            <Icon name="history" />
+          </button>
+          <button
+            type="button"
+            className="icon-button duration-button"
+            aria-label={"Срок хранения: " + duration[3]}
+            title={duration[3] + ". Нажмите, чтобы сменить срок"}
+            disabled={!!p.upload}
+            onClick={() =>
+              p.setTtl(durations[(durationIndex + 1) % durations.length][0])
+            }
+          >
+            <span className="duration-value" key={p.ttl}>
+              <span>{duration[1]}</span>
+              <small>{duration[2]}</small>
+            </span>
+          </button>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Сгенерировать и скопировать пароль"
+            title={
+              passwordState === "copied"
+                ? "Пароль скопирован"
+                : passwordState === "failed"
+                  ? "Не удалось скопировать. Повторить"
+                  : p.secret
+                    ? "Пароль установлен. Сгенерировать новый и скопировать"
+                    : "Сгенерировать и скопировать пароль"
+            }
+            data-active={!!p.secret}
+            disabled={!!p.upload}
+            onClick={async () => {
+              const a = new Uint32Array(1);
+              do {
+                crypto.getRandomValues(a);
+              } while (a[0] >= 4294000000);
+              const pin = String(a[0] % 1000000).padStart(6, "0");
+              try {
+                await navigator.clipboard.writeText(pin);
+                p.setSecret(pin);
+                setPasswordState("copied");
+              } catch {
+                setPasswordState("failed");
+              }
+            }}
+          >
+            <Icon
+              name={
+                passwordState === "copied"
+                  ? "check"
+                  : passwordState === "failed"
+                    ? "warning"
+                    : "generate"
+              }
             />
-            <button
-              type="button"
-              className="icon-button"
-              aria-label="Сгенерировать пароль"
-              title="Сгенерировать пароль"
-              disabled={!!p.upload}
-              onClick={() => {
-                const a = new Uint32Array(1);
-                do {
-                  crypto.getRandomValues(a);
-                } while (a[0] >= 4294000000);
-                p.setSecret(String(a[0] % 1000000).padStart(6, "0"));
-              }}
-            >
-              <Icon name="generate" />
-            </button>
-            <CopyButton value={p.secret} label="Копировать пароль" />
-          </div>
-          <div className="settings-actions">
-            <button
-              className="icon-button"
-              aria-label="История"
-              title="История"
-              onClick={() => {
-                settings.current.open = false;
-                setHistoryOpen(true);
-              }}
-            >
-              <Icon name="history" />
-            </button>
-            <button
-              className="icon-button"
-              aria-label="Выйти"
-              title="Выйти"
-              onClick={p.logout}
-            >
-              <Icon name="logout" />
-            </button>
-          </div>
+            <span className="sr-only" role="status">
+              {passwordState === "copied"
+                ? "Пароль скопирован"
+                : passwordState === "failed"
+                  ? "Не удалось скопировать пароль"
+                  : ""}
+            </span>
+          </button>
+          <button
+            className="icon-button"
+            aria-label="Выйти"
+            title="Выйти"
+            onClick={p.logout}
+          >
+            <Icon name="logout" />
+          </button>
         </div>
       </AnimatedDetails>
       <input

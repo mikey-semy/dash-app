@@ -44,7 +44,15 @@ test("empty page, settings, upload, private recipient, ZIP, history and deletion
   expect((await page.locator("body").innerText()).trim()).toBe("");
   await page.screenshot({ path: "work/ui-desktop.png", fullPage: true });
   await page.getByLabel("Настройки", { exact: true }).click();
-  await page.getByLabel("Пароль скачивания").fill("recipient-secret");
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page
+    .getByRole("button", {
+      name: "Сгенерировать и скопировать пароль",
+      exact: true,
+    })
+    .click();
+  const pin = await page.evaluate(() => navigator.clipboard.readText());
+  expect(pin).toMatch(/^\d{6}$/);
   await page.getByLabel("Настройки", { exact: true }).click();
   await page.locator("input[type=file]").setInputFiles([
     {
@@ -86,7 +94,7 @@ test("empty page, settings, upload, private recipient, ZIP, history and deletion
   await expect(recipient.getByText("привет.txt", { exact: true })).toHaveCount(
     0,
   );
-  await recipient.getByLabel("Пароль передачи").fill("recipient-secret");
+  await recipient.getByLabel("Пароль передачи").fill(pin);
   await recipient.getByRole("button", { name: "Открыть" }).click();
   await expect(
     recipient.getByRole("link", { name: "СКАЧАТЬ", exact: true }),
@@ -150,7 +158,9 @@ test("mobile empty page, monochrome and no horizontal overflow", async ({
   ).toBe("rgba(0, 0, 0, 0)");
   await page.screenshot({ path: "work/ui-mobile.png", fullPage: true });
   await page.getByLabel("Настройки", { exact: true }).click();
-  await expect(page.getByLabel("Срок хранения")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /^Срок хранения:/ }),
+  ).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -197,20 +207,34 @@ test("icon controls generate and copy six-digit password; manifest and icons are
   await login(page);
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.getByLabel("Настройки", { exact: true }).click();
-  await page
-    .getByRole("button", { name: "Сгенерировать пароль", exact: true })
-    .click();
-  const pin = await page.getByLabel("Пароль скачивания").inputValue();
+  const generate = page.getByRole("button", {
+    name: "Сгенерировать и скопировать пароль",
+    exact: true,
+  });
+  await generate.click();
+  const pin = await page.evaluate(() => navigator.clipboard.readText());
   expect(pin).toMatch(/^\d{6}$/);
-  await page
-    .getByRole("button", { name: "Копировать пароль", exact: true })
-    .click();
-  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(pin);
-  expect(await page.locator(".settings-actions").innerText()).toBe("");
-  await expect(page.locator(".settings-panel")).not.toContainText("Хранить");
-  await expect(page.locator(".settings-panel")).not.toContainText(
-    "Пароль скачивания",
-  );
+  await expect(generate).toHaveAttribute("data-active", "true");
+  await expect(page.locator(".settings-toolbar>button")).toHaveCount(4);
+  await expect(
+    page.locator(".settings-toolbar input,.settings-toolbar select"),
+  ).toHaveCount(0);
+  const duration = page.getByRole("button", { name: /^Срок хранения:/ });
+  for (const [index, name] of [
+    "Сутки",
+    "3 дня",
+    "7 дней",
+    "1 час",
+    "6 часов",
+    "Сутки",
+  ].entries()) {
+    await expect(duration).toHaveAttribute(
+      "aria-label",
+      "Срок хранения: " + name,
+    );
+    if (index < 5) await duration.click();
+  }
+  await page.screenshot({ path: "work/ui-settings.png", fullPage: true });
   const m = await page.request.get("/manifest.webmanifest");
   expect(m.ok()).toBe(true);
   const manifest = await m.json();
@@ -288,14 +312,9 @@ test("history expansion preserves modal and clicked header positions throughout 
 }) => {
   await login(page);
   await page.getByLabel("Настройки", { exact: true }).click();
-  const copy = page.getByRole("button", {
-    name: "Копировать пароль",
-    exact: true,
-  });
-  await expect(copy).toBeDisabled();
-  expect(await copy.evaluate((el) => getComputedStyle(el).cursor)).toBe(
-    "default",
-  );
+  await expect(
+    page.locator(".settings-toolbar input,.settings-toolbar select"),
+  ).toHaveCount(0);
   await page.getByLabel("Настройки", { exact: true }).click();
   await page.route("**/api/transfers", (route) =>
     route.fulfill({
@@ -386,4 +405,22 @@ test("history expansion preserves modal and clicked header positions throughout 
       .locator(".settings .details-body")
       .evaluate((el) => getComputedStyle(el).transitionDuration),
   ).toBe("0s");
+});
+
+test("password is enabled only after successful copy", async ({ page }) => {
+  await login(page);
+  await page.getByLabel("Настройки", { exact: true }).click();
+  await page.evaluate(() => {
+    navigator.clipboard.writeText = () => Promise.reject(new Error("blocked"));
+  });
+  const button = page.getByRole("button", {
+    name: "Сгенерировать и скопировать пароль",
+    exact: true,
+  });
+  await button.click();
+  await expect(button).toHaveAttribute("data-active", "false");
+  await expect(button).toHaveAttribute(
+    "title",
+    "Не удалось скопировать. Повторить",
+  );
 });

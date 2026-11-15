@@ -5,12 +5,20 @@ import { OwnerView } from "./View.jsx";
 import { Recipient } from "./Recipient.jsx";
 import "./style.css";
 async function api(path, body, method = body === undefined ? "GET" : "POST") {
-  const r = await fetch(path, {
-    method,
-    headers: body === undefined ? {} : { "Content-Type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  const v = await r.json();
+  let r, v;
+  try {
+    r = await fetch(path, {
+      method,
+      headers: body === undefined ? {} : { "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    v = await r.json();
+  } catch {
+    throw Object.assign(
+      new Error("Не удалось связаться с сервером. Повторите."),
+      { status: r?.status },
+    );
+  }
   if (!r.ok)
     throw Object.assign(new Error(v.error || "Ошибка запроса"), {
       status: r.status,
@@ -331,9 +339,11 @@ function App() {
         }
       }}
       remove={async (id) => {
+        setError("");
         try {
           await api("/api/transfers/" + id, undefined, "DELETE");
-          reload();
+          if (selected === id) setSelected(null);
+          await reload();
         } catch (e) {
           setError(e.message);
         }

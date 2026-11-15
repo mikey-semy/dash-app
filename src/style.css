@@ -974,10 +974,24 @@ a {
 }
 
 /* Keep the owner screen inside the visible mobile viewport after file selection. */
+html:has(.owner),
+body:has(.owner),
+#root:has(> .owner) {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+body:has(.owner) {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+}
 .owner {
+  position: fixed;
+  inset: 0;
   height: 100dvh;
   min-height: 0;
-  overflow: clip;
+  overflow: hidden;
 }
 .owner > .center {
   height: 100%;

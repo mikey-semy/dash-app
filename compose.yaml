@@ -28,13 +28,13 @@ services:
         max-file: "3"
     labels:
       - traefik.enable=true
-      - traefik.docker.network=${TRAEFIK_NETWORK:-proxy}
-      - traefik.http.routers.flash.rule=Host(`${DOMAIN}`)
+      - traefik.docker.network=${TRAEFIK_NETWORK:-edge}
+      - traefik.http.routers.flash.rule=Host(`${DOMAIN:-files.example.com}`)
       - traefik.http.routers.flash.entrypoints=websecure
       - traefik.http.routers.flash.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}
       - traefik.http.routers.flash.observability.accesslogs=false
       - traefik.http.services.flash.loadbalancer.server.port=3000
-      - traefik.http.routers.flash-http.rule=Host(`${DOMAIN}`)
+      - traefik.http.routers.flash-http.rule=Host(`${DOMAIN:-files.example.com}`)
       - traefik.http.routers.flash-http.entrypoints=web
       - traefik.http.routers.flash-http.middlewares=redirect-to-https@file
       - traefik.http.routers.flash-http.service=flash
@@ -53,6 +53,6 @@ services:
 networks:
   proxy:
     external: true
-    name: ${TRAEFIK_NETWORK:-proxy}
+    name: ${TRAEFIK_NETWORK:-edge}
 volumes:
   flash-data:

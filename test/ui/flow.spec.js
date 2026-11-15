@@ -1,4 +1,10 @@
 import { test, expect } from "@playwright/test";
+async function confirmDelete(button) {
+  await button.click();
+  const confirmation = button.page().locator('button[data-confirming="true"]');
+  await expect(confirmation).toHaveCount(1);
+  await confirmation.click();
+}
 async function login(page) {
   await page.goto("/");
   await page.getByLabel("Пароль", { exact: true }).fill("123456");
@@ -136,7 +142,9 @@ test("empty page, settings, upload, private recipient, ZIP, history and deletion
   await item.getByRole("button", { name: "QR-код", exact: true }).click();
   await expect(item.getByRole("img", { name: "QR-код ссылки" })).toBeVisible();
   await expect(item.locator(".share-controls button")).toHaveCount(4);
-  await item.getByRole("button", { name: "Удалить", exact: true }).click();
+  await confirmDelete(
+    item.getByRole("button", { name: "Удалить", exact: true }),
+  );
   await recipient.reload();
   await expect(
     recipient.getByRole("img", { name: "Передача недоступна" }),
@@ -622,9 +630,9 @@ test("selected history files can be removed while preserving an empty reusable l
   };
   let row = await open();
   await row.getByLabel("Выбрать remove.txt", { exact: true }).check();
-  await row
-    .getByRole("button", { name: "Удалить выбранные файлы", exact: true })
-    .click();
+  await confirmDelete(
+    row.getByRole("button", { name: "Удалить выбранные файлы", exact: true }),
+  );
   await expect
     .poll(async () => (await record())?.files.length, { timeout: 15000 })
     .toBe(1);
@@ -632,9 +640,9 @@ test("selected history files can be removed while preserving an empty reusable l
     row.getByLabel("Выбрать keep.txt", { exact: true }),
   ).toBeVisible();
   await row.getByLabel("Выбрать все файлы", { exact: true }).check();
-  await row
-    .getByRole("button", { name: "Удалить выбранные файлы", exact: true })
-    .dblclick();
+  await confirmDelete(
+    row.getByRole("button", { name: "Удалить выбранные файлы", exact: true }),
+  );
   await expect.poll(async () => (await record())?.state).toBe("empty");
   expect((await record()).files).toHaveLength(0);
   const choice = page.waitForEvent("filechooser");
@@ -671,6 +679,16 @@ test("mobile completed controls stay centered with no document overflow after a 
   await expect(page.locator(".share-ready")).toBeVisible({ timeout: 20000 });
   for (const height of [650, 520, 844]) {
     await page.setViewportSize({ width: 390, height });
+    await page.evaluate(() => {
+      window.scrollTo(0, 2000);
+      document.querySelector(".owner > .center").scrollTop = 2000;
+    });
+    await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
+    await expect
+      .poll(() =>
+        page.locator(".owner > .center").evaluate((el) => el.scrollTop),
+      )
+      .toBe(0);
     await expect
       .poll(async () => {
         const r = await page.locator(".share-ready").boundingBox();
@@ -844,11 +862,11 @@ test("history selection deletes multiple records without expanding and supports 
       .locator(".dialog-header input")
       .evaluate((el) => el.indeterminate),
   ).toBe(true);
-  await page.locator(".dialog-header button:has(svg)").click();
+  await confirmDelete(page.locator(".dialog-header button:has(svg)"));
   await expect(rows).toHaveCount(1);
   expect(removed[0]).toEqual(["row0", "row1"]);
   await page.locator(".dialog-header input").check();
-  await page.locator(".dialog-header button:has(svg)").click();
+  await confirmDelete(page.locator(".dialog-header button:has(svg)"));
   await expect(rows).toHaveCount(0);
   await expect(page.locator(".dialog-header button:has(svg)")).toBeDisabled();
   expect(
@@ -856,4 +874,138 @@ test("history selection deletes multiple records without expanding and supports 
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+});
+
+test("already open recipient refreshes changed files and becomes a cross after deletion", async ({
+  page,
+}) => {
+  let state = "ready";
+  await page.route("**/public/Live12", (r) =>
+    state === "deleted"
+      ? r.fulfill({ status: 404, json: { error: "Unavailable" } })
+      : state === "offline"
+        ? r.fulfill({
+            status: 502,
+            contentType: "text/html",
+            body: "<html>Bad Gateway</html>",
+          })
+        : r.fulfill({
+            json: {
+              files: [
+                {
+                  name: state === "ready" ? "before.txt" : "after.txt",
+                  size: 1,
+                },
+              ],
+              size: 1,
+              expires: null,
+            },
+          }),
+  );
+  await page.goto("/Live12");
+  await page.locator(".transfer-details > button").click();
+  await expect(page.locator(".files")).toContainText("before.txt");
+  state = "offline";
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(page.locator(".primary-action")).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  state = "changed";
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(page.locator(".files")).toContainText("after.txt");
+  state = "deleted";
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(page.locator(".unavailable")).toBeVisible();
+  await expect(
+    page.locator(".primary-action,.transfer-details,.expiry-corner"),
+  ).toHaveCount(0);
+  await expect(page.getByRole("alert")).toHaveCount(0);
+});
+
+test("failed delete closes QR and never leaks Safari JSON parser errors; retry returns to upload", async ({
+  page,
+}) => {
+  await login(page);
+  await page.locator("input[type=file]").setInputFiles({
+    name: "delete.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("x"),
+  });
+  await expect(page.locator(".share-ready")).toBeVisible();
+  await page.locator(".share-ready .share-controls button").nth(0).click();
+  await expect(page.locator(".qr-popover.is-open")).toBeVisible();
+  await page.route("**/api/transfers/*", (r) =>
+    r.request().method() === "DELETE"
+      ? r.fulfill({
+          status: 502,
+          contentType: "text/html",
+          body: "<html>Bad Gateway</html>",
+        })
+      : r.continue(),
+  );
+  await confirmDelete(
+    page.locator(".share-ready .share-controls button").nth(2),
+  );
+  await expect(page.locator(".qr-popover.is-open")).toHaveCount(0);
+  await expect(page.getByRole("alert")).toHaveText(
+    "Не удалось связаться с сервером. Повторите.",
+  );
+  await page.unroute("**/api/transfers/*");
+  await confirmDelete(
+    page.locator(".share-ready .share-controls button").nth(2),
+  );
+  await expect(page.locator(".share-ready")).toHaveCount(0);
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(page.locator(".primary-action")).toBeVisible();
+});
+
+test("delete confirmation is cancelled by blur, timeout and selection changes", async ({
+  page,
+}) => {
+  let deleted = 0;
+  const now = Date.now();
+  await page.clock.install({ time: new Date(now) });
+  await page.route("**/api/session", (r) => r.fulfill({ json: { ok: true } }));
+  await page.route("**/api/transfers", (r) =>
+    r.fulfill({
+      json: [
+        {
+          id: "confirm",
+          state: "ready",
+          created: now,
+          expires: null,
+          ttl: 0,
+          files: [],
+          size: 0,
+          url: "http://127.0.0.1:3001/Test12",
+        },
+      ],
+    }),
+  );
+  await page.route("**/api/transfers/confirm", (r) => {
+    deleted++;
+    return r.fulfill({ json: { ok: true } });
+  });
+  await page.goto("/");
+  await page.locator(".settings > button").click();
+  await page.locator(".settings-toolbar button").first().click();
+  const row = page.locator(".history-item"),
+    trash = row.locator(".share-controls button").last();
+  await trash.click();
+  await expect(trash).toHaveAttribute("data-confirming", "true");
+  expect(deleted).toBe(0);
+  await row.locator(".history-select").click();
+  await expect(trash).toHaveAttribute("data-confirming", "false");
+  await trash.click();
+  await page.clock.runFor(4100);
+  await expect(trash).toHaveAttribute("data-confirming", "false");
+  expect(deleted).toBe(0);
+  await trash.click();
+  await expect(trash).toHaveAttribute("data-confirming", "true");
+  await trash.click();
+  await expect.poll(() => deleted).toBe(1);
+  await row.locator(".history-toggle").click();
+  await expect(row.locator(".history-information")).toContainText("∞");
+  await expect(row.locator(".history-information")).not.toContainText(
+    "Бессрочно",
+  );
 });

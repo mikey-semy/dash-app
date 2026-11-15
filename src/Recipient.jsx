@@ -1,7 +1,7 @@
 import { AnimatedDetails } from "./Disclosure.jsx";
 import { Icon } from "./Icons.jsx";
 import { PasswordInput } from "./PasswordInput.jsx";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Expiry } from "./Icons.jsx";
 import { RecipientShare } from "./RecipientShare.jsx";
 import { FileList, bytes, date } from "./View.jsx";
@@ -9,6 +9,7 @@ export function Recipient({ token, api }) {
   const [info, setInfo] = useState(null),
     [password, setPassword] = useState(""),
     [error, setError] = useState("");
+  const requestVersion = useRef(0);
   useEffect(() => {
     document.title = info?.locked
       ? "Пароль передачи"
@@ -16,13 +17,41 @@ export function Recipient({ token, api }) {
         ? "Передача недоступна"
         : "Скачивание";
   }, [info, error]);
-  const load = () =>
-    api("/public/" + token)
-      .then(setInfo)
-      .catch((e) => setError(e.message));
+  const load = useCallback(
+    async (background = false) => {
+      const version = ++requestVersion.current;
+      try {
+        const result = await api("/public/" + token);
+        if (version !== requestVersion.current) return;
+        setInfo(result);
+        setError("");
+      } catch (e) {
+        if (version !== requestVersion.current) return;
+        if (e.status === 404) {
+          setInfo(null);
+          setError(e.message);
+        } else if (!background) setError(e.message);
+      }
+    },
+    [api, token],
+  );
   useEffect(() => {
     load();
-  }, []);
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") load(true);
+    }, 5000);
+    const refresh = () => {
+      if (document.visibilityState === "visible") load(true);
+    };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      requestVersion.current++;
+      clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [load]);
   return (
     <main className="recipient center">
       <a

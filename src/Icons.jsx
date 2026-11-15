@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 export function Icon({ name }) {
   const paths = {
     archive: (
@@ -72,6 +72,7 @@ export function Icon({ name }) {
     pause: <path d="M8 5v14M16 5v14" />,
     play: <path d="m8 4 12 8-12 8Z" />,
     cancel: <path d="m6 6 12 12M18 6 6 18" />,
+    question: <path d="M8 7a4 4 0 0 1 8 0c0 3-4 3-4 6m0 5v.1" />,
     upload: <path d="M12 20V4m-6 6 6-6 6 6" />,
     download: <path d="M12 4v16m-6-6 6 6 6-6" />,
   };
@@ -120,6 +121,56 @@ export function CopyButton({ value, label = "Копировать ссылку" 
       <span className="sr-only" role="status">
         {copied ? "Скопировано" : ""}
       </span>
+    </button>
+  );
+}
+export function DeleteButton({
+  onDelete,
+  onPrepare,
+  disabled,
+  label = "Удалить",
+  confirmationKey = "",
+}) {
+  const [armed, setArmed] = useState(false),
+    [busy, setBusy] = useState(false);
+  const pending = useRef(false);
+  useEffect(() => {
+    setArmed(false);
+  }, [disabled, label, confirmationKey]);
+  useEffect(() => {
+    if (!armed) return;
+    const timer = setTimeout(() => setArmed(false), 4000);
+    return () => clearTimeout(timer);
+  }, [armed]);
+  const text = armed ? "Подтвердить удаление" : label;
+  return (
+    <button
+      type="button"
+      className="icon-button"
+      disabled={disabled || busy}
+      aria-label={text}
+      title={text}
+      data-confirming={armed}
+      onBlur={() => setArmed(false)}
+      onClick={async () => {
+        if (pending.current) return;
+        onPrepare?.();
+        if (!armed) {
+          setArmed(true);
+          return;
+        }
+        setArmed(false);
+        setBusy(true);
+        pending.current = true;
+        try {
+          await onDelete?.();
+        } finally {
+          pending.current = false;
+          setBusy(false);
+        }
+      }}
+    >
+      <Icon name={armed ? "question" : "delete"} />
     </button>
   );
 }

@@ -1,7 +1,7 @@
 import { Disclosure, AnimatedDetails } from "./Disclosure.jsx";
 import React, { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
-import { Icon, CopyButton, Expiry } from "./Icons.jsx";
+import { Icon, CopyButton, DeleteButton, Expiry } from "./Icons.jsx";
 export const bytes = (n) =>
   n < 1000
     ? Math.round(n) + " Б"
@@ -42,6 +42,7 @@ export function Share({
   onDelete,
   compact = false,
   deleteLabel = "Удалить",
+  confirmationKey,
 }) {
   const [qr, setQr] = useState(""),
     [open, setOpen] = useState(false);
@@ -53,6 +54,9 @@ export function Share({
         color: { dark: "#111111", light: "#ffffff" },
       }).then(setQr);
   }, [url, open]);
+  useEffect(() => {
+    if (!url) setOpen(false);
+  }, [url]);
   return (
     <div className={onAdd && !compact ? "share share-ready" : "share"}>
       {onAdd && !compact && (
@@ -90,18 +94,13 @@ export function Share({
           <Icon name="qr" />
         </button>
         <CopyButton value={url} />
-        <button
-          type="button"
-          className="icon-button"
-          aria-label={deleteLabel}
-          title={deleteLabel}
+        <DeleteButton
+          label={deleteLabel}
           disabled={!onDelete}
-          onClick={(event) => {
-            if (event.detail <= 1) onDelete?.();
-          }}
-        >
-          <Icon name="delete" />
-        </button>
+          onPrepare={() => setOpen(false)}
+          onDelete={onDelete}
+          confirmationKey={confirmationKey || url}
+        />
         {qr && (
           <div
             className={"qr-popover " + (open ? "is-open" : "")}
@@ -241,6 +240,7 @@ function HistoryItem({
               : undefined
           }
           deleteLabel={selection.size ? "Удалить выбранные файлы" : "Удалить"}
+          confirmationKey={JSON.stringify([t.revision, ...selection])}
           onDelete={
             selection.size
               ? busy
@@ -294,7 +294,7 @@ function HistoryItem({
             {t.expires
               ? date(t.expires)
               : t.ttl === 0
-                ? "Бессрочно"
+                ? "∞"
                 : "Срок: " + t.ttl / 3600 + " ч после готовности"}
           </p>
         </section>
@@ -376,13 +376,11 @@ function History({
               )
             }
           />
-          <button
-            type="button"
-            className="icon-button"
-            aria-label="Удалить выбранные передачи"
-            title="Удалить выбранные передачи"
+          <DeleteButton
+            label="Удалить выбранные передачи"
+            confirmationKey={selectedItems.map((t) => t.id).join(",")}
             disabled={!selectedItems.length || removing}
-            onClick={async () => {
+            onDelete={async () => {
               setRemoving(true);
               setError("");
               try {
@@ -394,9 +392,7 @@ function History({
                 setRemoving(false);
               }
             }}
-          >
-            <Icon name="delete" />
-          </button>
+          />
           <button
             className="icon-button"
             onClick={close}
@@ -438,6 +434,18 @@ export function OwnerView(p) {
     settings = useRef(),
     passwordClick = useRef(),
     passwordVersion = useRef(0);
+  useEffect(() => {
+    const reset = () => window.scrollTo(0, 0);
+    reset();
+    window.addEventListener("pageshow", reset);
+    window.addEventListener("focus", reset);
+    window.visualViewport?.addEventListener("resize", reset);
+    return () => {
+      window.removeEventListener("pageshow", reset);
+      window.removeEventListener("focus", reset);
+      window.visualViewport?.removeEventListener("resize", reset);
+    };
+  }, []);
   useEffect(
     () => () => {
       clearTimeout(passwordClick.current);

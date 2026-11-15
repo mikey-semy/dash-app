@@ -63,11 +63,12 @@ button:disabled {
   opacity: 0.4;
   cursor: default;
 }
-button:focus-visible,
-summary:focus-visible,
-a:focus-visible {
-  outline: 1px solid #111;
-  outline-offset: 5px;
+button:focus,
+summary:focus,
+a:focus,
+input:focus,
+select:focus {
+  outline: none;
 }
 input,
 select {
@@ -79,9 +80,9 @@ select {
   min-width: 0;
   width: 100%;
 }
-input:focus,
-select:focus {
+.keyboard-navigation :is(button, summary, a, input, select):focus-visible {
   outline: 1px solid #111;
+  outline-offset: 5px;
 }
 label {
   display: flex;
@@ -364,10 +365,11 @@ h1 {
   min-width: 0;
   padding-right: 0;
 }
-.password-field:focus-within {
+.keyboard-navigation .password-field:has(input:focus-visible) {
   outline: 1px solid #111;
 }
-.password-field input:focus {
+.password-field input:focus,
+.keyboard-navigation .password-field input:focus-visible {
   outline: 0;
 }
 .settings-actions {

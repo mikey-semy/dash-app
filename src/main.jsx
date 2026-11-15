@@ -4,6 +4,21 @@ import { createRoot } from "react-dom/client";
 import { OwnerView } from "./View.jsx";
 import { Recipient } from "./Recipient.jsx";
 import "./style.css";
+document.addEventListener(
+  "keydown",
+  (event) => {
+    if (event.key === "Tab")
+      document.documentElement.classList.add("keyboard-navigation");
+  },
+  true,
+);
+document.addEventListener(
+  "pointerdown",
+  () => {
+    document.documentElement.classList.remove("keyboard-navigation");
+  },
+  true,
+);
 async function api(path, body, method = body === undefined ? "GET" : "POST") {
   let r, v;
   try {

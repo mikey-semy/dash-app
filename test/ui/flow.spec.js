@@ -854,6 +854,19 @@ test("history selection deletes multiple records without expanding and supports 
   await expect(page.locator(".dialog-header h2")).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.locator(".dialog-header input")).toBeFocused();
+  expect(
+    await page
+      .locator(".dialog-header input")
+      .evaluate((el) => getComputedStyle(el).outlineStyle),
+  ).toBe("solid");
+  await page.locator(".dialog-header input").click();
+  expect(
+    await page
+      .locator(".dialog-header input")
+      .evaluate((el) => getComputedStyle(el).outlineStyle),
+  ).toBe("none");
+  await page.locator(".dialog-header input").uncheck();
+
   const closeBox = await page.locator(".dialog-header > button").boundingBox();
   const deleteBox = await page
     .locator(".history-bulk-actions button")
@@ -1017,5 +1030,42 @@ test("delete confirmation is cancelled by blur, timeout and selection changes", 
   await expect(row.locator(".history-information")).toContainText("∞");
   await expect(row.locator(".history-information")).not.toContainText(
     "Бессрочно",
+  );
+});
+
+test("pointer focus has no outlines while Tab retains keyboard focus indication", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const input = page.locator(".login-field input"),
+    field = page.locator(".login-field"),
+    eye = page.locator(".login-field button").first();
+  await input.click();
+  expect(await field.evaluate((el) => getComputedStyle(el).outlineStyle)).toBe(
+    "none",
+  );
+  expect(await input.evaluate((el) => getComputedStyle(el).outlineStyle)).toBe(
+    "none",
+  );
+  await page.keyboard.press("Tab");
+  await expect(eye).toBeFocused();
+  expect(await eye.evaluate((el) => getComputedStyle(el).outlineStyle)).toBe(
+    "solid",
+  );
+  await eye.click();
+  expect(await eye.evaluate((el) => getComputedStyle(el).outlineStyle)).toBe(
+    "none",
+  );
+  await input.click();
+  await page.keyboard.press("Tab");
+  await expect(eye).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(input).toBeFocused();
+  expect(await field.evaluate((el) => getComputedStyle(el).outlineStyle)).toBe(
+    "solid",
+  );
+  await input.click();
+  expect(await field.evaluate((el) => getComputedStyle(el).outlineStyle)).toBe(
+    "none",
   );
 });

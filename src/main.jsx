@@ -317,6 +317,19 @@ function App() {
           return false;
         }
       }}
+      removeHistory={async (ids) => {
+        try {
+          for (let offset = 0; offset < ids.length; offset += 1000)
+            await api(
+              "/api/history",
+              { ids: ids.slice(offset, offset + 1000) },
+              "DELETE",
+            );
+          if (ids.includes(selected)) setSelected(null);
+        } finally {
+          await reload();
+        }
+      }}
       remove={async (id) => {
         try {
           await api("/api/transfers/" + id, undefined, "DELETE");

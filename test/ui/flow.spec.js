@@ -661,15 +661,13 @@ test("mobile completed controls stay centered with no document overflow after a 
 }) => {
   await page.setViewportSize({ width: 390, height: 650 });
   await login(page);
-  await page
-    .locator("input[type=file]")
-    .setInputFiles(
-      Array.from({ length: 32 }, (_, i) => ({
-        name: `file-${i}.txt`,
-        mimeType: "text/plain",
-        buffer: Buffer.from("x"),
-      })),
-    );
+  await page.locator("input[type=file]").setInputFiles(
+    Array.from({ length: 32 }, (_, i) => ({
+      name: `file-${i}.txt`,
+      mimeType: "text/plain",
+      buffer: Buffer.from("x"),
+    })),
+  );
   await expect(page.locator(".share-ready")).toBeVisible({ timeout: 20000 });
   for (const height of [650, 520, 844]) {
     await page.setViewportSize({ width: 390, height });
@@ -694,4 +692,168 @@ test("mobile completed controls stay centered with no document overflow after a 
   await page.locator(".settings-toolbar button").first().click();
   await expect(page.locator(".dialog-header h2 svg")).toBeVisible();
   expect(await page.locator(".dialog-header h2").innerText()).toBe("");
+});
+
+test("recipient sharing stays inside details and countdown ticks without moving download", async ({
+  page,
+}) => {
+  const now = Date.now(),
+    expires = now + 90061000;
+  await page.clock.install({ time: new Date(now) });
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "share", {
+      configurable: true,
+      value: async (data) => {
+        window.sharedData = data;
+      },
+    });
+  });
+  await page.route("**/public/Test12", (r) =>
+    r.fulfill({
+      json: { files: [{ name: "sample.txt", size: 7 }], size: 7, expires },
+    }),
+  );
+  await page.goto("/Test12");
+  await expect(page.locator(".expiry-corner")).toHaveText("25:01:01");
+  const download = page.locator(".primary-action"),
+    before = await download.boundingBox();
+  await expect(page.locator(".recipient-share-actions")).toBeHidden();
+  await page.locator(".transfer-details > button").click();
+  await expect(page.locator(".recipient-share-actions")).toBeVisible();
+  await page.locator(".recipient-share-actions button").nth(0).click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+    "http://127.0.0.1:3001/Test12",
+  );
+  await page.locator(".recipient-share-actions button").nth(1).click();
+  await expect(page.locator(".recipient-qr")).toBeVisible();
+  await page.locator(".recipient-share-actions button").nth(2).click();
+  expect(await page.evaluate(() => window.sharedData)).toEqual({
+    url: "http://127.0.0.1:3001/Test12",
+  });
+  await expect(page.locator(".transfer-information time")).toHaveAttribute(
+    "datetime",
+    new Date(expires).toISOString(),
+  );
+  await page.clock.runFor(2000);
+  await expect(page.locator(".expiry-corner")).toHaveText("25:00:59");
+  const after = await download.boundingBox();
+  expect(Math.abs(before.y - after.y)).toBeLessThan(1);
+  await page.locator(".transfer-details > button").click();
+  await expect(page.locator(".recipient-share-actions")).toBeHidden();
+});
+
+test("infinite recipient hides unavailable native sharing and history shows remaining time", async ({
+  page,
+}) => {
+  const now = Date.now(),
+    expires = now + 3600000;
+  await page.clock.install({ time: new Date(now) });
+  await page.addInitScript(() =>
+    Object.defineProperty(navigator, "share", {
+      configurable: true,
+      value: undefined,
+    }),
+  );
+  await page.route("**/public/Inf123", (r) =>
+    r.fulfill({
+      json: { files: [{ name: "file", size: 1 }], size: 1, expires: null },
+    }),
+  );
+  await page.goto("/Inf123");
+  await expect(page.locator(".expiry-corner")).toHaveText("∞");
+  await page.locator(".transfer-details > button").click();
+  await expect(page.locator(".recipient-share-actions button")).toHaveCount(2);
+  await page.route("**/api/session", (r) => r.fulfill({ json: { ok: true } }));
+  await page.route("**/api/transfers", (r) =>
+    r.fulfill({
+      json: [
+        {
+          id: "finite",
+          state: "ready",
+          created: now,
+          expires,
+          ttl: 3600,
+          files: [{ name: "file", size: 1 }],
+          size: 1,
+          url: "http://127.0.0.1:3001/Test12",
+        },
+        {
+          id: "infinite",
+          state: "ready",
+          created: now,
+          expires: null,
+          ttl: 0,
+          files: [],
+          size: 0,
+          url: "http://127.0.0.1:3001/Inf123",
+        },
+      ],
+    }),
+  );
+  await page.goto("/");
+  await page.locator(".settings > button").click();
+  await page.locator(".settings-toolbar button").first().click();
+  await expect(page.locator(".expiry-inline").first()).toHaveText("01:00:00");
+  await expect(page.locator(".expiry-inline").last()).toHaveText("∞");
+  await page.clock.runFor(1000);
+  await expect(page.locator(".expiry-inline").first()).toHaveText("00:59:59");
+});
+
+test("history selection deletes multiple records without expanding and supports select all", async ({
+  page,
+}) => {
+  const now = Date.now();
+  let items = ["ready", "deleted", "ready"].map((state, i) => ({
+    id: "row" + i,
+    state,
+    created: now + i * 1000,
+    expires: now + 3600000,
+    ttl: 3600,
+    files: [],
+    size: 0,
+    url: state === "ready" ? "http://127.0.0.1:3001/Test12" : null,
+  }));
+  const removed = [];
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route("**/api/session", (r) => r.fulfill({ json: { ok: true } }));
+  await page.route("**/api/transfers", (r) => r.fulfill({ json: items }));
+  await page.route("**/api/history", (r) => {
+    const ids = r.request().postDataJSON().ids;
+    removed.push(ids);
+    items = items.filter((t) => !ids.includes(t.id));
+    return r.fulfill({ json: { ok: true } });
+  });
+  await page.goto("/");
+  await page.locator(".settings > button").click();
+  await page.locator(".settings-toolbar button").first().click();
+  await expect(page.locator(".history-state svg")).toHaveCount(3);
+  await expect(page.locator(".history-toggle")).not.toContainText([
+    "Готово",
+    "Удалено",
+    "Готово",
+  ]);
+  const rows = page.locator(".history-item");
+  await rows.nth(0).locator(".history-select").check();
+  await rows.nth(1).locator(".history-select").check();
+  await expect(page.locator(".history-toggle[aria-expanded=true]")).toHaveCount(
+    0,
+  );
+  expect(
+    await page
+      .locator(".dialog-header input")
+      .evaluate((el) => el.indeterminate),
+  ).toBe(true);
+  await page.locator(".dialog-header button:has(svg)").click();
+  await expect(rows).toHaveCount(1);
+  expect(removed[0]).toEqual(["row0", "row1"]);
+  await page.locator(".dialog-header input").check();
+  await page.locator(".dialog-header button:has(svg)").click();
+  await expect(rows).toHaveCount(0);
+  await expect(page.locator(".dialog-header button:has(svg)")).toBeDisabled();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
 });

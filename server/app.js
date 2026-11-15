@@ -105,12 +105,44 @@ export function createApp(service, env) {
     res.json(
       db
         .prepare(
-          "SELECT id FROM transfers WHERE parent IS NULL ORDER BY created DESC",
+          "SELECT id FROM transfers WHERE parent IS NULL AND hidden=0 ORDER BY created DESC",
         )
         .all()
         .map((r) => publicOwner(service.get(r.id))),
     ),
   );
+  api.delete("/history", (req, res) => {
+    const ids = req.body?.ids;
+    if (
+      !Array.isArray(ids) ||
+      !ids.length ||
+      ids.length > 1000 ||
+      ids.some((id) => typeof id !== "string" || id.length > 64)
+    )
+      return res.status(400).json({ error: "Неверный список передач" });
+    const unique = [...new Set(ids)];
+    if (
+      unique.some(
+        (id) =>
+          !db
+            .prepare("SELECT 1 FROM transfers WHERE id=? AND parent IS NULL")
+            .get(id),
+      )
+    )
+      return res.status(404).json({ error: "Передача не найдена" });
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      for (const id of unique) {
+        service.delete(id);
+        db.prepare("UPDATE transfers SET hidden=1 WHERE id=?").run(id);
+      }
+      db.exec("COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
+    res.json({ ok: true });
+  });
   api.post("/transfers", async (req, res) => {
     const { files, ttl = 86400, password = "" } = req.body;
     if (typeof password !== "string" || password.length > 256)

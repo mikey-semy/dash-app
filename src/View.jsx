@@ -145,7 +145,15 @@ function Gear() {
     </svg>
   );
 }
-function HistoryItem({ transfer: t, onDelete, onAdd, onRemoveFiles }) {
+function HistoryItem({
+  transfer: t,
+  onDelete,
+  onAdd,
+  onRemoveFiles,
+  selected,
+  onSelect,
+  selectionDisabled,
+}) {
   const [open, setOpen] = useState(false),
     [selection, setSelection] = useState(new Set());
   const signature = JSON.stringify([t.revision, t.files]),
@@ -160,6 +168,14 @@ function HistoryItem({ transfer: t, onDelete, onAdd, onRemoveFiles }) {
   return (
     <article className="history-item">
       <div className="history-row">
+        <input
+          className="history-select"
+          type="checkbox"
+          aria-label={"Выбрать передачу " + date(t.created)}
+          checked={selected}
+          disabled={selectionDisabled}
+          onChange={onSelect}
+        />
         <button
           className="history-toggle"
           aria-label={"Передача " + date(t.created)}
@@ -167,16 +183,49 @@ function HistoryItem({ transfer: t, onDelete, onAdd, onRemoveFiles }) {
           aria-controls={"history-" + t.id}
           onClick={() => setOpen(!open)}
         >
-          <span>
+          <span
+            className="history-state"
+            role="img"
+            aria-label={
+              typeof states[t.state] === "string"
+                ? states[t.state]
+                : "Сборка ZIP"
+            }
+            title={
+              typeof states[t.state] === "string"
+                ? states[t.state]
+                : "Сборка ZIP"
+            }
+          >
+            <Icon
+              name={
+                {
+                  ready: "check",
+                  empty: "archive",
+                  deleted: "delete",
+                  deleting: "delete",
+                  failed: "warning",
+                  archiving: "archive",
+                  queued: "archive",
+                  uploading: "upload",
+                }[t.state] || "warning"
+              }
+            />
+          </span>
+          <span className="history-date">
             <time>{date(t.created)}</time>
             <small key={t.state}>
               {t.state === "ready" &&
               t.expires !== null &&
-              t.expires <= Date.now()
-                ? "Срок истёк"
-                : t.appendState && t.appendState !== "failed"
-                  ? "Обновление файлов"
-                  : states[t.state]}
+              t.expires <= Date.now() ? (
+                "Срок истёк"
+              ) : t.appendState && t.appendState !== "failed" ? (
+                "Обновление файлов"
+              ) : ["ready", "empty"].includes(t.state) ? (
+                <Expiry value={t.expires} className="expiry-inline" />
+              ) : ["deleted", "deleting"].includes(t.state) ? null : (
+                states[t.state]
+              )}
             </small>
           </span>
           <span className={open ? "chevron expanded" : "chevron"}>
@@ -253,7 +302,25 @@ function HistoryItem({ transfer: t, onDelete, onAdd, onRemoveFiles }) {
     </article>
   );
 }
-function History({ items, onClose, onDelete, onAdd, onRemoveFiles }) {
+function History({
+  items,
+  onClose,
+  onDelete,
+  onAdd,
+  onRemoveFiles,
+  onRemoveHistory,
+}) {
+  const [selection, setSelection] = useState(new Set()),
+    [removing, setRemoving] = useState(false),
+    [error, setError] = useState("");
+  const selectedItems = items.filter((t) => selection.has(t.id));
+  const allSelected = items.length > 0 && selectedItems.length === items.length;
+  const toggle = (id) =>
+    setSelection((previous) => {
+      const next = new Set(previous);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
   const ref = useRef(),
     timer = useRef(),
     [closing, setClosing] = useState(false);
@@ -293,6 +360,43 @@ function History({ items, onClose, onDelete, onAdd, onRemoveFiles }) {
           <Icon name="history" />
         </h2>
         <div className="dialog-header-actions">
+          <input
+            className="history-select"
+            type="checkbox"
+            aria-label="Выбрать все передачи"
+            checked={allSelected}
+            disabled={!items.length || removing}
+            ref={(el) => {
+              if (el)
+                el.indeterminate = selectedItems.length > 0 && !allSelected;
+            }}
+            onChange={() =>
+              setSelection(
+                allSelected ? new Set() : new Set(items.map((t) => t.id)),
+              )
+            }
+          />
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Удалить выбранные передачи"
+            title="Удалить выбранные передачи"
+            disabled={!selectedItems.length || removing}
+            onClick={async () => {
+              setRemoving(true);
+              setError("");
+              try {
+                await onRemoveHistory(selectedItems.map((t) => t.id));
+                setSelection(new Set());
+              } catch (e) {
+                setError(e.message);
+              } finally {
+                setRemoving(false);
+              }
+            }}
+          >
+            <Icon name="delete" />
+          </button>
           <button
             className="icon-button"
             onClick={close}
@@ -304,11 +408,15 @@ function History({ items, onClose, onDelete, onAdd, onRemoveFiles }) {
         </div>
       </header>
       <div className="dialog-body">
+        {error && <p role="alert">{error}</p>}
         {!items.length && <p className="muted">Нет передач</p>}
         {items.map((t) => (
           <HistoryItem
             key={t.id}
             transfer={t}
+            selected={selection.has(t.id)}
+            onSelect={() => toggle(t.id)}
+            selectionDisabled={removing}
             onDelete={onDelete}
             onRemoveFiles={onRemoveFiles}
             onAdd={(id) => {
@@ -605,6 +713,7 @@ export function OwnerView(p) {
           onClose={() => setHistoryOpen(false)}
           onDelete={p.remove}
           onRemoveFiles={p.removeFiles}
+          onRemoveHistory={p.removeHistory}
           onAdd={(id) => {
             appendTarget.current = id;
             input.current.click();

@@ -7,6 +7,11 @@ export function Icon({ name }) {
         <rect x="10" y="16" width="4" height="3" rx="1" />
       </>
     ),
+    share: (
+      <>
+        <path d="M12 16V3m-4 4 4-4 4 4M5 12v9h14v-9" />
+      </>
+    ),
     copy: (
       <>
         <rect x="8" y="8" width="12" height="13" rx="1" />
@@ -118,16 +123,41 @@ export function CopyButton({ value, label = "Копировать ссылку" 
     </button>
   );
 }
-export function Expiry({ value }) {
+export function Expiry({ value, className = "expiry-corner" }) {
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    if (value === null || value === undefined) return;
+    const tick = () => setNow(Date.now());
+    tick();
+    const timer = setInterval(tick, 1000);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, [value]);
   if (value === null)
     return (
-      <span className="expiry-corner" title="Бессрочно" aria-label="Бессрочно">
+      <span className={className} title="Бессрочно" aria-label="Бессрочно">
         ∞
       </span>
     );
+  if (!Number.isFinite(value)) return null;
+  const seconds = Math.max(0, Math.ceil((value - now) / 1000));
+  const hours = Math.floor(seconds / 3600),
+    minutes = Math.floor((seconds % 3600) / 60),
+    rest = seconds % 60;
+  const text = [hours, minutes, rest]
+    .map((n) => String(n).padStart(2, "0"))
+    .join(":");
   return (
-    <time className="expiry-corner" dateTime={new Date(value).toISOString()}>
-      {new Date(value).toLocaleString("ru-RU")}
+    <time
+      className={className}
+      dateTime={new Date(value).toISOString()}
+      title={new Date(value).toLocaleString("ru-RU")}
+      aria-label={"Осталось: " + text}
+    >
+      {text}
     </time>
   );
 }

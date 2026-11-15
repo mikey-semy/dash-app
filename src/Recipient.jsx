@@ -3,6 +3,7 @@ import { Icon } from "./Icons.jsx";
 import { PasswordInput } from "./PasswordInput.jsx";
 import React, { useEffect, useState } from "react";
 import { Expiry } from "./Icons.jsx";
+import { RecipientShare } from "./RecipientShare.jsx";
 import { FileList, bytes, date } from "./View.jsx";
 export function Recipient({ token, api }) {
   const [info, setInfo] = useState(null),
@@ -102,6 +103,16 @@ export function Recipient({ token, api }) {
                 <div className="transfer-information">
                   <FileList files={info.files} />
                   <p className="muted">{bytes(info.size)}</p>
+                  {info.expires !== null && (
+                    <p className="muted">
+                      <time dateTime={new Date(info.expires).toISOString()}>
+                        {date(info.expires)}
+                      </time>
+                    </p>
+                  )}
+                  <RecipientShare
+                    url={new URL(location.pathname, location.origin).href}
+                  />
                 </div>
               </AnimatedDetails>
               <Expiry value={info.expires} />

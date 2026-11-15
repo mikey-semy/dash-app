@@ -781,3 +781,55 @@ test("short public codes migrate old links once and preserve protected alias acc
   assert.equal(db.prepare("SELECT count(*) n FROM share_aliases").get().n, 1);
   db.close();
 });
+
+test("bulk history removal hides records and denies downloads while preserving quota until cleanup", async () => {
+  const { db, service, store, app, agent } = await setup();
+  const first = await upload(service, store, [["first", Buffer.from("first")]]);
+  const second = await upload(service, store, [
+    ["second", Buffer.from("second")],
+  ]);
+  const keep = await upload(service, store, [["keep", Buffer.from("keep")]]);
+  const url = "/public/" + service.get(first).token;
+  const reserved = db.prepare("SELECT sum(reserved) n FROM transfers").get().n;
+  await request(app)
+    .delete("/api/history")
+    .set("Origin", env.PUBLIC_URL)
+    .send({ ids: [first] })
+    .expect(401);
+  await agent
+    .delete("/api/history")
+    .send({ ids: [first] })
+    .expect(403);
+  await agent
+    .delete("/api/history")
+    .set("Origin", env.PUBLIC_URL)
+    .send({ ids: [first, "missing"] })
+    .expect(404);
+  assert.equal(service.get(first).state, "ready");
+  await agent
+    .delete("/api/history")
+    .set("Origin", env.PUBLIC_URL)
+    .send({ ids: [first, second, first] })
+    .expect(200);
+  await request(app).get(url).expect(404);
+  assert.equal(
+    db.prepare("SELECT sum(reserved) n FROM transfers").get().n,
+    reserved,
+  );
+  const history = await agent.get("/api/transfers").expect(200);
+  assert.deepEqual(
+    history.body.map((t) => t.id),
+    [keep],
+  );
+  await service.tick();
+  assert.equal(service.get(first).state, "deleted");
+  assert.equal(service.get(second).state, "deleted");
+  assert.equal(service.get(keep).state, "ready");
+  await agent
+    .delete("/api/history")
+    .set("Origin", env.PUBLIC_URL)
+    .send({ ids: [first, second] })
+    .expect(200);
+  assert.equal((await agent.get("/api/transfers")).body.length, 1);
+  db.close();
+});

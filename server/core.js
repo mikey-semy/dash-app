@@ -105,6 +105,10 @@ export function openDB(path) {
     db.exec("ALTER TABLE transfers ADD COLUMN parent TEXT");
   if (!columns.includes("base"))
     db.exec("ALTER TABLE transfers ADD COLUMN base TEXT");
+  if (!columns.includes("hidden"))
+    db.exec(
+      "ALTER TABLE transfers ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0",
+    );
   db.exec("CREATE INDEX IF NOT EXISTS transfers_parent ON transfers(parent)");
   db.exec(
     "CREATE TABLE IF NOT EXISTS share_aliases(token TEXT PRIMARY KEY, transfer_id TEXT NOT NULL)",

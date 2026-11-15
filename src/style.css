@@ -1047,3 +1047,64 @@ a {
   display: flex;
   align-items: center;
 }
+.recipient-share-actions {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+}
+.recipient-qr {
+  display: block;
+  margin: 12px auto 0;
+}
+.expiry-inline {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.recipient .transfer-information {
+  max-height: calc(50dvh - 95px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
+}
+
+.history-row {
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  gap: 8px;
+}
+.history-select {
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  margin: 0;
+  accent-color: #111;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.history-select:disabled {
+  cursor: default;
+}
+.history-toggle > .history-state {
+  display: flex;
+  flex-direction: row;
+  flex-shrink: 0;
+}
+.history-toggle > .history-date {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+}
+.history-state svg {
+  width: 16px;
+  height: 16px;
+}
+@media (max-width: 600px) {
+  .history-toggle {
+    gap: 6px;
+    font-size: 11px;
+  }
+  .history-row .share-controls {
+    gap: 0;
+  }
+}

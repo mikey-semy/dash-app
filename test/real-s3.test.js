@@ -19,6 +19,7 @@ test(
     const store = new Store({
       S3_ENDPOINT: process.env.TEST_S3_ENDPOINT,
       S3_BUCKET: process.env.TEST_S3_BUCKET,
+      S3_PREFIX: process.env.TEST_S3_PREFIX || "holder/",
       S3_REGION: process.env.TEST_S3_REGION || "us-east-1",
       S3_ACCESS_KEY: process.env.TEST_S3_ACCESS_KEY,
       S3_SECRET_KEY: process.env.TEST_S3_SECRET_KEY,

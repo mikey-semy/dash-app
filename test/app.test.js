@@ -947,3 +947,172 @@ test("deleting a transfer while Raw is reading cannot disclose cached or newly r
   assert.equal((await result).status, 404);
   db.close();
 });
+
+test("archive text preview reads only directory and selected member ranges with protected access and immutable checks", async () => {
+  const { db, service, store, app } = await setup();
+  const source = Buffer.from("# Заметки\r\n\r\n- пункт 🌍\r\n");
+  const id = await upload(
+    service,
+    store,
+    [
+      ["large.bin", Buffer.alloc(9 * 1024 * 1024, 2)],
+      ["notes.md", source],
+      ["empty.txt", Buffer.alloc(0)],
+    ],
+    "123456",
+  );
+  await service.tick();
+  await service.tick();
+  const t = service.get(id),
+    token = t.token,
+    guest = request.agent(app);
+  await guest.get("/raw/" + token + "/1").expect(401);
+  await post(guest, "/public/" + token + "/unlock", {
+    password: "123456",
+  }).expect(200);
+  const metadata = await guest.get("/public/" + token).expect(200);
+  assert.deepEqual(
+    metadata.body.files.map((f) => f.preview),
+    [false, true, true],
+  );
+  const get = store.get.bind(store),
+    ranges = [];
+  store.get = async (key, options = {}) => {
+    ranges.push(options.Range);
+    return get(key, options);
+  };
+  store.failGet = true;
+  await guest
+    .get("/raw/" + token + "/1")
+    .timeout({ deadline: 2000 })
+    .expect(503);
+  store.failGet = false;
+  const raw = await guest
+    .get("/raw/" + token + "/1")
+    .buffer(true)
+    .parse((res, cb) => {
+      const chunks = [];
+      res.on("data", (c) => chunks.push(c));
+      res.on("end", () => cb(null, Buffer.concat(chunks)));
+    })
+    .expect(200)
+    .expect("Content-Type", /text\/plain/);
+  assert.deepEqual(raw.body, source);
+  assert.ok(ranges.length >= 3);
+  assert.ok(ranges.every(Boolean));
+  assert.ok(
+    ranges.reduce((sum, r) => {
+      const [, start, end] = /^bytes=(\d+)-(\d+)$/.exec(r);
+      return sum + Number(end) - Number(start) + 1;
+    }, 0) < 200000,
+    "should not fetch the large binary member",
+  );
+  await guest
+    .head("/raw/" + token + "/1")
+    .expect(200)
+    .expect("Content-Length", String(source.length));
+  await guest
+    .get("/raw/" + token + "/1")
+    .set("Range", "bytes=0-3")
+    .expect(206)
+    .expect("# З");
+  await guest
+    .get("/public/" + token + "/files/1/download")
+    .expect(200)
+    .expect("Content-Disposition", /notes.md/);
+  await guest
+    .get("/raw/" + token + "/2")
+    .expect(200)
+    .expect("Content-Length", "0");
+  await guest.get("/raw/" + token + "/0").expect(415);
+  await guest.get("/raw/" + token + "/999").expect(404);
+  await guest.get("/raw/" + token + "/-1").expect(404);
+  await guest
+    .get("/raw/" + token + "/1")
+    .set("If-Match", '"stale"')
+    .expect(412);
+  service.delete(id);
+  await guest.get("/raw/" + token + "/1").expect(404);
+  db.close();
+});
+
+test("owner text replacement preserves link, password, name and expiry; stale saves and cancelled drafts keep originals", async () => {
+  const { app, agent, service, store } = await setup();
+  const id = await upload(
+    service,
+    store,
+    [["source.py", Buffer.from("print('old')\n")]],
+    "123456",
+  );
+  const original = service.get(id),
+    path = "/api/transfers/" + id;
+  const owner = (await agent.get("/api/transfers")).body.find(
+    (t) => t.id === id,
+  );
+  await request(app)
+    .get(path + "/text")
+    .expect(401);
+  assert.equal(
+    (
+      await agent
+        .get(path + "/text")
+        .set("If-Match", '"' + owner.revision + '"')
+        .expect(200)
+    ).text,
+    "print('old')\n",
+  );
+  const create = () =>
+    post(agent, path + "/replace", {
+      files: [{ name: "ignored.txt", size: 13 }],
+      revision: owner.revision,
+    });
+  const draft = (await create().expect(201)).body;
+  await create().expect(409);
+  assert.equal(service.get(id).output.key, original.output.key);
+  service.delete(draft.id);
+  await service.tick();
+  const next = (await create().expect(201)).body;
+  const bytes = Buffer.from("print('new')\n");
+  await service.init(next.id, 0);
+  const f = service.get(next.id).files[0];
+  await store.send("UploadPart", {
+    Key: f.key,
+    UploadId: f.upload,
+    PartNumber: 1,
+    Body: bytes,
+  });
+  await service.finishFile(next.id, 0);
+  await service.finish(next.id);
+  await service.tick();
+  const updated = service.get(id);
+  for (const key of ["token", "password", "expires", "created"])
+    assert.equal(updated[key], original[key]);
+  assert.equal(updated.files[0].name, "source.py");
+  assert.equal(
+    (await agent.get(path + "/text").expect(200)).text,
+    bytes.toString(),
+  );
+  await create().expect(409);
+  await agent
+    .get(path + "/text")
+    .set("If-Match", '"' + owner.revision + '"')
+    .expect(409);
+  await request(app)
+    .get("/raw/" + updated.token)
+    .expect(401);
+  const reader = request.agent(app);
+  await post(reader, "/public/" + updated.token + "/unlock", {
+    password: "123456",
+  }).expect(200);
+  assert.equal(
+    (await reader.get("/raw/" + updated.token).expect(200)).text,
+    bytes.toString(),
+  );
+  const rev = (await agent.get("/api/transfers")).body.find(
+    (t) => t.id === id,
+  ).revision;
+  await post(agent, path + "/replace", {
+    files: [{ name: "x", size: 5242881 }],
+    revision: rev,
+  }).expect(400);
+});

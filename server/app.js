@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
-import { textCandidate, textReader } from "./text.js";
+import { fileTextCandidate, textCandidate, textReader } from "./text.js";
 import express from "express";
 import cookieParser from "cookie-parser";
 import { rateLimit } from "express-rate-limit";
@@ -89,12 +89,18 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
       appendError: pending?.error || null,
       id: t.id,
       revision: revision(t),
+      preview: textCandidate(t),
+      etag: t.output?.etag,
       state: t.state,
       created: t.created,
       ready: t.ready,
       expires: t.expires,
       ttl: t.ttl,
-      files: t.files.map(({ name, size }) => ({ name, size })),
+      files: t.files.map(({ name, size }) => ({
+        name,
+        size,
+        preview: fileTextCandidate({ name, size }),
+      })),
       size: t.files.reduce((n, f) => n + f.size, 0),
       error: t.error,
       url:
@@ -158,6 +164,78 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
       service.append(req.params.id, req.body.files),
     );
     res.status(201).json(result);
+  });
+  api.get(
+    ["/transfers/:id/text", "/transfers/:id/text/:index"],
+    async (req, res) => {
+      const t = service.get(req.params.id),
+        index =
+          req.params.index === undefined ? undefined : Number(req.params.index);
+      if (
+        !t ||
+        t.parent ||
+        t.state !== "ready" ||
+        (t.expires !== null && t.expires <= Date.now())
+      )
+        throw Object.assign(new Error("Передача недоступна"), { status: 404 });
+      if (
+        index !== undefined &&
+        (!/^\d+$/.test(req.params.index) ||
+          !Number.isSafeInteger(index) ||
+          !t.files[index])
+      )
+        throw Object.assign(new Error("Файл не найден"), { status: 404 });
+      if (
+        !(index === undefined
+          ? textCandidate(t)
+          : fileTextCandidate(t.files[index]))
+      )
+        throw Object.assign(new Error("Текстовый просмотр недоступен"), {
+          status: 415,
+        });
+      const version = revision(t);
+      if (req.headers["if-match"] && req.headers["if-match"] !== `"${version}"`)
+        throw Object.assign(
+          new Error("Передача изменилась. Откройте редактор заново."),
+          { status: 409 },
+        );
+      const content = await readText(t, index),
+        current = service.get(t.id);
+      if (
+        !current ||
+        current.state !== "ready" ||
+        current.output?.key !== t.output.key ||
+        (current.expires !== null && current.expires <= Date.now())
+      )
+        throw Object.assign(new Error("Передача изменилась"), { status: 409 });
+      const name = t.files[index ?? 0].name;
+      res.type("text/plain; charset=utf-8").set("ETag", `"${version}"`);
+      if (req.query.download === "1")
+        res.set(
+          "Content-Disposition",
+          `attachment; filename="text.txt"; filename*=UTF-8''${encodeURIComponent(name).replace(/['()*]/g, (c) => "%" + c.charCodeAt(0).toString(16))}`,
+        );
+      res.send(content);
+    },
+  );
+  api.post("/transfers/:id/replace", async (req, res) => {
+    if (
+      !Array.isArray(req.body.files) ||
+      req.body.files.length !== 1 ||
+      typeof req.body.revision !== "string"
+    )
+      throw Object.assign(new Error("Неверные данные текста"), { status: 400 });
+    res
+      .status(201)
+      .json(
+        await service.locked(() =>
+          service.replaceText(
+            req.params.id,
+            req.body.files[0],
+            req.body.revision,
+          ),
+        ),
+      );
   });
   api.delete("/transfers/:id/files", async (req, res) => {
     if (typeof req.body.revision !== "string")
@@ -284,7 +362,11 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
             locked: false,
             preview: textCandidate(t),
             etag: t.output?.etag,
-            files: t.files.map(({ name, size }) => ({ name, size })),
+            files: t.files.map(({ name, size }) => ({
+              name,
+              size,
+              preview: fileTextCandidate({ name, size }),
+            })),
             expires: t.expires,
             size: t.output.size,
             name: t.output.name,
@@ -292,96 +374,128 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
         : { locked: true },
     );
   });
-  app.all(["/public/:token/download", "/raw/:token"], async (req, res) => {
-    const raw = req.path.startsWith("/raw/");
-    if (!["GET", "HEAD"].includes(req.method))
-      return raw
-        ? res.status(405).type("text/plain").send("Method Not Allowed")
-        : res.sendStatus(405);
-    const t = transfer(req);
-    if (!allowed(req, t))
-      return raw
-        ? res.status(401).type("text/plain").send("Нужен пароль передачи")
-        : res.status(401).json({ error: "Нужен пароль передачи" });
-    if (!t.output?.key)
-      return raw
-        ? res.status(409).type("text/plain").send("В передаче пока нет файлов")
-        : res.status(409).json({ error: "В передаче пока нет файлов" });
-    let text;
-    if (raw) {
-      if (!textCandidate(t))
-        throw Object.assign(new Error("Текстовый просмотр недоступен"), {
-          status: 415,
-        });
-      text = await readText(t);
-      const current = transfer(req);
-      if (current.output?.key !== t.output.key)
-        throw Object.assign(new Error("Передача обновилась"), { status: 412 });
-    }
-    const out = t.output,
-      modified = new Date(t.ready).toUTCString();
-    res.set({
-      "Accept-Ranges": "bytes",
-      ETag: out.etag,
-      "Last-Modified": modified,
-      "Content-Type": raw
-        ? "text/plain; charset=utf-8"
-        : "application/octet-stream",
-      "Content-Disposition": `${raw ? "inline" : "attachment"}; filename="${t.files.length > 1 ? out.name : "download"}"; filename*=UTF-8''${encodeURIComponent(out.name).replace(/['()*]/g, (c) => "%" + c.charCodeAt(0).toString(16))}`,
-    });
-    const match = (h, strong = false) =>
-      h
-        ?.split(",")
-        .map((v) => v.trim())
-        .some(
-          (v) =>
-            v === "*" ||
-            (strong ? v === out.etag : v.replace(/^W\//, "") === out.etag),
-        );
-    if (req.headers["if-match"] && !match(req.headers["if-match"], true))
-      return res.sendStatus(412);
-    if (
-      !req.headers["if-match"] &&
-      req.headers["if-unmodified-since"] &&
-      Date.parse(req.headers["if-unmodified-since"]) <
-        Math.floor(t.ready / 1000) * 1000
-    )
-      return res.sendStatus(412);
-    if (
-      match(req.headers["if-none-match"]) ||
-      (!req.headers["if-none-match"] &&
-        req.headers["if-modified-since"] &&
-        Date.parse(req.headers["if-modified-since"]) >=
-          Math.floor(t.ready / 1000) * 1000)
-    )
-      return res.status(304).end();
-    let r = null;
-    const ir = req.headers["if-range"];
-    if (
-      req.method === "GET" &&
-      (!ir ||
-        ir === out.etag ||
-        (!ir.startsWith("W/") &&
-          Date.parse(ir) >= Math.floor(t.ready / 1000) * 1000))
-    )
-      r = range(req.headers.range, out.size);
-    if (r === false)
-      return res.status(416).set("Content-Range", `bytes */${out.size}`).end();
-    const length = r ? r.end - r.start + 1 : out.size;
-    res.status(r ? 206 : 200).set("Content-Length", String(length));
-    if (r) res.set("Content-Range", `bytes ${r.start}-${r.end}/${out.size}`);
-    if (req.method === "HEAD") return res.end();
-    if (raw) return res.end(r ? text.subarray(r.start, r.end + 1) : text);
-    const object = await service.store.get(
-      out.key,
-      r ? { Range: `bytes=${r.start}-${r.end}` } : {},
-    );
-    try {
-      await pipeline(object.Body, res);
-    } catch {
-      res.destroy();
-    }
-  });
+  app.all(
+    [
+      "/public/:token/download",
+      "/raw/:token",
+      "/raw/:token/:index",
+      "/public/:token/files/:index/download",
+    ],
+    async (req, res) => {
+      const raw = req.path.startsWith("/raw/");
+      if (!["GET", "HEAD"].includes(req.method))
+        return raw
+          ? res.status(405).type("text/plain").send("Method Not Allowed")
+          : res.sendStatus(405);
+      const t = transfer(req);
+      if (!allowed(req, t))
+        return raw
+          ? res.status(401).type("text/plain").send("Нужен пароль передачи")
+          : res.status(401).json({ error: "Нужен пароль передачи" });
+      if (!t.output?.key)
+        return raw
+          ? res
+              .status(409)
+              .type("text/plain")
+              .send("В передаче пока нет файлов")
+          : res.status(409).json({ error: "В передаче пока нет файлов" });
+      let text;
+      const member = req.params.index !== undefined;
+      const index = member ? Number(req.params.index) : undefined;
+      if (
+        member &&
+        (!/^\d+$/.test(req.params.index) ||
+          !Number.isSafeInteger(index) ||
+          !t.files[index])
+      )
+        throw Object.assign(new Error("Файл не найден"), { status: 404 });
+      if (raw || member) {
+        if (!(member ? fileTextCandidate(t.files[index]) : textCandidate(t)))
+          throw Object.assign(new Error("Текстовый просмотр недоступен"), {
+            status: 415,
+          });
+        text = await readText(t, index);
+        const current = transfer(req);
+        if (current.output?.key !== t.output.key)
+          throw Object.assign(new Error("Передача обновилась"), {
+            status: 412,
+          });
+      }
+      const out = member
+          ? {
+              ...t.output,
+              size: t.files[index].size,
+              name: t.files[index].name,
+            }
+          : t.output,
+        modified = new Date(t.ready).toUTCString();
+      res.set({
+        "Accept-Ranges": "bytes",
+        ETag: out.etag,
+        "Last-Modified": modified,
+        "Content-Type": raw
+          ? "text/plain; charset=utf-8"
+          : "application/octet-stream",
+        "Content-Disposition": `${raw ? "inline" : "attachment"}; filename="${t.files.length > 1 ? out.name : "download"}"; filename*=UTF-8''${encodeURIComponent(out.name).replace(/['()*]/g, (c) => "%" + c.charCodeAt(0).toString(16))}`,
+      });
+      const match = (h, strong = false) =>
+        h
+          ?.split(",")
+          .map((v) => v.trim())
+          .some(
+            (v) =>
+              v === "*" ||
+              (strong ? v === out.etag : v.replace(/^W\//, "") === out.etag),
+          );
+      if (req.headers["if-match"] && !match(req.headers["if-match"], true))
+        return res.sendStatus(412);
+      if (
+        !req.headers["if-match"] &&
+        req.headers["if-unmodified-since"] &&
+        Date.parse(req.headers["if-unmodified-since"]) <
+          Math.floor(t.ready / 1000) * 1000
+      )
+        return res.sendStatus(412);
+      if (
+        match(req.headers["if-none-match"]) ||
+        (!req.headers["if-none-match"] &&
+          req.headers["if-modified-since"] &&
+          Date.parse(req.headers["if-modified-since"]) >=
+            Math.floor(t.ready / 1000) * 1000)
+      )
+        return res.status(304).end();
+      let r = null;
+      const ir = req.headers["if-range"];
+      if (
+        req.method === "GET" &&
+        (!ir ||
+          ir === out.etag ||
+          (!ir.startsWith("W/") &&
+            Date.parse(ir) >= Math.floor(t.ready / 1000) * 1000))
+      )
+        r = range(req.headers.range, out.size);
+      if (r === false)
+        return res
+          .status(416)
+          .set("Content-Range", `bytes */${out.size}`)
+          .end();
+      const length = r ? r.end - r.start + 1 : out.size;
+      res.status(r ? 206 : 200).set("Content-Length", String(length));
+      if (r) res.set("Content-Range", `bytes ${r.start}-${r.end}/${out.size}`);
+      if (req.method === "HEAD") return res.end();
+      if (raw || member)
+        return res.end(r ? text.subarray(r.start, r.end + 1) : text);
+      const object = await service.store.get(
+        out.key,
+        r ? { Range: `bytes=${r.start}-${r.end}` } : {},
+      );
+      try {
+        await pipeline(object.Body, res);
+      } catch {
+        res.destroy();
+      }
+    },
+  );
   let index;
   async function html(req, res) {
     index ??= await readFile("dist/index.html", "utf8");

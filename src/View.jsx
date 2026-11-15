@@ -1,8 +1,9 @@
 import { Disclosure, AnimatedDetails } from "./Disclosure.jsx";
 import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
-import QRCode from "qrcode";
+import QRButton from "./QRButton.jsx";
 import { Icon, CopyButton, DeleteButton, Expiry } from "./Icons.jsx";
 const TextComposer = lazy(() => import("./TextComposer.jsx"));
+const TextViewer = lazy(() => import("./TextViewer.jsx"));
 export const bytes = (n) =>
   n < 1000
     ? Math.round(n) + " Б"
@@ -12,7 +13,13 @@ export const bytes = (n) =>
       " " +
       (n >= 1e9 ? "ГБ" : n >= 1e6 ? "МБ" : "КБ");
 export const date = (n) => new Date(n).toLocaleString("ru-RU");
-export function FileList({ files, selection, onToggle, disabled = false }) {
+export function FileList({
+  files,
+  selection,
+  onToggle,
+  onPreview,
+  disabled = false,
+}) {
   return (
     <ul className="files">
       {files.map((f, i) => (
@@ -28,6 +35,15 @@ export function FileList({ files, selection, onToggle, disabled = false }) {
               />
               <span>{f.name}</span>
             </label>
+          ) : onPreview && f.preview ? (
+            <button
+              type="button"
+              className="file-preview-link"
+              onClick={() => onPreview(i)}
+              title="Просмотреть файл"
+            >
+              {f.name}
+            </button>
           ) : (
             <span>{f.name}</span>
           )}
@@ -41,23 +57,11 @@ export function Share({
   url,
   onAdd,
   onDelete,
+  onEdit,
   compact = false,
   deleteLabel = "Удалить",
   confirmationKey,
 }) {
-  const [qr, setQr] = useState(""),
-    [open, setOpen] = useState(false);
-  useEffect(() => {
-    if (open && url)
-      QRCode.toDataURL(url, {
-        margin: 1,
-        width: 144,
-        color: { dark: "#111111", light: "#ffffff" },
-      }).then(setQr);
-  }, [url, open]);
-  useEffect(() => {
-    if (!url) setOpen(false);
-  }, [url]);
   return (
     <div className={onAdd && !compact ? "share share-ready" : "share"}>
       {onAdd && !compact && (
@@ -71,6 +75,19 @@ export function Share({
         </button>
       )}
       <div className="share-controls">
+        {onEdit && (
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Редактировать текст"
+            title="Редактировать текст"
+            onClick={() => {
+              onEdit();
+            }}
+          >
+            <Icon name="edit" />
+          </button>
+        )}
         {compact && (
           <button
             type="button"
@@ -83,34 +100,14 @@ export function Share({
             <Icon name="add" />
           </button>
         )}
-        <button
-          type="button"
-          className="icon-button"
-          aria-label="QR-код"
-          title="QR-код"
-          disabled={!url}
-          aria-expanded={open}
-          onClick={() => setOpen(!open)}
-        >
-          <Icon name="qr" />
-        </button>
+        <QRButton url={url} />
         <CopyButton value={url} />
         <DeleteButton
           label={deleteLabel}
           disabled={!onDelete}
-          onPrepare={() => setOpen(false)}
           onDelete={onDelete}
           confirmationKey={confirmationKey || url}
         />
-        {qr && (
-          <div
-            className={"qr-popover " + (open ? "is-open" : "")}
-            aria-hidden={!open}
-            inert={!open}
-          >
-            <img src={qr} alt="QR-код ссылки" width="128" height="128" />
-          </div>
-        )}
       </div>
     </div>
   );
@@ -130,26 +127,14 @@ const states = {
   empty: "Пусто",
 };
 function Gear() {
-  return (
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      aria-hidden="true"
-    >
-      <path d="m9.5 3-.7 2.2-1.6.9L5 5.6 2.5 10l1.5 1.7v1.8L2.5 15 5 19.4l2.2-.5 1.6.9.7 2.2h5l.7-2.2 1.6-.9 2.2.5 2.5-4.4-1.5-1.5v-1.8l1.5-1.7L19 5.6l-2.2.5-1.6-.9L14.5 3z" />
-      <circle cx="12" cy="12.5" r="3" />
-    </svg>
-  );
+  return <Icon name="settings" size={22} />;
 }
 function HistoryItem({
   transfer: t,
   onDelete,
   onAdd,
   onRemoveFiles,
+  onEdit,
   selected,
   onSelect,
   selectionDisabled,
@@ -234,6 +219,9 @@ function HistoryItem({
         </button>
         <Share
           url={t.url}
+          onEdit={
+            t.preview && t.url && !busy && onEdit ? () => onEdit(t) : undefined
+          }
           compact
           onAdd={
             t.url && (!t.appendState || t.appendState === "failed")
@@ -310,6 +298,7 @@ function History({
   onAdd,
   onRemoveFiles,
   onRemoveHistory,
+  onEdit,
 }) {
   const [selection, setSelection] = useState(new Set()),
     [removing, setRemoving] = useState(false),
@@ -419,6 +408,11 @@ function History({
           <HistoryItem
             key={t.id}
             transfer={t}
+            onEdit={(item) => {
+              ref.current.close();
+              onClose();
+              onEdit(item);
+            }}
             selected={selection.has(t.id)}
             onSelect={() => toggle(t.id)}
             selectionDisabled={removing}
@@ -437,6 +431,9 @@ function History({
 }
 export function OwnerView(p) {
   const [draft, setDraft] = useState(null),
+    [opening, setOpening] = useState(false),
+    [editorError, setEditorError] = useState(""),
+    [viewing, setViewing] = useState(null),
     [historyOpen, setHistoryOpen] = useState(false),
     [passwordState, setPasswordState] = useState("idle"),
     input = useRef(),
@@ -488,13 +485,44 @@ export function OwnerView(p) {
         if (text) {
           event.preventDefault();
           settings.current.open = false;
-          setDraft(text);
+          setDraft({ text });
         }
       }
     };
     document.addEventListener("paste", paste);
     return () => document.removeEventListener("paste", paste);
   }, [p.upload, p.choose, historyOpen, draft]);
+  const editText = async (transfer) => {
+    if (opening) return;
+    setOpening(true);
+    setEditorError("");
+    try {
+      const text = await p.readText(transfer);
+      setDraft({
+        text,
+        id: transfer.id,
+        revision: transfer.revision,
+        filename: transfer.files[0].name,
+      });
+    } catch (error) {
+      setEditorError(error.message);
+      p.refresh();
+    } finally {
+      setOpening(false);
+    }
+  };
+  useEffect(() => {
+    if (
+      viewing &&
+      !p.history.some(
+        (t) =>
+          t.id === viewing.record.id &&
+          t.revision === viewing.record.revision &&
+          t.url,
+      )
+    )
+      setViewing(null);
+  }, [p.history, viewing]);
   const clearPassword = () => {
     clearTimeout(passwordClick.current);
     passwordVersion.current++;
@@ -641,12 +669,12 @@ export function OwnerView(p) {
           <button
             type="button"
             className="icon-button"
-            aria-label="Текст или код"
-            title="Текст или код"
+            aria-label="Новая текстовая передача"
+            title="Новая текстовая передача"
             disabled={!!p.upload}
             onClick={() => {
               settings.current.open = false;
-              setDraft("");
+              setDraft({ text: "" });
             }}
           >
             <Icon name="code" />
@@ -664,9 +692,13 @@ export function OwnerView(p) {
       {draft !== null && (
         <Suspense fallback={null}>
           <TextComposer
-            initial={draft}
+            initial={draft.text}
+            filename={draft.filename}
+            editing={!!draft.id}
             onClose={() => setDraft(null)}
-            onSend={p.choose}
+            onSend={(files) =>
+              draft.id ? p.replaceText(files, draft) : p.choose(files)
+            }
           />
         </Suspense>
       )}
@@ -733,6 +765,11 @@ export function OwnerView(p) {
                   input.current.click();
                 }}
                 onDelete={() => p.remove(latest.id)}
+                onEdit={
+                  latest.preview && !opening
+                    ? () => editText(latest)
+                    : undefined
+                }
               />
             </>
           ) : preparing ? (
@@ -756,12 +793,70 @@ export function OwnerView(p) {
               <Icon name="upload" />
             </button>
           )}
-          {(p.error || latest?.appendError) && (
-            <p role="alert">{p.error || latest?.appendError}</p>
+          {completed && (
+            <AnimatedDetails
+              className="transfer-details owner-details"
+              label="Подробности передачи"
+              summary={<Icon name="chevron" />}
+            >
+              <div className="transfer-information">
+                <FileList
+                  files={latest.files}
+                  onPreview={(index) => setViewing({ record: latest, index })}
+                />
+                <p className="muted">{bytes(latest.size)}</p>
+                <p className="muted">
+                  {latest.expires === null ? "∞" : date(latest.expires)}
+                </p>
+              </div>
+            </AnimatedDetails>
+          )}
+          {(p.error || latest?.appendError || editorError) && (
+            <p role="alert">{p.error || latest?.appendError || editorError}</p>
           )}
         </div>
       </section>
       {completed && <Expiry value={latest.expires} />}
+      {viewing && (
+        <Suspense fallback={null}>
+          <TextViewer
+            token=""
+            shareUrl={viewing.record.url}
+            index={viewing.index}
+            info={{
+              ...viewing.record,
+              name: viewing.record.files[viewing.index].name,
+              etag: `"${viewing.record.revision}"`,
+            }}
+            rawPath={
+              "/api/transfers/" + viewing.record.id + "/text/" + viewing.index
+            }
+            downloadPath={
+              "/api/transfers/" +
+              viewing.record.id +
+              "/text/" +
+              viewing.index +
+              "?download=1"
+            }
+            onClose={() => setViewing(null)}
+            onUnavailable={() => {
+              setViewing(null);
+              p.refresh();
+            }}
+            onUnsupported={() => setViewing(null)}
+            onEdit={
+              viewing.record.preview
+                ? () => {
+                    const record = viewing.record;
+                    setViewing(null);
+                    editText(record);
+                  }
+                : undefined
+            }
+          />
+        </Suspense>
+      )}
+
       {historyOpen && (
         <History
           items={p.history}
@@ -769,6 +864,7 @@ export function OwnerView(p) {
           onDelete={p.remove}
           onRemoveFiles={p.removeFiles}
           onRemoveHistory={p.removeHistory}
+          onEdit={editText}
           onAdd={(id) => {
             appendTarget.current = id;
             input.current.click();

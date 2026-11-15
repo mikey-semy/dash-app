@@ -2,6 +2,7 @@ import { ZipArchive } from "archiver";
 import { Parse } from "unzipper";
 import { Readable, PassThrough } from "node:stream";
 import { PART, row, insertTransfer, archiveName, revision } from "./core.js";
+import { textCandidate, TEXT_LIMIT } from "./text.js";
 export class Service {
   constructor(db, store) {
     this.db = db;
@@ -61,6 +62,50 @@ export class Service {
       parent,
     );
     return { id: next, offset: parent.files.length };
+  }
+  replaceText(id, file, expectedRevision) {
+    const parent = this.get(id);
+    if (
+      !parent ||
+      parent.state !== "ready" ||
+      !textCandidate(parent) ||
+      (parent.expires !== null && parent.expires <= Date.now())
+    )
+      throw Object.assign(new Error("Редактирование недоступно"), {
+        status: 409,
+      });
+    if (expectedRevision !== revision(parent))
+      throw Object.assign(
+        new Error("Передача изменилась. Откройте редактор заново."),
+        { status: 409 },
+      );
+    if (
+      !file ||
+      !Number.isSafeInteger(file.size) ||
+      file.size < 0 ||
+      file.size > TEXT_LIMIT
+    )
+      throw Object.assign(new Error("Максимум 5 МиБ текста"), { status: 400 });
+    const pending = this.db
+      .prepare(
+        "SELECT id,state FROM transfers WHERE parent=? AND state NOT IN ('deleted','merged')",
+      )
+      .get(id);
+    if (pending) {
+      if (pending.state === "failed") this.delete(pending.id);
+      throw Object.assign(
+        new Error("Дождитесь завершения изменения передачи"),
+        { status: 409 },
+      );
+    }
+    const next = insertTransfer(
+      this.db,
+      [{ name: parent.files[0].name, size: file.size }],
+      parent.ttl,
+      "",
+      { ...parent, reuseFiles: [], baseFiles: parent.files },
+    );
+    return { id: next, offset: 0 };
   }
   removeFiles(id, indices, expectedRevision) {
     const parent = this.get(id);

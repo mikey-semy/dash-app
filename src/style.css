@@ -598,9 +598,6 @@ dialog[open],
   }
 }
 
-.history-item:has(.qr-popover.is-open) {
-  padding-bottom: 168px;
-}
 @media (max-width: 600px) {
   .share-ready .share-controls {
     left: calc(100% + 8px);
@@ -1294,5 +1291,262 @@ body:has(.owner) {
   }
   .settings .settings-toolbar {
     gap: 3px;
+  }
+}
+
+@media (max-width: 600px), (hover: none) and (pointer: coarse) {
+  .history-dialog[open],
+  .text-dialog[open] {
+    position: fixed;
+    inset: 0;
+    margin: 0;
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    max-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .history-dialog .dialog-header,
+  .text-dialog .dialog-header {
+    padding: max(12px, env(safe-area-inset-top, 0px)) 12px 12px;
+  }
+  .history-dialog::backdrop,
+  .text-dialog::backdrop {
+    background: #fff;
+  }
+}
+.markdown-preview {
+  height: 100%;
+  overflow: auto;
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
+}
+.markdown-document {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 16px;
+  font-size: 16px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.markdown-document > :first-child {
+  margin-top: 0;
+}
+.markdown-document h1,
+.markdown-document h2 {
+  border-bottom: 1px solid #eee;
+  padding-bottom: 0.3em;
+  line-height: 1.3;
+}
+.markdown-document h1 {
+  font-size: 1.8em;
+}
+.markdown-document h2 {
+  font-size: 1.45em;
+}
+.markdown-document h3 {
+  font-size: 1.2em;
+}
+.markdown-document a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.markdown-document blockquote {
+  margin-left: 0;
+  padding: 0 16px;
+  border-left: 3px solid #ddd;
+  color: #666;
+}
+.markdown-document pre {
+  overflow: auto;
+  white-space: pre;
+  overflow-wrap: normal;
+  padding: 12px;
+  border: 1px solid #eee;
+  scrollbar-width: thin;
+}
+.markdown-document code {
+  font-family:
+    ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 0.9em;
+}
+.markdown-document pre code {
+  font-size: 14px;
+}
+.markdown-document :not(pre) > code {
+  padding: 2px 4px;
+  background: #f6f6f6;
+}
+.markdown-document table {
+  display: block;
+  max-width: 100%;
+  width: max-content;
+  overflow: auto;
+  border-collapse: collapse;
+  scrollbar-width: thin;
+}
+.markdown-document th,
+.markdown-document td {
+  padding: 6px 12px;
+  border: 1px solid #ddd;
+  text-align: left;
+}
+.markdown-document hr {
+  border: 0;
+  border-top: 1px solid #ddd;
+  margin: 24px 0;
+}
+.markdown-document img {
+  max-width: 100%;
+  height: auto;
+}
+.markdown-document .task-list-item {
+  list-style: none;
+}
+.markdown-document input[type="checkbox"] {
+  width: 12px;
+  height: 12px;
+  margin-right: 8px;
+  accent-color: #111;
+}
+.markdown-document .hljs-keyword,
+.markdown-document .hljs-selector-tag {
+  color: #cf222e;
+}
+.markdown-document .hljs-string,
+.markdown-document .hljs-regexp {
+  color: #0a3069;
+}
+.markdown-document .hljs-number,
+.markdown-document .hljs-literal {
+  color: #0550ae;
+}
+.markdown-document .hljs-comment,
+.markdown-document .hljs-meta {
+  color: #6e7781;
+}
+.markdown-document .hljs-title {
+  color: #8250df;
+}
+@media (max-width: 600px) {
+  .markdown-document {
+    padding: 12px;
+  }
+}
+.viewer-dialog[open] {
+  position: fixed;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  max-height: 100dvh;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+}
+.viewer-dialog::backdrop {
+  background: #fff;
+}
+.viewer-dialog .text-preview {
+  height: 100%;
+}
+.viewer-dialog .text-preview-header {
+  padding: max(12px, env(safe-area-inset-top, 0px)) 12px 12px;
+  flex-shrink: 0;
+}
+.file-preview-link {
+  padding: 0;
+  text-align: left;
+  font-size: inherit;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.viewer-footer {
+  display: flex;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  padding: 4px 12px max(4px, env(safe-area-inset-bottom, 0px));
+}
+.viewer-footer .expiry-corner {
+  position: static;
+}
+.text-dialog[open] {
+  position: fixed;
+  inset: 0;
+  margin: 0;
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  max-height: 100dvh;
+  border: 0;
+  border-radius: 0;
+}
+.editor-context {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.editor-context .language-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.owner .content > .files {
+  width: 100vw;
+  margin-left: calc((100% - 100vw) / 2);
+  margin-right: calc((100% - 100vw) / 2);
+  padding-left: max(24px, calc((100vw - 560px) / 2));
+  padding-right: max(24px, calc((100vw - 560px) / 2));
+}
+.recipient .transfer-details,
+.owner .owner-details {
+  width: 100%;
+  left: 0;
+  transform: none;
+}
+.recipient .transfer-information,
+.owner .owner-details .transfer-information {
+  padding-left: max(24px, calc((100vw - 480px) / 2));
+  padding-right: max(24px, calc((100vw - 480px) / 2));
+  scrollbar-width: thin;
+}
+.owner .owner-details .transfer-information {
+  max-height: calc(50dvh - 95px);
+}
+.qr-popover.qr-dropdown {
+  position: fixed;
+  right: auto;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #ddd;
+  box-shadow: 0 4px 16px #0000000d;
+}
+.qr-popover.qr-dropdown img {
+  width: 100% !important;
+  height: auto !important;
+  display: block;
+}
+@media (max-width: 600px), (hover: none) and (pointer: coarse) {
+  .text-preview-header {
+    gap: 8px;
+  }
+  .text-preview-header .text-actions {
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .text-preview-header .language-label {
+    min-width: 0;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }

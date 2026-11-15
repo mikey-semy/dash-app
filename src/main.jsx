@@ -129,7 +129,7 @@ function App() {
     window.addEventListener("beforeunload", fn);
     return () => window.removeEventListener("beforeunload", fn);
   }, []);
-  async function choose(list, parentId = null) {
+  async function choose(list, parentId = null, replacement = null) {
     if (active.current) return false;
     const files = Array.from(list);
     if (!files.length) return false;
@@ -140,11 +140,16 @@ function App() {
     setError("");
     try {
       const { id, offset = 0 } = await api(
-        parentId ? "/api/transfers/" + parentId + "/append" : "/api/transfers",
+        parentId
+          ? "/api/transfers/" +
+              parentId +
+              (replacement === null ? "/append" : "/replace")
+          : "/api/transfers",
         {
           files: files.map((f) => ({ name: f.name, size: f.size })),
           ttl,
           password: secret,
+          ...(replacement === null ? {} : { revision: replacement }),
         },
       );
       const u = {
@@ -164,6 +169,10 @@ function App() {
       return true;
     } catch (e) {
       setError(e.message);
+      if (replacement !== null) {
+        await reload();
+        throw e;
+      }
       return false;
     }
   }
@@ -238,7 +247,7 @@ function App() {
       if (!control.current.paused && !control.current.cancel) {
         await api(`/api/transfers/${u.id}/complete`, {});
         setUpload(null);
-        setSecret("");
+        if (!u.parentId) setSecret("");
         await reload();
       }
     } catch (e) {
@@ -324,6 +333,24 @@ function App() {
         pause,
         cancel,
       }}
+      readText={async (transfer) => {
+        const response = await fetch(
+          "/api/transfers/" + transfer.id + "/text",
+          { headers: { "If-Match": `"${transfer.revision}"` } },
+        );
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "Не удалось открыть текст");
+        }
+        return new TextDecoder("utf-8", {
+          fatal: true,
+          ignoreBOM: true,
+        }).decode(await response.arrayBuffer());
+      }}
+      replaceText={(files, transfer) =>
+        choose(files, transfer.id, transfer.revision)
+      }
+      refresh={reload}
       logout={async () => {
         await api("/api/logout", {});
         setLogged(false);

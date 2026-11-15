@@ -106,6 +106,19 @@ test(
       assert.deepEqual(Buffer.from(entries["данные.bin"]), payload);
       assert.equal(Buffer.from(entries["added.txt"]).toString(), "added");
       assert.equal(entries.empty.length, 0);
+      const archiveApp = createApp(service, {
+        PUBLIC_URL: "http://localhost",
+        ADMIN_PASSWORD: "123456",
+        S3_ENDPOINT: process.env.TEST_S3_ENDPOINT,
+      });
+      await request(archiveApp)
+        .get("/raw/" + service.get(id).token + "/2")
+        .expect(200)
+        .expect("added");
+      await request(archiveApp)
+        .get("/public/" + service.get(id).token + "/files/2/download")
+        .expect(200);
+
       await service.tick();
       assert.equal(service.get(id).reserved, merged.output.size);
       service.removeFiles(id, [0]);

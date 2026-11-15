@@ -12,11 +12,18 @@ import React, {
 import { Expiry } from "./Icons.jsx";
 import { RecipientShare } from "./RecipientShare.jsx";
 import { FileList, bytes, date } from "./View.jsx";
-const TextPreview = lazy(() => import("./TextPreview.jsx"));
+const TextViewer = lazy(() => import("./TextViewer.jsx"));
 export function Recipient({ token, api }) {
   const [info, setInfo] = useState(null),
     [password, setPassword] = useState(""),
     [error, setError] = useState("");
+  const [viewer, setViewer] = useState(null),
+    [blocked, setBlocked] = useState(new Set());
+  const automatic = useRef(false);
+  const composition = JSON.stringify([
+    info?.etag,
+    info?.files?.map((f) => [f.name, f.size]),
+  ]);
   const requestVersion = useRef(0);
   const [textUnavailable, setTextUnavailable] = useState(false);
   useEffect(() => setTextUnavailable(false), [token, info?.etag, info?.name]);
@@ -25,10 +32,14 @@ export function Recipient({ token, api }) {
       ? "Пароль передачи"
       : error
         ? "Передача недоступна"
-        : info?.preview && !textUnavailable
-          ? info.name
-          : "Скачивание";
-  }, [info, error, textUnavailable]);
+        : viewer && info
+          ? viewer.index === undefined
+            ? info.name
+            : info.files[viewer.index]?.name || info.name
+          : info?.preview && !textUnavailable
+            ? info.name
+            : "Скачивание";
+  }, [info, error, textUnavailable, viewer]);
   const load = useCallback(
     async (background = false) => {
       const version = ++requestVersion.current;
@@ -64,21 +75,47 @@ export function Recipient({ token, api }) {
       document.removeEventListener("visibilitychange", refresh);
     };
   }, [load]);
+  useEffect(() => {
+    setBlocked(new Set());
+  }, [composition]);
+  useEffect(() => {
+    if (!info || info.locked) {
+      automatic.current = false;
+      setViewer(null);
+      return;
+    }
+    if (info.preview && !textUnavailable && !automatic.current) {
+      automatic.current = true;
+      setViewer({ index: undefined, version: composition });
+    }
+    setViewer((previous) => {
+      if (!previous) return previous;
+      if (previous.index === undefined)
+        return info.preview && !textUnavailable ? previous : null;
+      return previous.version === composition &&
+        info.files[previous.index]?.preview
+        ? previous
+        : null;
+    });
+  }, [info, composition, textUnavailable]);
+  const openFile = (index) => setViewer({ index, version: composition });
+  const selected =
+    viewer?.index === undefined
+      ? info
+      : info && {
+          ...info,
+          name: info.files[viewer.index]?.name,
+          size: info.files[viewer.index]?.size,
+        };
   return (
-    <main
-      className={
-        info?.preview && !info.locked && !textUnavailable
-          ? "recipient center has-text"
-          : "recipient center"
-      }
-    >
+    <main className="recipient center">
       <a
         className="upload-link"
         href="/"
-        aria-label="Перейти к загрузке"
-        title="Перейти к загрузке"
+        aria-label="Закрыть передачу"
+        title="Закрыть передачу"
       >
-        <Icon name="upload" />
+        <Icon name="cancel" />
       </a>
       <div className="content">
         {error &&
@@ -120,21 +157,16 @@ export function Recipient({ token, api }) {
         ) : (
           info && (
             <>
-              {info.preview ? (
-                <Suspense
-                  fallback={
-                    <div className="archive-status">
-                      <Icon name="code" />
-                    </div>
-                  }
+              {info.preview && !textUnavailable ? (
+                <button
+                  type="button"
+                  className="primary-action"
+                  aria-label="Открыть просмотр"
+                  title="Просмотреть"
+                  onClick={() => openFile(undefined)}
                 >
-                  <TextPreview
-                    token={token}
-                    info={info}
-                    onUnavailable={() => load(true)}
-                    onUnsupported={() => setTextUnavailable(true)}
-                  />
-                </Suspense>
+                  <Icon name="eye" />
+                </button>
               ) : info.files.length ? (
                 <>
                   {" "}
@@ -163,7 +195,13 @@ export function Recipient({ token, api }) {
                 summary={<Icon name="chevron" />}
               >
                 <div className="transfer-information">
-                  <FileList files={info.files} />
+                  <FileList
+                    files={info.files.map((file, index) => ({
+                      ...file,
+                      preview: file.preview && !blocked.has(index),
+                    }))}
+                    onPreview={openFile}
+                  />
                   <p className="muted">{bytes(info.size)}</p>
                   {info.expires !== null && (
                     <p className="muted">
@@ -182,6 +220,30 @@ export function Recipient({ token, api }) {
           )
         )}
       </div>
+      {viewer &&
+        selected &&
+        !info.locked &&
+        (viewer.index === undefined
+          ? info.preview && !textUnavailable
+          : viewer.version === composition) && (
+          <Suspense fallback={null}>
+            <TextViewer
+              token={token}
+              info={selected}
+              index={viewer.index}
+              onClose={() => setViewer(null)}
+              onUnavailable={() => load(true)}
+              onUnsupported={() => {
+                if (viewer.index === undefined) setTextUnavailable(true);
+                else
+                  setBlocked(
+                    (previous) => new Set([...previous, viewer.index]),
+                  );
+                setViewer(null);
+              }}
+            />
+          </Suspense>
+        )}
     </main>
   );
 }

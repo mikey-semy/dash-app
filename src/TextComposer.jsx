@@ -2,7 +2,13 @@ import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Icon } from "./Icons.jsx";
 const CodeEditor = lazy(() => import("./CodeEditor.jsx"));
 export const TEXT_LIMIT = 5 * 1024 * 1024;
-export default function TextComposer({ initial = "", onClose, onSend }) {
+export default function TextComposer({
+  initial = "",
+  filename,
+  editing = false,
+  onClose,
+  onSend,
+}) {
   const ref = useRef(),
     [text, setText] = useState(initial),
     [language, setLanguage] = useState("?"),
@@ -18,7 +24,7 @@ export default function TextComposer({ initial = "", onClose, onSend }) {
     };
   }, []);
   const send = async () => {
-    const file = new File([text], textName(), {
+    const file = new File([text], filename || textName(), {
       type: "text/plain;charset=utf-8",
     });
     if (file.size > TEXT_LIMIT) {
@@ -30,8 +36,14 @@ export default function TextComposer({ initial = "", onClose, onSend }) {
     try {
       const sent = await onSend([file]);
       if (sent !== false) onClose();
-    } catch {
-      setError("Не удалось отправить. Повторите.");
+      else
+        setError(
+          editing
+            ? "Не удалось сохранить. Повторите."
+            : "Не удалось отправить. Повторите.",
+        );
+    } catch (error) {
+      setError(error.message || "Не удалось отправить. Повторите.");
     } finally {
       setSending(false);
     }
@@ -40,7 +52,7 @@ export default function TextComposer({ initial = "", onClose, onSend }) {
     <dialog
       ref={ref}
       className="text-dialog"
-      aria-label="Текстовая передача"
+      aria-label={editing ? "Редактирование текста" : "Текстовая передача"}
       onCancel={(e) => {
         e.preventDefault();
         if (!sending) onClose();
@@ -49,23 +61,26 @@ export default function TextComposer({ initial = "", onClose, onSend }) {
         if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
           e.preventDefault();
           e.stopPropagation();
-          if (!sending && text.length) send();
+          if (!sending && (editing || text.length)) send();
         }
       }}
     >
       <header className="dialog-header">
-        <Icon name="code" />
+        <span className="editor-context">
+          <Icon name={editing ? "edit" : "code"} />
+          {editing && <span className="language-label">{filename}</span>}
+        </span>
         <div className="text-actions">
           <span className="language-label">{language}</span>
           <button
             className="icon-button"
             type="button"
-            aria-label="Отправить текст"
-            title="Отправить"
-            disabled={sending || !text.length}
+            aria-label={editing ? "Сохранить текст" : "Отправить текст"}
+            title={editing ? "Сохранить" : "Отправить"}
+            disabled={sending || (!editing && !text.length)}
             onClick={send}
           >
-            <Icon name="upload" />
+            <Icon name={editing ? "save" : "upload"} />
           </button>
           <button
             className="icon-button"

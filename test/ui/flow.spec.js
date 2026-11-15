@@ -99,7 +99,7 @@ test("empty page, settings, upload, private recipient, ZIP, history and deletion
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.screenshot({ path: "work/ui-share.png", fullPage: true });
   await page.getByRole("button", { name: "QR-код", exact: true }).click();
-  await expect(page.locator(".center .share img")).toBeVisible();
+  await expect(page.getByRole("img", { name: "QR-код ссылки" })).toBeVisible();
   const context = await browser.newContext(),
     recipient = await context.newPage();
   await recipient.goto(url);
@@ -113,7 +113,7 @@ test("empty page, settings, upload, private recipient, ZIP, history and deletion
   ).toBeVisible();
   await expect(recipient.getByText("привет.txt", { exact: true })).toBeHidden();
   await expect(
-    recipient.getByRole("link", { name: "Перейти к загрузке" }),
+    recipient.getByRole("link", { name: "Закрыть передачу" }),
   ).toHaveAttribute("href", "/");
   await checkAction(recipient, "link", "СКАЧАТЬ");
   await recipient.setViewportSize({ width: 1280, height: 720 });
@@ -140,7 +140,7 @@ test("empty page, settings, upload, private recipient, ZIP, history and deletion
   await item.locator(".history-toggle").click();
   await expect(item.locator(".history-information")).toBeVisible();
   await item.getByRole("button", { name: "QR-код", exact: true }).click();
-  await expect(item.getByRole("img", { name: "QR-код ссылки" })).toBeVisible();
+  await expect(page.getByRole("img", { name: "QR-код ссылки" })).toBeVisible();
   await expect(item.locator(".share-controls button")).toHaveCount(4);
   await confirmDelete(
     item.getByRole("button", { name: "Удалить", exact: true }),
@@ -555,7 +555,7 @@ test("history and ready-view plus append to the same transfer and preserve its l
   await page.getByLabel("Настройки", { exact: true }).click();
   await page.getByRole("button", { name: "История", exact: true }).click();
   const first = page.locator(".history-item").first();
-  await expect(first.locator(".share-controls button")).toHaveCount(4);
+  await expect(first.locator(".share-controls button")).toHaveCount(5);
   const choosing = page.waitForEvent("filechooser");
   await first
     .getByRole("button", { name: "Добавить файлы в передачу", exact: true })
@@ -744,7 +744,7 @@ test("recipient sharing stays inside details and countdown ticks without moving 
     "http://127.0.0.1:3001/Test12",
   );
   await page.locator(".recipient-share-actions button").nth(1).click();
-  await expect(page.locator(".recipient-qr")).toBeVisible();
+  await expect(page.locator(".qr-dropdown img")).toBeVisible();
   await page.locator(".recipient-share-actions button").nth(2).click();
   expect(await page.evaluate(() => window.sharedData)).toEqual({
     url: "http://127.0.0.1:3001/Test12",
@@ -867,6 +867,11 @@ test("history selection deletes multiple records without expanding and supports 
   ).toBe("none");
   await page.locator(".dialog-header input").uncheck();
 
+  const screen = await page.locator(".history-dialog").boundingBox();
+  expect(screen.x).toBe(0);
+  expect(screen.y).toBe(0);
+  expect(screen.width).toBe(390);
+  expect(screen.height).toBe(844);
   const closeBox = await page.locator(".dialog-header > button").boundingBox();
   const deleteBox = await page
     .locator(".history-bulk-actions button")
@@ -954,7 +959,10 @@ test("failed delete closes QR and never leaks Safari JSON parser errors; retry r
     buffer: Buffer.from("x"),
   });
   await expect(page.locator(".share-ready")).toBeVisible();
-  await page.locator(".share-ready .share-controls button").nth(0).click();
+  await page
+    .locator(".share-ready")
+    .getByRole("button", { name: "QR-код", exact: true })
+    .click();
   await expect(page.locator(".qr-popover.is-open")).toBeVisible();
   await page.route("**/api/transfers/*", (r) =>
     r.request().method() === "DELETE"
@@ -966,7 +974,9 @@ test("failed delete closes QR and never leaks Safari JSON parser errors; retry r
       : r.continue(),
   );
   await confirmDelete(
-    page.locator(".share-ready .share-controls button").nth(2),
+    page
+      .locator(".share-ready")
+      .getByRole("button", { name: /Удалить|Подтвердить/ }),
   );
   await expect(page.locator(".qr-popover.is-open")).toHaveCount(0);
   await expect(page.getByRole("alert")).toHaveText(
@@ -974,7 +984,9 @@ test("failed delete closes QR and never leaks Safari JSON parser errors; retry r
   );
   await page.unroute("**/api/transfers/*");
   await confirmDelete(
-    page.locator(".share-ready .share-controls button").nth(2),
+    page
+      .locator(".share-ready")
+      .getByRole("button", { name: /Удалить|Подтвердить/ }),
   );
   await expect(page.locator(".share-ready")).toHaveCount(0);
   await expect(page.getByRole("alert")).toHaveCount(0);

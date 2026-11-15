@@ -1,13 +1,14 @@
+import { archiveTextObject } from "./archive-text.js";
 import { TextDecoder } from "node:util";
 export const TEXT_LIMIT = 5 * 1024 * 1024;
 const binary =
   /\.(?:png|jpe?g|gif|webp|avif|ico|pdf|zip|gz|7z|rar|exe|dll|dnl|mp[34]|wav|woff2?|ttf|sqlite|db)$/i;
+export function fileTextCandidate(file) {
+  return !!file && file.size <= TEXT_LIMIT && !binary.test(file.name);
+}
 export function textCandidate(t) {
   return (
-    t.files.length === 1 &&
-    !!t.output?.key &&
-    t.output.size <= TEXT_LIMIT &&
-    !binary.test(t.files[0].name)
+    t.files.length === 1 && !!t.output?.key && fileTextCandidate(t.files[0])
   );
 }
 export function validText(buffer) {
@@ -27,8 +28,8 @@ export function textReader(store) {
     waiters = [];
   let bytes = 0,
     active = 0;
-  return async function read(t) {
-    const key = JSON.stringify([t.output.key, t.output.etag]);
+  return async function read(t, index) {
+    const key = JSON.stringify([t.output.key, t.output.etag, index]);
     if (cache.has(key)) {
       const value = cache.get(key);
       cache.delete(key);
@@ -40,7 +41,10 @@ export function textReader(store) {
       if (active >= 4) await new Promise((resolve) => waiters.push(resolve));
       else active++;
       try {
-        const object = await store.get(t.output.key),
+        const object =
+            index !== undefined && t.files.length > 1
+              ? await archiveTextObject(store, t, index)
+              : await store.get(t.output.key),
           chunks = [];
         let size = 0;
         try {
@@ -55,7 +59,10 @@ export function textReader(store) {
         } finally {
           object.Body.destroy?.();
         }
-        if (size !== t.output.size) throw new Error("Object size mismatch");
+        if (
+          size !== (index === undefined ? t.output.size : t.files[index].size)
+        )
+          throw new Error("Object size mismatch");
         const buffer = Buffer.concat(chunks);
         if (!validText(buffer))
           throw Object.assign(new Error("Неподдерживаемый текст"), {

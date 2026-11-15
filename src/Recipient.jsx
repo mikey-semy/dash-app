@@ -1,3 +1,4 @@
+import { PasswordInput } from "./PasswordInput.jsx";
 import React, { useEffect, useState } from "react";
 import { Expiry } from "./Icons.jsx";
 import { FileList, bytes, date } from "./View.jsx";
@@ -5,6 +6,13 @@ export function Recipient({ token, api }) {
   const [info, setInfo] = useState(null),
     [password, setPassword] = useState(""),
     [error, setError] = useState("");
+  useEffect(() => {
+    document.title = info?.locked
+      ? "Пароль передачи"
+      : error
+        ? "Передача недоступна"
+        : "Скачивание";
+  }, [info, error]);
   const load = () =>
     api("/public/" + token)
       .then(setInfo)
@@ -48,18 +56,15 @@ export function Recipient({ token, api }) {
               }
             }}
           >
-            <label>
-              Пароль передачи
-              <input
-                autoFocus
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                maxLength="256"
-                required
-              />
-            </label>
-            <button>Открыть</button>
+            <PasswordInput
+              label="Пароль передачи"
+              submitLabel="Открыть"
+              autoFocus
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              maxLength={256}
+              required
+            />
           </form>
         ) : (
           info && (

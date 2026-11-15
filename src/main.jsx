@@ -1,3 +1,4 @@
+import { PasswordInput } from "./PasswordInput.jsx";
 import React, { useState, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { OwnerView } from "./View.jsx";
@@ -34,6 +35,9 @@ function App() {
   const control = useRef({ paused: false, cancel: false, xhr: null }),
     start = useRef(0),
     active = useRef(false);
+  useEffect(() => {
+    document.title = logged ? "Загрузка" : "Вход";
+  }, [logged]);
   const reload = () =>
     api("/api/transfers")
       .then(setHistory)
@@ -230,21 +234,16 @@ function App() {
               }
             }}
           >
-            <label>
-              Пароль
-              <input
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                maxLength="6"
-                minLength="6"
-                pattern="[0-9]{6}"
-                inputMode="numeric"
-              />
-            </label>
-            <button>Войти</button>
+            <PasswordInput
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              maxLength={6}
+              minLength={6}
+              pattern="[0-9]{6}"
+              inputMode="numeric"
+            />
           </form>
           {error && <p role="alert">{error}</p>}
         </div>

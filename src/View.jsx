@@ -22,15 +22,17 @@ export function FileList({ files }) {
     </ul>
   );
 }
-export function Share({ url, onAdd }) {
-  const [qr, setQr] = useState("");
+export function Share({ url, onAdd, onDelete }) {
+  const [qr, setQr] = useState(""),
+    [open, setOpen] = useState(false);
   useEffect(() => {
-    QRCode.toDataURL(url, {
-      margin: 0,
-      width: 96,
-      color: { dark: "#111111", light: "#ffffff" },
-    }).then(setQr);
-  }, [url]);
+    if (open && url)
+      QRCode.toDataURL(url, {
+        margin: 1,
+        width: 144,
+        color: { dark: "#111111", light: "#ffffff" },
+      }).then(setQr);
+  }, [url, open]);
   return (
     <div className={onAdd ? "share share-ready" : "share"}>
       {onAdd && (
@@ -39,8 +41,33 @@ export function Share({ url, onAdd }) {
         </button>
       )}
       <div className="share-controls">
+        <button
+          type="button"
+          className="icon-button"
+          aria-label="QR-код"
+          title="QR-код"
+          disabled={!url}
+          aria-expanded={open}
+          onClick={() => setOpen(!open)}
+        >
+          <Icon name="qr" />
+        </button>
         <CopyButton value={url} />
-        {qr && <img src={qr} alt="QR-код ссылки" width="64" height="64" />}
+        <button
+          type="button"
+          className="icon-button"
+          aria-label="Удалить"
+          title="Удалить"
+          disabled={!onDelete}
+          onClick={onDelete}
+        >
+          <Icon name="delete" />
+        </button>
+        {open && qr && (
+          <div className="qr-popover">
+            <img src={qr} alt="QR-код ссылки" width="128" height="128" />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -70,57 +97,91 @@ function Gear() {
     </svg>
   );
 }
+function HistoryItem({ transfer: t, onDelete }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <article className="history-item">
+      <div className="history-row">
+        <button
+          className="history-toggle"
+          aria-label={"Передача " + date(t.created)}
+          aria-expanded={open}
+          aria-controls={"history-" + t.id}
+          onClick={() => setOpen(!open)}
+        >
+          <span>
+            <time>{date(t.created)}</time>
+            <small>
+              {t.state === "ready" && t.expires <= Date.now()
+                ? "Срок истёк"
+                : states[t.state]}
+            </small>
+          </span>
+          <span className={open ? "chevron expanded" : "chevron"}>
+            <Icon name="chevron" />
+          </span>
+        </button>
+        <Share
+          url={t.url}
+          onDelete={
+            ["deleted", "deleting"].includes(t.state)
+              ? undefined
+              : () => onDelete(t.id)
+          }
+        />
+      </div>
+      <section
+        id={"history-" + t.id}
+        className="history-information"
+        hidden={!open}
+      >
+        <FileList files={t.files} />
+        <p className="muted">{bytes(t.size)}</p>
+        {t.error && <p role="alert">{t.error}</p>}
+        <p className="muted">
+          {t.expires
+            ? date(t.expires)
+            : "Срок: " + t.ttl / 3600 + " ч после готовности"}
+        </p>
+      </section>
+    </article>
+  );
+}
 function History({ items, onClose, onDelete }) {
   const ref = useRef();
   useEffect(() => {
     ref.current.showModal();
-    return () => ref.current?.close();
+    document.title = "История";
+    return () => {
+      ref.current?.close();
+      document.title = "Загрузка";
+    };
   }, []);
   return (
     <dialog
       ref={ref}
+      className="history-dialog"
       onCancel={onClose}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
       aria-label="История"
     >
-      <div className="dialog-content">
-        <div className="row">
-          <h2>История</h2>
-          <button onClick={onClose} aria-label="Закрыть историю">
-            ×
-          </button>
-        </div>
+      <header className="dialog-header">
+        <h2>История</h2>
+        <button
+          className="icon-button"
+          onClick={onClose}
+          aria-label="Закрыть историю"
+          title="Закрыть историю"
+        >
+          ×
+        </button>
+      </header>
+      <div className="dialog-body">
         {!items.length && <p className="muted">Нет передач</p>}
         {items.map((t) => (
-          <article className="transfer" key={t.id}>
-            <div className="row">
-              <span>
-                {t.state === "ready" && t.expires <= Date.now()
-                  ? "Срок истёк"
-                  : states[t.state]}
-              </span>
-              {!["deleted", "deleting"].includes(t.state) && (
-                <button onClick={() => onDelete(t.id)}>Удалить</button>
-              )}
-            </div>
-            <p className="muted">
-              {date(t.created)} · {bytes(t.size)}
-            </p>
-            <FileList files={t.files} />
-            {t.error && <p role="alert">{t.error}</p>}
-            {t.url ? (
-              <>
-                <Share url={t.url} />
-                <p className="muted">{date(t.expires)}</p>
-              </>
-            ) : t.expires ? (
-              <p className="muted">{date(t.expires)}</p>
-            ) : (
-              <p className="muted">Срок: {t.ttl / 3600} ч после готовности</p>
-            )}
-          </article>
+          <HistoryItem key={t.id} transfer={t} onDelete={onDelete} />
         ))}
       </div>
     </dialog>
@@ -269,7 +330,11 @@ export function OwnerView(p) {
             </>
           ) : completed ? (
             <>
-              <Share url={latest.url} onAdd={() => p.setSelected(null)} />
+              <Share
+                url={latest.url}
+                onAdd={() => p.setSelected(null)}
+                onDelete={() => p.remove(latest.id)}
+              />
             </>
           ) : preparing ? (
             <p>Сборка ZIP…</p>

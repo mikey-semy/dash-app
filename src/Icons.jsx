@@ -10,7 +10,12 @@ export function Icon({ name }) {
     check: <path d="m4 12 5 5L20 6" />,
     generate: (
       <>
-        <path d="m4 20 12-12 4 4L8 24M14 2v4M20 3l-2 3M22 8h-4M6 4v4M4 6h4" />
+        <rect x="3" y="3" width="18" height="18" rx="4" />
+        <circle cx="8" cy="8" r=".8" />
+        <circle cx="16" cy="8" r=".8" />
+        <circle cx="12" cy="12" r=".8" />
+        <circle cx="8" cy="16" r=".8" />
+        <circle cx="16" cy="16" r=".8" />
       </>
     ),
     history: (
@@ -23,6 +28,29 @@ export function Icon({ name }) {
         <path d="M9 3H3v18h6M9 12h12m-5-5 5 5-5 5" />
       </>
     ),
+    eye: (
+      <>
+        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+        <circle cx="12" cy="12" r="3" />
+      </>
+    ),
+    hidden: (
+      <>
+        <path d="m3 3 18 18M9.5 5.3A11 11 0 0 1 12 5c6.5 0 10 7 10 7a18 18 0 0 1-3.2 4M6 6.5A22 22 0 0 0 2 12s3.5 7 10 7a11 11 0 0 0 4-.8M10 10a3 3 0 0 0 4 4" />
+      </>
+    ),
+    enter: <path d="M3 12h17m-6-6 6 6-6 6" />,
+    delete: (
+      <>
+        <path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" />
+      </>
+    ),
+    qr: (
+      <>
+        <path d="M3 3h6v6H3zM15 3h6v6h-6zM3 15h6v6H3zM15 15h3v3h3v3h-6zM12 3v3M3 12h3m6-3v6m0 6v-3m6-6h3" />
+      </>
+    ),
+    chevron: <path d="m7 10 5 5 5-5" />,
   };
   return (
     <svg

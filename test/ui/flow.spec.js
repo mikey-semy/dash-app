@@ -78,6 +78,7 @@ test("empty page, settings, upload, private recipient, ZIP, history and deletion
   }
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.screenshot({ path: "work/ui-share.png", fullPage: true });
+  await page.getByRole("button", { name: "QR-код", exact: true }).click();
   await expect(page.locator(".center .share img")).toBeVisible();
   const context = await browser.newContext(),
     recipient = await context.newPage();
@@ -111,7 +112,15 @@ test("empty page, settings, upload, private recipient, ZIP, history and deletion
   await page.getByLabel("Настройки", { exact: true }).click();
   await page.getByRole("button", { name: "История", exact: true }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
-  await page.getByRole("button", { name: "Удалить", exact: true }).click();
+  await expect(page).toHaveTitle("История");
+  const item = page.locator(".history-item").first();
+  await expect(item.locator(".history-information")).toBeHidden();
+  await item.locator(".history-toggle").click();
+  await expect(item.locator(".history-information")).toBeVisible();
+  await item.getByRole("button", { name: "QR-код", exact: true }).click();
+  await expect(item.getByRole("img", { name: "QR-код ссылки" })).toBeVisible();
+  await expect(item.locator(".share-controls button")).toHaveCount(3);
+  await item.getByRole("button", { name: "Удалить", exact: true }).click();
   await recipient.reload();
   await expect(recipient.getByRole("alert")).toHaveText(
     "Передача недоступна или срок истёк",
@@ -210,4 +219,64 @@ test("icon controls generate and copy six-digit password; manifest and icons are
     "href",
     "/icon.svg",
   );
+});
+
+test("password reveal and submit are inside the input; history header stays fixed while body scrolls", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(page).toHaveTitle("Вход");
+  await page.getByLabel("Пароль", { exact: true }).fill("123456");
+  await page
+    .getByRole("button", { name: "Показать пароль", exact: true })
+    .click();
+  await expect(page.getByLabel("Пароль", { exact: true })).toHaveAttribute(
+    "type",
+    "text",
+  );
+  await page
+    .getByRole("button", { name: "Скрыть пароль", exact: true })
+    .click();
+  await expect(page.getByLabel("Пароль", { exact: true })).toHaveAttribute(
+    "type",
+    "password",
+  );
+  await expect(
+    page.locator(".login-field button[type=submit]"),
+  ).toHaveAttribute("aria-label", "Войти");
+  await page.getByRole("button", { name: "Войти", exact: true }).click();
+  await expect(page).toHaveTitle("Загрузка");
+  await page.route("**/api/transfers", (route) =>
+    route.fulfill({
+      json: Array.from({ length: 35 }, (_, i) => ({
+        id: "scroll-" + i,
+        state: "deleted",
+        created: Date.now() - i * 1000,
+        expires: Date.now() + 3600000,
+        ttl: 3600,
+        files: [{ name: "test.txt", size: 5 }],
+        size: 5,
+        url: null,
+        error: null,
+      })),
+    }),
+  );
+  await page.reload();
+  await page.getByLabel("Настройки", { exact: true }).click();
+  await page.getByRole("button", { name: "История", exact: true }).click();
+  const header = page.locator(".dialog-header"),
+    body = page.locator(".dialog-body");
+  const before = await header.boundingBox();
+  expect(await body.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(
+    true,
+  );
+  expect(await body.evaluate((el) => getComputedStyle(el).scrollbarWidth)).toBe(
+    "thin",
+  );
+  await body.evaluate((el) => (el.scrollTop = el.scrollHeight));
+  expect((await header.boundingBox()).y).toBe(before.y);
+  await expect(header).toBeVisible();
+  await page.screenshot({ path: "work/ui-history.png", fullPage: true });
+  await page.getByRole("button", { name: "Закрыть историю" }).click();
+  await expect(page).toHaveTitle("Загрузка");
 });

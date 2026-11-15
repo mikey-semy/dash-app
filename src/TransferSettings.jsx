@@ -109,8 +109,10 @@ export default function TransferSettings({ transfer, api, onClose, onEdit }) {
               <small>{duration[2]}</small>
             </span>
           </button>
-          <Expiry value={transfer.expires} className="expiry-inline" />
-          {onEdit && (
+          {transfer.expires !== null && (
+            <Expiry value={transfer.expires} className="expiry-inline" />
+          )}
+          {onEdit && transfer.preview && (
             <button
               type="button"
               className="icon-button"

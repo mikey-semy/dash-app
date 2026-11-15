@@ -4,6 +4,25 @@ export const PART = 8 * 1024 * 1024,
   LIMIT = 2_000_000_000,
   QUOTA = 20_000_000_000;
 export const token = () => randomBytes(32).toString("base64url");
+const archiveDateFormat = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Europe/Moscow",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hourCycle: "h23",
+});
+export function archiveName(created) {
+  const date = new Date(created),
+    p = Object.fromEntries(
+      archiveDateFormat
+        .formatToParts(date)
+        .map(({ type, value }) => [type, value]),
+    );
+  return `files-${p.year}${p.month}${p.day}-${p.hour}${p.minute}${p.second}${String(date.getUTCMilliseconds()).padStart(3, "0")}.zip`;
+}
 export function hash(password) {
   const salt = randomBytes(16).toString("hex");
   return salt + ":" + scryptSync(password, salt, 32).toString("hex");

@@ -2,7 +2,7 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import { rateLimit } from "express-rate-limit";
 import { pipeline } from "node:stream/promises";
-import { hash, verify, token, range } from "./core.js";
+import { hash, verify, token, range, archiveName } from "./core.js";
 export function createApp(service, env) {
   const app = express(),
     db = service.db,
@@ -168,6 +168,7 @@ export function createApp(service, env) {
       throw Object.assign(new Error("Передача недоступна или срок истёк"), {
         status: 404,
       });
+    if (t.files.length > 1) t.output.name = archiveName(t.created);
     return t;
   }
   const grants = new Map();
@@ -224,7 +225,7 @@ export function createApp(service, env) {
       ETag: out.etag,
       "Last-Modified": modified,
       "Content-Type": "application/octet-stream",
-      "Content-Disposition": `attachment; filename="download${t.files.length > 1 ? ".zip" : ""}"; filename*=UTF-8''${encodeURIComponent(out.name).replace(/['()*]/g, (c) => "%" + c.charCodeAt(0).toString(16))}`,
+      "Content-Disposition": `attachment; filename="${t.files.length > 1 ? out.name : "download"}"; filename*=UTF-8''${encodeURIComponent(out.name).replace(/['()*]/g, (c) => "%" + c.charCodeAt(0).toString(16))}`,
     });
     const match = (h, strong = false) =>
       h

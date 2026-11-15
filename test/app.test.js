@@ -2,7 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
 import { unzipSync } from "fflate";
-import { openDB, PART, range, safeNames, reservation } from "../server/core.js";
+import {
+  archiveName,
+  openDB,
+  PART,
+  range,
+  safeNames,
+  reservation,
+} from "../server/core.js";
 import { Service } from "../server/service.js";
 import { createApp } from "../server/app.js";
 import { FakeStore } from "./fake.js";
@@ -292,5 +299,50 @@ test("S3 download failures produce 503, names and reservation are safe", async (
         { name: "a", size: 1 },
       ]),
     ) > 4,
+  );
+});
+
+test("ZIP names use stable Moscow upload timestamp with milliseconds, including existing archives", async () => {
+  assert.equal(
+    archiveName(Date.parse("2026-11-01T10:24:54.123Z")),
+    "files-20261101-132454123.zip",
+  );
+  assert.equal(
+    archiveName(Date.parse("2026-12-31T22:00:00.007Z")),
+    "files-20270101-010000007.zip",
+  );
+  const { db, store, service, app } = await setup();
+  const id = await upload(service, store, [
+    ["a", Buffer.from("a")],
+    ["b", Buffer.from("b")],
+  ]);
+  await service.tick();
+  const t = service.get(id),
+    expected = archiveName(t.created);
+  assert.equal(t.output.name, expected);
+  db.prepare("UPDATE transfers SET output=? WHERE id=?").run(
+    JSON.stringify({ ...t.output, name: "Файлы.zip" }),
+    id,
+  );
+  const url = "/public/" + t.token;
+  assert.equal((await request(app).get(url)).body.name, expected);
+  const head = await request(app)
+    .head(url + "/download")
+    .expect(200);
+  assert.ok(
+    head.headers["content-disposition"].includes('filename="' + expected + '"'),
+  );
+  assert.ok(
+    head.headers["content-disposition"].includes(
+      "filename*=UTF-8''" + expected,
+    ),
+  );
+  const range = await request(app)
+    .get(url + "/download")
+    .set("Range", "bytes=0-3")
+    .expect(206);
+  assert.equal(
+    range.headers["content-disposition"],
+    head.headers["content-disposition"],
   );
 });

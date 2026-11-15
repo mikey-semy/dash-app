@@ -108,7 +108,9 @@ test("empty page, settings, upload, private recipient, ZIP, history and deletion
   await recipient.screenshot({ path: "work/ui-recipient.png", fullPage: true });
   const download = recipient.waitForEvent("download");
   await recipient.getByRole("link", { name: "СКАЧАТЬ" }).click();
-  expect((await download).suggestedFilename()).toBe("Файлы.zip");
+  expect((await download).suggestedFilename()).toMatch(
+    /^files-\d{8}-\d{9}\.zip$/,
+  );
   await page.getByLabel("Настройки", { exact: true }).click();
   await page.getByRole("button", { name: "История", exact: true }).click();
   await expect(page.getByRole("dialog")).toBeVisible();

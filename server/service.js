@@ -1,5 +1,5 @@
 import { ZipArchive } from "archiver";
-import { PART, row, insertTransfer } from "./core.js";
+import { PART, row, insertTransfer, archiveName } from "./core.js";
 export class Service {
   constructor(db, store) {
     this.db = db;
@@ -208,7 +208,7 @@ export class Service {
         throw new Error("Архив превысил резерв");
       const h = await this.store.head(key);
       if (h.ContentLength !== size) throw new Error("Архив не подтверждён");
-      this.ready(t, { key, name: "Файлы.zip", size, etag: h.ETag });
+      this.ready(t, { key, name: archiveName(t.created), size, etag: h.ETag });
     } catch (e) {
       zip.destroy();
       await consume.catch(() => {});

@@ -280,3 +280,84 @@ test("password reveal and submit are inside the input; history header stays fixe
   await page.getByRole("button", { name: "Закрыть историю" }).click();
   await expect(page).toHaveTitle("Загрузка");
 });
+
+test("history expansion preserves modal and clicked header positions throughout animation; disabled copy is not busy", async ({
+  page,
+}) => {
+  await login(page);
+  await page.getByLabel("Настройки", { exact: true }).click();
+  const copy = page.getByRole("button", {
+    name: "Копировать пароль",
+    exact: true,
+  });
+  await expect(copy).toBeDisabled();
+  expect(await copy.evaluate((el) => getComputedStyle(el).cursor)).toBe(
+    "default",
+  );
+  await page.getByLabel("Настройки", { exact: true }).click();
+  await page.route("**/api/transfers", (route) =>
+    route.fulfill({
+      json: Array.from({ length: 3 }, (_, i) => ({
+        id: "stable-" + i,
+        state: "deleted",
+        created: Date.now() - i * 1000,
+        expires: Date.now() + 3600000,
+        ttl: 3600,
+        files: Array.from({ length: 30 }, (_, j) => ({
+          name: "file-" + j + ".txt",
+          size: 5,
+        })),
+        size: 150,
+        url: null,
+        error: null,
+      })),
+    }),
+  );
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.reload();
+    await page.getByLabel("Настройки", { exact: true }).click();
+    await page.getByRole("button", { name: "История", exact: true }).click();
+    const dialog = page.getByRole("dialog"),
+      toggle = page.locator(".history-toggle").first(),
+      before = await dialog.boundingBox(),
+      header = await toggle.boundingBox();
+    expect(
+      await page
+        .locator(".dialog-body")
+        .evaluate((el) => getComputedStyle(el).overflowY),
+    ).toBe("scroll");
+    for (const expanded of [true, false]) {
+      await toggle.click();
+      await expect(toggle).toHaveAttribute("aria-expanded", String(expanded));
+      const positions = await page.evaluate(async () => {
+        const samples = [];
+        for (let i = 0; i < 20; i++) {
+          await new Promise(requestAnimationFrame);
+          const d = document
+              .querySelector(".history-dialog")
+              .getBoundingClientRect(),
+            h = document
+              .querySelector(".history-toggle")
+              .getBoundingClientRect();
+          samples.push({ y: d.y, height: d.height, headerY: h.y });
+        }
+        return samples;
+      });
+      for (const p of positions) {
+        expect(Math.abs(p.y - before.y)).toBeLessThan(1);
+        expect(Math.abs(p.height - before.height)).toBeLessThan(1);
+        expect(Math.abs(p.headerY - header.y)).toBeLessThan(1);
+      }
+    }
+    await page.getByRole("button", { name: "Закрыть историю" }).click();
+    await expect(dialog).toBeHidden();
+  }
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.getByLabel("Настройки", { exact: true }).click();
+  expect(
+    await page
+      .locator(".settings .details-body")
+      .evaluate((el) => getComputedStyle(el).transitionDuration),
+  ).toBe("0s");
+});

@@ -61,7 +61,7 @@ button:hover {
 }
 button:disabled {
   opacity: 0.4;
-  cursor: wait;
+  cursor: default;
 }
 button:focus-visible,
 summary:focus-visible,
@@ -581,12 +581,174 @@ dialog[open],
   }
 }
 
-.history-item:has(.qr-popover) {
+.history-item:has(.qr-popover.is-open) {
   padding-bottom: 168px;
 }
 @media (max-width: 600px) {
   .share-ready .share-controls {
     left: calc(100% + 8px);
     gap: 0;
+  }
+}
+
+/* Keep modal geometry and scrollbar space stable while content expands. */
+.history-dialog[open] {
+  height: min(560px, 80dvh);
+  max-height: min(560px, 80dvh);
+}
+.dialog-body {
+  flex: 1;
+  overflow-y: scroll;
+  overflow-anchor: none;
+  scrollbar-gutter: stable;
+}
+.dialog-body::-webkit-scrollbar-track {
+  background: #f5f5f5;
+}
+.history-item {
+  transition: padding-bottom 0.24s ease;
+  overflow-anchor: none;
+}
+.disclosure {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    grid-template-rows 0.24s cubic-bezier(0.2, 0.7, 0.2, 1),
+    opacity 0.18s ease,
+    visibility 0s linear 0.24s;
+}
+.disclosure[data-open="true"] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+  transition:
+    grid-template-rows 0.24s cubic-bezier(0.2, 0.7, 0.2, 1),
+    opacity 0.18s ease,
+    visibility 0s;
+}
+.disclosure-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+.history-information {
+  animation: none;
+}
+.settings .details-toggle {
+  padding: 7px;
+  display: flex;
+}
+.settings > .details-body {
+  position: absolute;
+  right: 0;
+  top: 46px;
+  width: 250px;
+}
+.settings-panel {
+  position: static;
+  width: 250px;
+}
+.transfer-details .details-toggle {
+  display: flex;
+  justify-content: center;
+  width: 40px;
+  margin: auto;
+  padding: 8px;
+}
+.transfer-details .details-toggle svg {
+  transition: transform 0.24s ease;
+}
+.transfer-details[data-open="true"] .details-toggle svg {
+  transform: rotate(180deg);
+}
+.qr-popover {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  animation: none;
+  transition:
+    opacity 0.18s ease,
+    visibility 0s 0.18s;
+}
+.qr-popover.is-open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  animation: appear 0.18s ease-out;
+  transition:
+    opacity 0.18s ease,
+    visibility 0s;
+}
+.history-dialog[data-closing="true"] {
+  animation: disappear 0.18s ease-in both;
+}
+.history-dialog[data-closing="true"]::backdrop {
+  animation: disappear 0.18s ease-in both;
+}
+.history-dialog::backdrop {
+  animation: appear 0.2s ease-out;
+}
+button,
+a,
+select,
+input,
+.password-field {
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    background-color 0.18s ease;
+}
+button:not(:disabled):active,
+a:active {
+  scale: 0.96;
+}
+button:disabled {
+  cursor: default;
+}
+.icon-button:disabled:hover {
+  transform: none;
+  opacity: 0.4;
+}
+.icon-button svg {
+  animation: icon-feedback 0.18s ease-out;
+}
+.history-toggle small,
+.login p[role="alert"] {
+  animation: appear 0.2s ease-out;
+}
+progress::-webkit-progress-value {
+  transition: width 0.18s linear;
+}
+main,
+.login {
+  animation: appear 0.22s ease-out;
+}
+@keyframes disappear {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes icon-feedback {
+  from {
+    opacity: 0.35;
+    scale: 0.85;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
   }
 }

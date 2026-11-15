@@ -1,3 +1,5 @@
+import { AnimatedDetails } from "./Disclosure.jsx";
+import { Icon } from "./Icons.jsx";
 import { PasswordInput } from "./PasswordInput.jsx";
 import React, { useEffect, useState } from "react";
 import { Expiry } from "./Icons.jsx";
@@ -75,28 +77,16 @@ export function Recipient({ token, api }) {
               >
                 СКАЧАТЬ
               </a>
-              <details className="transfer-details">
-                <summary
-                  aria-label="Подробности передачи"
-                  title="Подробности передачи"
-                >
-                  <svg
-                    width="22"
-                    height="22"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.4"
-                    aria-hidden="true"
-                  >
-                    <path d="m7 10 5 5 5-5" />
-                  </svg>
-                </summary>
+              <AnimatedDetails
+                className="transfer-details"
+                label="Подробности передачи"
+                summary={<Icon name="chevron" />}
+              >
                 <div className="transfer-information">
                   <FileList files={info.files} />
                   <p className="muted">{bytes(info.size)}</p>
                 </div>
-              </details>
+              </AnimatedDetails>
               <Expiry value={info.expires} />
             </>
           )

@@ -1,3 +1,4 @@
+import { Disclosure, AnimatedDetails } from "./Disclosure.jsx";
 import React, { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { Icon, CopyButton, Expiry } from "./Icons.jsx";
@@ -63,8 +64,12 @@ export function Share({ url, onAdd, onDelete }) {
         >
           <Icon name="delete" />
         </button>
-        {open && qr && (
-          <div className="qr-popover">
+        {qr && (
+          <div
+            className={"qr-popover " + (open ? "is-open" : "")}
+            aria-hidden={!open}
+            inert={!open}
+          >
             <img src={qr} alt="QR-код ссылки" width="128" height="128" />
           </div>
         )}
@@ -111,7 +116,7 @@ function HistoryItem({ transfer: t, onDelete }) {
         >
           <span>
             <time>{date(t.created)}</time>
-            <small>
+            <small key={t.state}>
               {t.state === "ready" && t.expires <= Date.now()
                 ? "Срок истёк"
                 : states[t.state]}
@@ -130,29 +135,38 @@ function HistoryItem({ transfer: t, onDelete }) {
           }
         />
       </div>
-      <section
-        id={"history-" + t.id}
-        className="history-information"
-        hidden={!open}
-      >
-        <FileList files={t.files} />
-        <p className="muted">{bytes(t.size)}</p>
-        {t.error && <p role="alert">{t.error}</p>}
-        <p className="muted">
-          {t.expires
-            ? date(t.expires)
-            : "Срок: " + t.ttl / 3600 + " ч после готовности"}
-        </p>
-      </section>
+      <Disclosure open={open} id={"history-" + t.id}>
+        <section className="history-information">
+          <FileList files={t.files} />
+          <p className="muted">{bytes(t.size)}</p>
+          {t.error && <p role="alert">{t.error}</p>}
+          <p className="muted">
+            {t.expires
+              ? date(t.expires)
+              : "Срок: " + t.ttl / 3600 + " ч после готовности"}
+          </p>
+        </section>
+      </Disclosure>
     </article>
   );
 }
 function History({ items, onClose, onDelete }) {
-  const ref = useRef();
+  const ref = useRef(),
+    timer = useRef(),
+    [closing, setClosing] = useState(false);
+  const close = () => {
+    if (closing) return;
+    setClosing(true);
+    timer.current = setTimeout(
+      onClose,
+      matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 180,
+    );
+  };
   useEffect(() => {
     ref.current.showModal();
     document.title = "История";
     return () => {
+      clearTimeout(timer.current);
       ref.current?.close();
       document.title = "Загрузка";
     };
@@ -161,9 +175,13 @@ function History({ items, onClose, onDelete }) {
     <dialog
       ref={ref}
       className="history-dialog"
-      onCancel={onClose}
+      data-closing={closing}
+      onCancel={(e) => {
+        e.preventDefault();
+        close();
+      }}
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) close();
       }}
       aria-label="История"
     >
@@ -171,7 +189,7 @@ function History({ items, onClose, onDelete }) {
         <h2>История</h2>
         <button
           className="icon-button"
-          onClick={onClose}
+          onClick={close}
           aria-label="Закрыть историю"
           title="Закрыть историю"
         >
@@ -217,10 +235,12 @@ export function OwnerView(p) {
           p.choose(e.clipboardData.files);
       }}
     >
-      <details className="settings" ref={settings}>
-        <summary aria-label="Настройки">
-          <Gear />
-        </summary>
+      <AnimatedDetails
+        className="settings"
+        ref={settings}
+        label="Настройки"
+        summary={<Gear />}
+      >
         <div className="settings-panel">
           <label>
             <select
@@ -294,7 +314,7 @@ export function OwnerView(p) {
             </button>
           </div>
         </div>
-      </details>
+      </AnimatedDetails>
       <input
         ref={input}
         type="file"

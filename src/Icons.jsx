@@ -54,6 +54,7 @@ export function Icon({ name }) {
   };
   return (
     <svg
+      key={name}
       width="18"
       height="18"
       viewBox="0 0 24 24"

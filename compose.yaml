@@ -1,0 +1,51 @@
+services:
+  flash:
+    build: .
+    restart: unless-stopped
+    init: true
+    env_file: .env
+    environment:
+      TRUST_PROXY_HOPS: 1
+    volumes:
+      - flash-data:/app/data
+    networks:
+      - proxy
+    cpus: 1
+    mem_limit: 768m
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: "3"
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK:-proxy}
+      - traefik.http.routers.flash.rule=Host(`${DOMAIN}`)
+      - traefik.http.routers.flash.entrypoints=websecure
+      - traefik.http.routers.flash.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}
+      - traefik.http.services.flash.loadbalancer.server.port=3000
+    healthcheck:
+      test:
+        [
+          CMD,
+          node,
+          -e,
+          "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+networks:
+  proxy:
+    external: true
+    name: ${TRAEFIK_NETWORK:-proxy}
+volumes:
+  flash-data:

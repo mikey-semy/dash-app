@@ -1,0 +1,270 @@
+:root {
+  font-family:
+    "Segoe UI Variable",
+    "Segoe UI",
+    -apple-system,
+    BlinkMacSystemFont,
+    Arial,
+    sans-serif;
+  color: #111;
+  background: #fff;
+  font-synthesis: none;
+  font-weight: 400;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+main {
+  min-height: 100dvh;
+}
+button,
+input,
+select {
+  font: inherit;
+}
+button,
+a {
+  color: inherit;
+}
+button {
+  border: 0;
+  background: transparent;
+  padding: 8px 0;
+  cursor: pointer;
+  text-align: left;
+}
+button:hover {
+  text-decoration: underline;
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: wait;
+}
+button:focus-visible,
+summary:focus-visible,
+a:focus-visible {
+  outline: 1px solid #111;
+  outline-offset: 5px;
+}
+input,
+select {
+  border: 1px solid #ccc;
+  border-radius: 0;
+  background: white;
+  padding: 9px;
+  color: #111;
+  min-width: 0;
+  width: 100%;
+}
+input:focus,
+select:focus {
+  outline: 1px solid #111;
+}
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  font-size: 13px;
+}
+.settings {
+  position: fixed;
+  right: 26px;
+  top: 24px;
+  z-index: 2;
+}
+.settings summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 7px;
+  display: flex;
+}
+.settings summary::-webkit-details-marker {
+  display: none;
+}
+.settings-panel {
+  position: absolute;
+  right: 0;
+  top: 46px;
+  width: 250px;
+  padding: 22px;
+  border: 1px solid #ddd;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.settings-panel > button {
+  font-size: 13px;
+}
+.center {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 26px;
+}
+.content {
+  width: min(100%, 560px);
+}
+.drop-text {
+  display: block;
+  margin: auto;
+  font-size: 16px;
+  font-weight: 400;
+  text-align: center;
+  line-height: 1.7;
+}
+.dragging {
+  outline: 1px dashed #777;
+  outline-offset: -12px;
+}
+.muted {
+  color: #777;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.files {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px;
+}
+.files li {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 10px 0;
+  font-size: 14px;
+}
+.files li span {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.files small {
+  color: #777;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.actions {
+  display: flex;
+  gap: 28px;
+  margin-top: 20px;
+}
+.share > a {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+  display: block;
+}
+.share-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 24px 0;
+}
+.share-controls button,
+.new-upload {
+  font-size: 13px;
+}
+.share img {
+  flex-shrink: 0;
+}
+.new-upload {
+  margin-top: 28px;
+}
+progress {
+  width: 100%;
+  height: 3px;
+  accent-color: #111;
+  border: 0;
+  background: #eee;
+}
+progress::-webkit-progress-bar {
+  background: #eee;
+}
+progress::-webkit-progress-value {
+  background: #111;
+}
+progress::-moz-progress-bar {
+  background: #111;
+}
+dialog {
+  padding: 0;
+  border: 1px solid #ddd;
+  width: min(600px, calc(100% - 32px));
+  max-height: 85dvh;
+  background: #fff;
+  color: #111;
+}
+dialog::backdrop {
+  background: rgb(255 255 255/0.8);
+}
+.dialog-content {
+  padding: 28px;
+}
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.row h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+}
+.row button {
+  font-size: 13px;
+}
+.transfer {
+  border-top: 1px solid #eee;
+  margin-top: 24px;
+  padding-top: 20px;
+  font-size: 13px;
+}
+.login {
+  width: 100%;
+  max-width: 260px;
+  margin: auto;
+}
+.login button {
+  margin-top: 20px;
+  font-size: 13px;
+}
+.recipient .content {
+  max-width: 480px;
+}
+.recipient .actions a {
+  font-size: 14px;
+}
+.content > p[role="alert"] {
+  margin-top: 24px;
+  font-size: 13px;
+}
+h1 {
+  font-size: 16px;
+  font-weight: 400;
+  margin: 0 0 24px;
+}
+@media (max-width: 600px) {
+  .settings {
+    right: 16px;
+    top: 16px;
+  }
+  .center {
+    padding: 80px 24px;
+  }
+  .drop-text {
+    max-width: 280px;
+    font-size: 15px;
+  }
+  .dialog-content {
+    padding: 22px;
+  }
+  .files li {
+    gap: 16px;
+  }
+}

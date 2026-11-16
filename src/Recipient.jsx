@@ -298,7 +298,10 @@ export function Recipient({ token, api }) {
                     )
                   )}
                   <RecipientShare
-                    url={new URL(location.pathname, location.origin).href}
+                    url={
+                      info.shareUrl ||
+                      new URL(location.pathname, location.origin).href
+                    }
                   />
                 </div>
               </AnimatedDetails>
@@ -316,6 +319,7 @@ export function Recipient({ token, api }) {
           <Suspense fallback={null}>
             {selected.media ? (
               <MediaViewer
+                shareUrl={info.shareUrl}
                 token={token}
                 info={selected}
                 index={viewer.index}
@@ -323,6 +327,7 @@ export function Recipient({ token, api }) {
               />
             ) : (
               <TextViewer
+                shareUrl={info.shareUrl}
                 token={token}
                 info={selected}
                 index={viewer.index}

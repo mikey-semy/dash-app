@@ -57,13 +57,24 @@ test("domain verification exports only server DNS addresses and checks HTTPS bef
   assert.deepEqual(exported, []);
   assert.equal(probes, 0);
   assert.equal(manager.status(service.get(id)).state, "dns");
+  const canonical = "https://files.example.com/" + service.get(id).token;
+  assert.equal(manager.shareURL(service.get(id)), canonical);
   foreign = false;
   await manager.refresh();
   assert.deepEqual(exported, ["site.example.com"]);
   assert.equal(manager.status(service.get(id)).state, "tls");
+  assert.equal(manager.shareURL(service.get(id)), canonical);
   tls = true;
   await manager.refresh();
   assert.equal(manager.status(service.get(id)).state, "ready");
+  assert.equal(manager.shareURL(service.get(id)), "https://site.example.com/");
+  db.prepare("UPDATE transfers SET site_domain=? WHERE id=?").run(
+    "new.example.com",
+    id,
+  );
+  assert.equal(manager.shareURL(service.get(id)), canonical);
+  db.prepare("UPDATE transfers SET site_domain=NULL WHERE id=?").run(id);
+  assert.equal(manager.shareURL(service.get(id)), canonical);
   db.close();
 });
 

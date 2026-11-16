@@ -334,7 +334,7 @@ function HistoryItem({
           )}
         </div>
         <Share
-          url={t.url}
+          url={t.shareUrl || t.url}
           compact
           onOpen={t.url && onOpen ? () => onOpen(t) : undefined}
           onAdd={t.url && onAdd && !busy ? () => onAdd(t.id) : undefined}
@@ -1269,7 +1269,7 @@ export function OwnerView(p) {
           ) : completed ? (
             <>
               <Share
-                url={latest.url}
+                url={latest.shareUrl || latest.url}
                 publication={
                   latest.hasSite
                     ? {
@@ -1390,13 +1390,13 @@ export function OwnerView(p) {
                 viewing.index +
                 "?download=1"
               }
-              shareUrl={viewing.record.url}
+              shareUrl={viewing.record.shareUrl || viewing.record.url}
               onClose={() => setViewing(null)}
             />
           ) : (
             <TextViewer
-              token=""
-              shareUrl={viewing.record.url}
+              token={new URL(viewing.record.url).pathname.split("/").pop()}
+              shareUrl={viewing.record.shareUrl || viewing.record.url}
               index={viewing.index}
               info={{
                 ...viewing.record,

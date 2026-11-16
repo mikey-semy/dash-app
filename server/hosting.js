@@ -345,6 +345,10 @@ export function hosting(service, env, options = {}) {
     canonical: canonical.hostname,
     normalize: (value) => normalizeDomain(value, canonical.hostname),
     status,
+    shareURL: (t) =>
+      t.site_domain && siteEntry(t) && status(t).state === "ready"
+        ? "https://" + t.site_domain + "/"
+        : canonical.origin + "/" + t.token,
     refresh,
     isCustom,
     ownPost,

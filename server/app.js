@@ -206,6 +206,11 @@ export function createApp(
       })),
       size: t.files.reduce((n, f) => n + f.size, 0),
       error: t.error,
+      shareUrl:
+        ["ready", "empty"].includes(t.state) &&
+        (t.expires === null || t.expires > Date.now())
+          ? hosting.shareURL(t)
+          : null,
       url:
         ["ready", "empty"].includes(t.state) &&
         (t.expires === null || t.expires > Date.now())
@@ -687,6 +692,7 @@ export function createApp(
         ? {
             locked: false,
             title: t.title || "",
+            shareUrl: hosting.shareURL(t),
             demo: !!t.demo,
             hasSite: !!siteEntry(t),
             published: sitePublished(t),

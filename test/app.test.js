@@ -20,11 +20,11 @@ const env = {
   ADMIN_PASSWORD: "a-long-owner-password",
   S3_ENDPOINT: "https://s3.test",
 };
-async function setup() {
+async function setup(hostingOptions) {
   const db = openDB(":memory:"),
     store = new FakeStore(),
     service = new Service(db, store),
-    app = createApp(service, env),
+    app = createApp(service, env, { hostingOptions }),
     agent = request.agent(app);
   await agent
     .post("/api/login")
@@ -1787,6 +1787,46 @@ test("static 404.html keeps its status and assets; paused sites never serve a cu
   await request(app)
     .get("/public/" + service.get(id).token + "/download")
     .expect(404);
+});
+
+test("verified domain is shared everywhere while the owner keeps the canonical DU URL", async () => {
+  let verified = false;
+  const { app, agent, service, store } = await setup({
+    resolve: async () => ["203.0.113.1"],
+    probe: async () => verified,
+    exportDomains: async () => {},
+  });
+  const id = await upload(service, store, [
+    ["index.html", Buffer.from("<h1>Site</h1>")],
+  ]);
+  const canonical = env.PUBLIC_URL + "/" + service.get(id).token;
+  await agent
+    .patch("/api/transfers/" + id + "/settings")
+    .set("Origin", env.PUBLIC_URL)
+    .send({ published: true, domain: "site.example.com" })
+    .expect(200);
+  await app.locals.hosting.refresh();
+  const record = async () =>
+    (await agent.get("/api/transfers")).body.find((t) => t.id === id);
+  assert.equal((await record()).url, canonical);
+  assert.equal((await record()).shareUrl, canonical);
+  verified = true;
+  await app.locals.hosting.refresh();
+  assert.equal((await record()).url, canonical);
+  assert.equal((await record()).shareUrl, "https://site.example.com/");
+  assert.equal(
+    (await request(app).get("/public/" + service.get(id).token)).body.shareUrl,
+    "https://site.example.com/",
+  );
+  verified = false;
+  await app.locals.hosting.refresh();
+  assert.equal((await record()).shareUrl, canonical);
+  await agent
+    .patch("/api/transfers/" + id + "/settings")
+    .set("Origin", env.PUBLIC_URL)
+    .send({ domain: "" })
+    .expect(200);
+  assert.equal((await record()).shareUrl, canonical);
 });
 
 test("an empty folder remains a directory through append, rename and file removal", async () => {

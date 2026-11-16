@@ -391,7 +391,15 @@ export function createApp(
           spa ? 1 : 0,
           t.id,
         );
-      if (names !== undefined) service.rename(t.id, names, expectedRevision);
+      if (names !== undefined) {
+        const defaultTitle = !t.title && (t.output?.name || t.files[0]?.name);
+        service.rename(t.id, names, expectedRevision);
+        if (defaultTitle)
+          db.prepare("UPDATE transfers SET title=? WHERE id=?").run(
+            defaultTitle,
+            t.id,
+          );
+      }
       if (title !== undefined)
         db.prepare("UPDATE transfers SET title=? WHERE id=?").run(
           title.trim(),

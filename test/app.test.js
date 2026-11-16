@@ -1829,6 +1829,48 @@ test("verified domain is shared everywhere while the owner keeps the canonical D
   assert.equal((await record()).shareUrl, canonical);
 });
 
+test("single-file transfer title is independent from filename and website entry", async () => {
+  const { app, agent, service, store } = await setup();
+  const id = await upload(service, store, [
+    ["index.html", Buffer.from("<h1>Site</h1>")],
+  ]);
+  const token = service.get(id).token;
+  const patch = (body) =>
+    agent
+      .patch("/api/transfers/" + id + "/settings")
+      .set("Origin", env.PUBLIC_URL)
+      .send(body);
+  await patch({ title: "Test site", published: true }).expect(200);
+  assert.equal(service.get(id).files[0].name, "index.html");
+  assert.equal(service.get(id).title, "Test site");
+  await patch({
+    names: ["other.html"],
+    revision: revision(service.get(id)),
+  }).expect(200);
+  assert.equal(service.get(id).title, "Test site");
+  assert.equal(service.get(id).files[0].name, "other.html");
+  await patch({
+    names: ["index.html"],
+    revision: revision(service.get(id)),
+  }).expect(200);
+  assert.equal(service.get(id).title, "Test site");
+  assert.equal(service.get(id).token, token);
+  const meta = (await request(app).get("/public/" + token)).body;
+  assert.equal(meta.title, "Test site");
+  assert.equal(meta.files[0].name, "index.html");
+  assert.ok(meta.site);
+  const second = await upload(service, store, [
+    ["original.txt", Buffer.from("text")],
+  ]);
+  await agent
+    .patch("/api/transfers/" + second + "/settings")
+    .set("Origin", env.PUBLIC_URL)
+    .send({ names: ["changed.txt"], revision: revision(service.get(second)) })
+    .expect(200);
+  assert.equal(service.get(second).title, "original.txt");
+  assert.equal(service.get(second).files[0].name, "changed.txt");
+});
+
 test("an empty folder remains a directory through append, rename and file removal", async () => {
   const { service, store } = await setup();
   const id = service.create(

@@ -323,11 +323,7 @@ function HistoryItem({
               value={t.title || t.name || t.files[0]?.name || "—"}
               label="Название передачи"
               disabled={!!busy}
-              onSave={(value) =>
-                t.files.length === 1 && !t.title
-                  ? onRenameFile(t, 0, value)
-                  : onRenameTitle(t, value)
-              }
+              onSave={(value) => onRenameTitle(t, value)}
             />
           ) : (
             <span>{t.title || t.name || t.files[0]?.name || "—"}</span>
@@ -1322,18 +1318,14 @@ export function OwnerView(p) {
               summary={<Icon name="chevron" />}
             >
               <div className="transfer-information">
-                {latest.files.length > 1 && (
-                  <p>
-                    <EditableName
-                      value={
-                        latest.title || latest.name || date(latest.created)
-                      }
-                      label="Название передачи"
-                      disabled={p.renaming}
-                      onSave={(value) => p.rename(latest, { title: value })}
-                    />
-                  </p>
-                )}
+                <p>
+                  <EditableName
+                    value={latest.title || latest.name || date(latest.created)}
+                    label="Название передачи"
+                    disabled={p.renaming}
+                    onSave={(value) => p.rename(latest, { title: value })}
+                  />
+                </p>
                 <FileList
                   files={latest.files}
                   onRemove={(index) =>

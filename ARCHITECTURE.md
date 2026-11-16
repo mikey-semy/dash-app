@@ -4,10 +4,13 @@
 
 - `shared/config.js`: product limits, retention policy, locale, PIN policy and common interaction timing. It has no client/server dependencies.
 - `shared/copy.js`: the single English product dictionary and small placeholder formatter. User content, filenames and titles are not localized.
-- `src/components/`: reusable file lists, transfer actions and icon buttons.
-- `src/features/history/History.jsx`: history selection, filtering and accordion behavior.
-- `src/features/upload/OwnerView.jsx`: owner upload workspace and its feature coordination.
-- `src/lib/`: formatting, retention presentation and password generation. Components import these utilities directly.
+- `src/app/`: startup, focus policy and route selection.
+- `src/pages/upload/`: authenticated upload screen, workspace composition and page state.
+- `src/pages/recipient/`: public transfer screen and its state.
+- `src/widgets/history/` and `src/widgets/file-viewer/`: composed history and media/text/site viewing interfaces.
+- `src/features/`: upload-files, compose-text, sign-in, share-transfer and manage-transfer actions.
+- `src/entities/transfer/`: file list, expiry countdown and retention presentation.
+- `src/shared/`: generic controls, errors, disclosure, editable names, code/Markdown rendering, client API and utilities.
 - `server/auth.js`: owner authentication and the common session predicate.
 - `server/owner-api.js`: authenticated transfer management routes.
 - `server/app.js`: application composition and middleware order.
@@ -17,7 +20,15 @@
 - `server/http-policy.js` and `server/pages.js`: response policy, CSP and app-page rendering.
 - Other `server/` modules own storage, previews, website policy, domains and standalone status-page rendering.
 
-`src/main.jsx` selects the owner or recipient screen. `src/features/auth/LoginView.jsx` renders sign-in; `src/features/upload/useOwnerWorkspace.js` owns authentication and upload workspace state, recovery and management actions. `src/features/upload/transport.js` sends multipart bytes, handles retries and reports progress independently of React. Storage state transitions remain in `server/service.js`. Keep future extractions focused on a single responsibility and preserve their existing authorization and concurrency rules.
+`src/app/main.jsx` selects the upload or recipient page. The upload page owns workspace state, recovery and action coordination; multipart transport, upload recovery persistence and folder scanning belong to the upload-files feature. Storage state transitions remain in `server/service.js`. Keep future extractions focused on a single responsibility and preserve their existing authorization and concurrency rules.
+
+## FSD imports
+
+Dependencies point downward: **app → pages → widgets → features → entities → shared**. Pages, widgets, features and entities contain independent slices. Different slices on the same layer cannot import each other. Cross-slice imports use a root public entry point, usually `index.js`; implementation files remain private. Internal imports stay relative to their own slice. App and shared use responsibility segments rather than independent business slices.
+
+The manage-transfer feature exposes separate `actions.js` and `publication.js` entry points so displaying existing actions does not eagerly load its settings dialog. The upload-files feature exposes `review.js` separately from its DOM-free model API. The file-viewer widget has separate `text.js`, `media.js` and `demo.js` entry points. Editor, detector, language modules and viewers retain lazy loading. The architecture check covers imports, re-exports, dynamic imports and worker URLs.
+
+The root `shared/` is environment-independent policy used by both server and client; it is distinct from client-only `src/shared/`. Resource name parsing and language metadata live there, so server code does not depend on client JavaScript. `src/styles/` remains the documented shared design system location and is imported globally only from app startup.
 
 ## Identity
 

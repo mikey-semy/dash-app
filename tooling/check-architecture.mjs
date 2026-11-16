@@ -2,6 +2,7 @@ import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { parse } from "@babel/parser";
 import postcss from "postcss";
+import { importViolation } from "./fsd.mjs";
 
 const failures = [];
 const files = async (directory) =>
@@ -33,6 +34,20 @@ for (const directory of ["src", "server", "shared"]) {
     const source = await readFile(file, "utf8");
     const ast = parse(source, { sourceType: "module", plugins: ["jsx"] });
     walk(ast, (node) => {
+      const dependency = [
+        "ImportDeclaration",
+        "ExportNamedDeclaration",
+        "ExportAllDeclaration",
+        "ImportExpression",
+      ].includes(node.type)
+        ? node.source
+        : node.type === "NewExpression" && node.callee.name === "URL"
+          ? node.arguments[0]
+          : null;
+      if (dependency?.type === "StringLiteral") {
+        const violation = importViolation(file, dependency.value);
+        if (violation) fail(file, node, violation);
+      }
       if (node.type === "StringLiteral" && /[А-Яа-яЁё]/.test(node.value))
         fail(
           file,
@@ -71,16 +86,6 @@ for (const directory of ["src", "server", "shared"]) {
         !file.endsWith("IconButton.jsx")
       )
         fail(file, node, "Use the shared IconButton component.");
-      if (
-        node.type === "ImportDeclaration" &&
-        file.startsWith(path.join("src", "components")) &&
-        node.source.value.includes("features/")
-      )
-        fail(
-          file,
-          node,
-          "Shared components must not depend on feature screens.",
-        );
       if (
         node.type === "ImportDeclaration" &&
         directory === "shared" &&

@@ -1,4 +1,4 @@
-import { resourceName } from "../src/resource-name.js";
+import { resourceName } from "../shared/resource-name.js";
 const types = {
   svg: ["image", "image/svg+xml"],
   png: ["image", "image/png"],

@@ -1,6 +1,6 @@
 import { copy } from "../shared/copy.js";
-import { resourceName } from "../src/resource-name.js";
-import languages from "../src/text-languages.json" with { type: "json" };
+import { resourceName } from "../shared/resource-name.js";
+import languages from "../shared/text-languages.json" with { type: "json" };
 import { mediaType } from "./media.js";
 import { archiveTextObject } from "./archive-text.js";
 import { TextDecoder } from "node:util";

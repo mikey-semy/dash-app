@@ -9,9 +9,13 @@
 ## Structure
 
 - `shared/`: environment-independent product limits, settings and English copy shared by client and server.
-- `src/components/`: reusable interface components; no dependency on feature screens.
-- `src/features/`: feature-specific views and state. Share reusable behavior through components or focused hooks, not copied implementations.
-- `src/lib/`: formatting and client utilities. Import these directly instead of importing a screen for its helpers.
+- `src/app/`: application startup and route selection.
+- `src/pages/`: upload and recipient screen composition and page-owned state.
+- `src/widgets/`: history and file viewers composed from lower layers.
+- `src/features/`: user actions such as uploading, composing text, signing in, sharing and managing transfers.
+- `src/entities/transfer/`: reusable transfer presentation and retention policy presentation.
+- `src/shared/`: generic UI, client API and utilities; no dependency on product screens or actions.
+- Follow FSD dependency direction: app → pages → widgets → features → entities → shared. Different slices on the same layer must not import each other. Import other slices through their root public entry points; use local implementation imports inside a slice. Keep lazy entry points separate when necessary.
 - `src/styles/`: design tokens and styles grouped by responsibility. Preserve documented cascade order.
 - `server/`: storage, HTTP and domain services. Keep authorization and transfer validity checks on the server.
 - Keep component state and local variables next to their owner. Only shared configuration belongs in shared modules.

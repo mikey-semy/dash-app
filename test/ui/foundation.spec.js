@@ -1,5 +1,26 @@
 import { test, expect } from "@playwright/test";
 
+test("opening the upload page does not load editor, detector or Markdown language bundles", async ({
+  page,
+}) => {
+  const resources = [];
+  page.on("request", (request) => resources.push(request.url()));
+  await page.route("**/api/session", (route) =>
+    route.fulfill({ json: { ok: true } }),
+  );
+  await page.route("**/api/transfers", (route) => route.fulfill({ json: [] }));
+  await page.goto("/");
+  await expect(
+    page.getByRole("button", { name: "UPLOAD", exact: true }),
+  ).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  expect(
+    resources.filter((url) =>
+      /CodeEditor|detect\.worker|MarkdownCode|MarkdownPreview/.test(url),
+    ),
+  ).toEqual([]);
+});
+
 test("English metadata and shared status-page tokens preserve the minimal error layout", async ({
   page,
 }) => {

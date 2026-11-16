@@ -1,7 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { unzipSync } from "fflate";
-import { scanFolders, folderZip, defaultExcluded } from "../src/folders.js";
+import {
+  scanFolders,
+  folderZip,
+  defaultExcluded,
+} from "../src/features/upload-files/model/folders.js";
 const file = (name, text = "x") => ({
   name,
   isFile: true,

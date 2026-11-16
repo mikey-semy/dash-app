@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createUploadTransport } from "../src/features/upload/transport.js";
+import { createUploadTransport } from "../src/features/upload-files/model/transport.js";
 
 test("resumed multipart uploads preserve byte offsets and append indices", async () => {
   const progress = [],

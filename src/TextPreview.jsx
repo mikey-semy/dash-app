@@ -15,6 +15,7 @@ export default function TextPreview({
   downloadPath: downloadOverride,
   onEdit,
   shareUrl,
+  bare = false,
 }) {
   const rawPath =
     rawOverride || "/raw/" + token + (index === undefined ? "" : "/" + index);
@@ -94,68 +95,70 @@ export default function TextPreview({
     );
   return (
     <section className="text-preview" aria-label="Текст передачи">
-      <header className="text-preview-header">
-        <span className="language-label">{language}</span>
-        <div className="text-actions">
-          <CopyButton value={source} label="Копировать текст" />
-          <QRButton
-            url={shareUrl || new URL(location.pathname, location.origin).href}
-          />
-          {onEdit && (
-            <button
-              type="button"
-              className="icon-button"
-              aria-label="Редактировать текст"
-              title="Редактировать текст"
-              onClick={onEdit}
+      {!bare && (
+        <header className="text-preview-header">
+          <span className="language-label">{language}</span>
+          <div className="text-actions">
+            <CopyButton value={source} label="Копировать текст" />
+            <QRButton
+              url={shareUrl || new URL(location.pathname, location.origin).href}
+            />
+            {onEdit && (
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Редактировать текст"
+                title="Редактировать текст"
+                onClick={onEdit}
+              >
+                <Icon name="edit" />
+              </button>
+            )}
+            <a
+              className="raw-link"
+              href={rawPath}
+              target="_blank"
+              rel="noopener noreferrer"
             >
-              <Icon name="edit" />
-            </button>
-          )}
-          <a
-            className="raw-link"
-            href={rawPath}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Raw
-          </a>
-          {markdown && (
-            <button
-              type="button"
+              Raw
+            </a>
+            {markdown && (
+              <button
+                type="button"
+                className="icon-button"
+                aria-label={preview ? "Показать исходник" : "Показать превью"}
+                title={preview ? "Исходник" : "Превью"}
+                aria-pressed={preview}
+                onClick={() => {
+                  automatic.current = false;
+                  setPreview(!preview);
+                }}
+              >
+                <Icon name={preview ? "code" : "eye"} />
+              </button>
+            )}
+            <a
               className="icon-button"
-              aria-label={preview ? "Показать исходник" : "Показать превью"}
-              title={preview ? "Исходник" : "Превью"}
-              aria-pressed={preview}
-              onClick={() => {
-                automatic.current = false;
-                setPreview(!preview);
-              }}
+              aria-label="СКАЧАТЬ"
+              title="Скачать"
+              href={downloadPath}
             >
-              <Icon name={preview ? "code" : "eye"} />
-            </button>
-          )}
-          <a
-            className="icon-button"
-            aria-label="СКАЧАТЬ"
-            title="Скачать"
-            href={downloadPath}
-          >
-            <Icon name="download" />
-          </a>
-          {onClose && (
-            <button
-              type="button"
-              className="icon-button"
-              aria-label="Закрыть просмотр"
-              title="Закрыть"
-              onClick={onClose}
-            >
-              <Icon name="cancel" />
-            </button>
-          )}
-        </div>
-      </header>
+              <Icon name="download" />
+            </a>
+            {onClose && (
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Закрыть просмотр"
+                title="Закрыть"
+                onClick={onClose}
+              >
+                <Icon name="cancel" />
+              </button>
+            )}
+          </div>
+        </header>
+      )}
       <div className="text-preview-body">
         {source !== null && (
           <Suspense

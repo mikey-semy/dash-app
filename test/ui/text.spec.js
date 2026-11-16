@@ -494,7 +494,9 @@ test("owner reopens uploaded text full screen, cancels or saves to the same link
   await page
     .getByRole("button", { name: "Подробности передачи", exact: true })
     .click();
-  await page.getByRole("button", { name: "edit.py", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Просмотреть edit.py", exact: true })
+    .click();
   await expect(page.locator(".viewer-dialog .cm-content")).toHaveText(
     "print('new')",
   );

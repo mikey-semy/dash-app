@@ -11,6 +11,7 @@ COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/dist ./dist
 COPY --chown=node:node package.json ./
 COPY --chown=node:node server ./server
+COPY --chown=node:node src/text-languages.json ./src/text-languages.json
 RUN mkdir /app/data && chown node:node /app/data
 USER node
 EXPOSE 3000

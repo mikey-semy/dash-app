@@ -1,15 +1,34 @@
+import languages from "../src/text-languages.json" with { type: "json" };
 import { mediaType } from "./media.js";
 import { archiveTextObject } from "./archive-text.js";
 import { TextDecoder } from "node:util";
 export const TEXT_LIMIT = 5 * 1024 * 1024;
-const binary =
-  /\.(?:png|jpe?g|gif|webp|avif|ico|pdf|zip|gz|7z|rar|exe|dll|dnl|mp[34]|wav|woff2?|ttf|sqlite|db)$/i;
+const extensions = new Set([
+  ...languages.flatMap((language) =>
+    language.extensions.map((extension) => extension.toLowerCase()),
+  ),
+  ..."txt,text,log,csv,tsv,conf,cfg,ini,config,env,gitignore,gitattributes,editorconfig,npmrc,yarnrc,dockerignore,prettierignore,prettierrc,eslintrc,babelrc,browserslistrc,lock,jsonl,ndjson,ipynb,rst,adoc,tex,mdx,srt,vtt,properties,manifest,pem,pub,bat,cmd,psm1,psd1,vue,svelte,astro,graphql,gql,prisma,proto,service,socket,timer,target,path,desktop,diff,patch,tf,tfvars,hcl,rules,sh,zsh,fish,bash,sql,yml,yaml,toml".split(
+    ",",
+  ),
+]);
+const knownNames =
+  /^(?:readme|license|licence|notice|changelog|authors|contributing|install|todo|copying|version|dockerfile|makefile|gemfile|rakefile|procfile|justfile|jenkinsfile|cmakelists\.txt)$/i;
 export function fileTextCandidate(file) {
+  if (!file || file.size > TEXT_LIMIT || mediaType(file)) return false;
+  const name = file.name || "",
+    extension = name.includes(".") ? name.split(".").pop().toLowerCase() : "";
   return (
-    !!file &&
-    file.size <= TEXT_LIMIT &&
-    !binary.test(file.name) &&
-    !mediaType(file)
+    knownNames.test(name) ||
+    /^\.env(?:\.|$)/i.test(name) ||
+    extensions.has(extension) ||
+    languages.some(
+      (language) =>
+        language.filename &&
+        new RegExp(language.filename.source, language.filename.flags).test(
+          name,
+        ),
+    ) ||
+    (file.size === 0 && !extension)
   );
 }
 export function textCandidate(t) {

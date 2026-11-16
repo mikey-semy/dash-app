@@ -1398,3 +1398,64 @@ test("an incomplete one-time response does not consume the link and can be retri
     .expect(200);
   assert.equal(service.get(id).consumed, 1);
 });
+
+test("known Office and binary formats are not offered as text editors, and one-time lifetime is exclusive", async () => {
+  const { fileTextCandidate } = await import("../server/text.js");
+  for (const name of [
+    "book.xlsx",
+    "book.xls",
+    "book.xlsm",
+    "letter.doc",
+    "letter.docx",
+    "show.pptx",
+    "book.ods",
+    "archive.zip",
+    "data.bin",
+    "file.unknown",
+  ])
+    assert.equal(fileTextCandidate({ name, size: 50 }), false, name);
+  for (const name of [
+    "readme.md",
+    "README",
+    "main.py",
+    "config.json",
+    "table.csv",
+    ".env.example",
+    "Dockerfile",
+    "Cargo.lock",
+  ])
+    assert.equal(fileTextCandidate({ name, size: 50 }), true, name);
+  const { app, agent, service, store } = await setup();
+  const id = await upload(service, store, [["a.txt", Buffer.from("a")]]);
+  await agent
+    .patch("/api/transfers/" + id + "/settings")
+    .set("Origin", env.PUBLIC_URL)
+    .send({ oneTime: true, demo: true })
+    .expect(200);
+  const t = service.get(id);
+  assert.equal(t.expires, null);
+  assert.equal(t.ttl, 0);
+  const info = (
+    await request(app)
+      .get("/public/" + t.token)
+      .expect(200)
+  ).body;
+  assert.equal(info.demo, true);
+  assert.equal(info.oneTime, true);
+  await agent
+    .patch("/api/transfers/" + id + "/settings")
+    .set("Origin", env.PUBLIC_URL)
+    .send({ ttl: 3600 })
+    .expect(200);
+  assert.equal(service.get(id).one_time, 0);
+  assert.ok(service.get(id).expires > Date.now());
+  const created = (
+    await post(agent, "/api/transfers", {
+      files: [{ name: "new.txt", size: 0 }],
+      ttl: 3600,
+      oneTime: true,
+    }).expect(201)
+  ).body;
+  assert.equal(service.get(created.id).one_time, 1);
+  assert.equal(service.get(created.id).ttl, 0);
+});

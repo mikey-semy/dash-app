@@ -1556,9 +1556,8 @@ body:has(.owner) {
   flex-shrink: 0;
 }
 .transfer-settings-dialog[open] {
-  height: auto;
-  min-height: 210px;
-  max-height: 80dvh;
+  height: min(560px, 80dvh);
+  max-height: min(560px, 80dvh);
 }
 .transfer-settings-dialog .dialog-body {
   overflow-y: auto;
@@ -1720,5 +1719,172 @@ summary * {
   .transfer-settings-controls {
     gap: 12px;
     flex-wrap: wrap;
+  }
+}
+.demo-view {
+  position: relative;
+  height: 100dvh;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #fff;
+}
+.demo-view > .text-preview {
+  width: 100%;
+  height: 100%;
+}
+.demo-view .markdown-document {
+  max-width: none;
+  padding: 24px;
+}
+.demo-image,
+.demo-video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.demo-pdf {
+  border: 0;
+  width: 100%;
+  height: 100%;
+}
+.demo-view audio {
+  width: min(600px, calc(100% - 32px));
+}
+.demo-previous,
+.demo-next {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: #ffffffdd;
+  color: #111;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.demo-previous {
+  left: 12px;
+}
+.demo-next {
+  right: 12px;
+}
+.demo-view:hover .demo-previous,
+.demo-view:hover .demo-next,
+.demo-view:focus-within .demo-previous,
+.demo-view:focus-within .demo-next {
+  opacity: 1;
+}
+.demo-collection {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  align-content: start;
+  gap: 24px;
+  padding: 24px;
+  overflow: auto;
+}
+.demo-file {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: inherit;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+.demo-file img {
+  width: 100%;
+  height: 180px;
+  object-fit: contain;
+}
+@media (hover: none) {
+  .demo-previous,
+  .demo-next {
+    opacity: 0.7;
+  }
+}
+.history-search-field {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+.history-search-field input {
+  flex: 1;
+  width: 100%;
+}
+.search-clear {
+  color: #111;
+  flex-shrink: 0;
+}
+.editable-name {
+  display: inline-block;
+  min-width: 1ch;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  cursor: text;
+  outline: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  margin: 0;
+}
+.editable-name[contenteditable="true"] {
+  outline: none;
+  white-space: pre-wrap;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.editable-name[aria-busy="true"] {
+  opacity: 0.55;
+}
+.history-middle {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+}
+.settings-names {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 24px;
+  font-size: 14px;
+}
+.demo-carousel {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+.demo-carousel::-webkit-scrollbar {
+  display: none;
+}
+.demo-slide {
+  flex: 0 0 100%;
+  min-width: 100%;
+  scroll-snap-align: center;
+}
+.edit-error,
+.edit-error:disabled {
+  color: #c22;
+  opacity: 1;
+}
+@media (max-width: 600px) {
+  .editable-name[contenteditable="true"] {
+    font-size: 16px;
   }
 }

@@ -1,5 +1,6 @@
 import { Disclosure, AnimatedDetails } from "./Disclosure.jsx";
 import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
+import EditableName from "./EditableName.jsx";
 import QRButton from "./QRButton.jsx";
 import { captureFiles } from "./folders.js";
 const FolderUpload = lazy(() => import("./FolderUpload.jsx"));
@@ -23,9 +24,10 @@ export function FileList({
   onToggle,
   onPreview,
   downloadPath,
+  onRename,
   disabled = false,
 }) {
-  const SelectionRow = onPreview ? "div" : "label";
+  const SelectionRow = onPreview || onRename ? "div" : "label";
   return (
     <ul className="files">
       {files.map((f, i) => (
@@ -39,7 +41,14 @@ export function FileList({
                 aria-label={"Выбрать " + f.name}
                 onChange={() => onToggle(i)}
               />
-              {onPreview && (f.preview || f.media) ? (
+              {onRename ? (
+                <EditableName
+                  value={f.name}
+                  label={"Имя файла " + (i + 1)}
+                  disabled={disabled}
+                  onSave={(name) => onRename(i, name)}
+                />
+              ) : onPreview && (f.preview || f.media) ? (
                 <button
                   type="button"
                   className="file-preview-link"
@@ -51,6 +60,13 @@ export function FileList({
                 <span>{f.name}</span>
               )}
             </SelectionRow>
+          ) : onRename ? (
+            <EditableName
+              value={f.name}
+              label={"Имя файла " + (i + 1)}
+              disabled={disabled}
+              onSave={(name) => onRename(i, name)}
+            />
           ) : onPreview && (f.preview || f.media) ? (
             <button
               type="button"
@@ -62,6 +78,16 @@ export function FileList({
             </button>
           ) : (
             <span>{f.name}</span>
+          )}
+          {onRename && onPreview && (f.preview || f.media) && (
+            <button
+              type="button"
+              className="icon-button"
+              aria-label={"Просмотреть " + f.name}
+              onClick={() => onPreview(i)}
+            >
+              <Icon name="eye" />
+            </button>
           )}
           {downloadPath && (
             <a
@@ -84,6 +110,8 @@ export function Share({
   onDelete,
   onEdit,
   onSettings,
+  editFailed,
+  editBusy,
   compact = false,
   deleteLabel = "Удалить",
   confirmationKey,
@@ -104,14 +132,19 @@ export function Share({
         {onEdit && (
           <button
             type="button"
-            className="icon-button"
-            aria-label="Редактировать текст"
-            title="Редактировать текст"
+            className={editFailed ? "icon-button edit-error" : "icon-button"}
+            disabled={editBusy || editFailed}
+            aria-label={
+              editFailed ? "Не удалось открыть текст" : "Редактировать текст"
+            }
+            title={
+              editFailed ? "Не удалось открыть текст" : "Редактировать текст"
+            }
             onClick={() => {
               onEdit();
             }}
           >
-            <Icon name="edit" />
+            <Icon name={editFailed ? "cancel" : "edit"} />
           </button>
         )}
         {compact && (
@@ -174,6 +207,10 @@ function HistoryItem({
   onEdit,
   onSettings,
   onOpen,
+  onRenameFile,
+  onRenameTitle,
+  onView,
+  renaming,
   selected,
   onSelect,
   selectionDisabled,
@@ -181,7 +218,7 @@ function HistoryItem({
   const [open, setOpen] = useState(false),
     [selection, setSelection] = useState(new Set());
   const signature = JSON.stringify([t.revision, t.files]),
-    busy = t.appendState && t.appendState !== "failed";
+    busy = renaming || (t.appendState && t.appendState !== "failed");
   useEffect(() => setSelection(new Set()), [signature]);
   const toggle = (i) =>
     setSelection((previous) => {
@@ -200,69 +237,86 @@ function HistoryItem({
           disabled={selectionDisabled}
           onChange={onSelect}
         />
-        <button
-          className="history-toggle"
-          aria-label={"Передача " + date(t.created)}
-          aria-expanded={open}
-          aria-controls={"history-" + t.id}
-          onClick={() => setOpen(!open)}
-        >
-          <span
-            className="history-state"
-            role="img"
-            aria-label={
-              t.consumed
-                ? "Получено"
-                : typeof states[t.state] === "string"
-                  ? states[t.state]
-                  : "Сборка ZIP"
-            }
-            title={
-              t.consumed
-                ? "Получено"
-                : typeof states[t.state] === "string"
-                  ? states[t.state]
-                  : "Сборка ZIP"
-            }
-          >
-            <Icon
-              name={
-                t.consumed
-                  ? "cancel"
-                  : {
-                      ready: "check",
-                      empty: "archive",
-                      deleted: "cancel",
-                      deleting: "cancel",
-                      failed: "warning",
-                      archiving: "archive",
-                      queued: "archive",
-                      uploading: "upload",
-                    }[t.state] || "warning"
+        <div className="history-middle">
+          {t.url && (
+            <EditableName
+              value={t.title || t.name || t.files[0]?.name || date(t.created)}
+              label="Название передачи"
+              disabled={!!busy}
+              onSave={(value) =>
+                t.files.length === 1 && !t.title
+                  ? onRenameFile(t, 0, value)
+                  : onRenameTitle(t, value)
               }
             />
-          </span>
-          <span className="history-date">
-            {t.title && <span className="history-title">{t.title}</span>}
-            <time>{date(t.created)}</time>
-            <small key={t.state}>
-              {t.state === "ready" &&
-              t.expires !== null &&
-              t.expires <= Date.now() ? (
-                "Срок истёк"
-              ) : t.appendState && t.appendState !== "failed" ? (
-                "Обновление файлов"
-              ) : ["ready", "empty"].includes(t.state) ? (
-                <Expiry value={t.expires} className="expiry-inline" />
-              ) : ["deleted", "deleting"].includes(t.state) ? null : (
-                states[t.state]
-              )}
-            </small>
-          </span>
-          <span className={open ? "chevron expanded" : "chevron"}>
-            <Icon name="chevron" />
-          </span>
-        </button>
+          )}
+          <button
+            className="history-toggle"
+            aria-label={"Передача " + date(t.created)}
+            aria-expanded={open}
+            aria-controls={"history-" + t.id}
+            onClick={() => setOpen(!open)}
+          >
+            <span
+              className="history-state"
+              role="img"
+              aria-label={
+                t.consumed
+                  ? "Получено"
+                  : typeof states[t.state] === "string"
+                    ? states[t.state]
+                    : "Сборка ZIP"
+              }
+              title={
+                t.consumed
+                  ? "Получено"
+                  : typeof states[t.state] === "string"
+                    ? states[t.state]
+                    : "Сборка ZIP"
+              }
+            >
+              <Icon
+                name={
+                  t.consumed
+                    ? "cancel"
+                    : {
+                        ready: "check",
+                        empty: "archive",
+                        deleted: "cancel",
+                        deleting: "cancel",
+                        failed: "warning",
+                        archiving: "archive",
+                        queued: "archive",
+                        uploading: "upload",
+                      }[t.state] || "warning"
+                }
+              />
+            </span>
+            <span className="history-date">
+              <time>{date(t.created)}</time>
+              <small key={t.state}>
+                {t.state === "ready" &&
+                t.expires !== null &&
+                t.expires <= Date.now() ? (
+                  "Срок истёк"
+                ) : t.appendState && t.appendState !== "failed" ? (
+                  "Обновление файлов"
+                ) : ["ready", "empty"].includes(t.state) ? (
+                  <Expiry
+                    value={t.expires}
+                    oneTime={t.oneTime}
+                    className="expiry-inline"
+                  />
+                ) : ["deleted", "deleting"].includes(t.state) ? null : (
+                  states[t.state]
+                )}
+              </small>
+            </span>
+            <span className={open ? "chevron expanded" : "chevron"}>
+              <Icon name="chevron" />
+            </span>
+          </button>
+        </div>
         <Share
           url={t.url}
           onSettings={t.url && !busy ? () => onSettings(t) : undefined}
@@ -314,6 +368,14 @@ function HistoryItem({
           )}
           <FileList
             files={t.files}
+            onRename={
+              t.url
+                ? (index, value) => onRenameFile(t, index, value)
+                : undefined
+            }
+            onPreview={
+              t.url && onView ? (index) => onView(t, index) : undefined
+            }
             selection={selection}
             onToggle={toggle}
             disabled={!!busy || ["deleted", "deleting"].includes(t.state)}
@@ -357,7 +419,14 @@ function History({
   onSettings,
   onOpen,
   uploading,
+  onRenameFile,
+  onRenameTitle,
+  onView,
+  renaming,
+  suspended,
 }) {
+  const searchInput = useRef(),
+    savedScroll = useRef(0);
   const [query, setQuery] = useState(""),
     [filter, setFilter] = useState("all"),
     [searchOpen, setSearchOpen] = useState(false);
@@ -369,7 +438,7 @@ function History({
         )) &&
       (filter === "all" ||
         (filter === "password" && t.hasPassword) ||
-        (filter === "infinite" && t.ttl === 0) ||
+        (filter === "infinite" && t.ttl === 0 && !t.oneTime) ||
         (filter === "expiring" &&
           t.url &&
           t.expires !== null &&
@@ -410,6 +479,19 @@ function History({
       document.title = "Загрузка";
     };
   }, []);
+  useEffect(() => {
+    if (!ref.current) return;
+    const body = ref.current.querySelector(".dialog-body");
+    if (suspended) {
+      savedScroll.current = body?.scrollTop || 0;
+      ref.current.close();
+    } else if (!ref.current.open) {
+      ref.current.showModal();
+      requestAnimationFrame(() => {
+        if (body) body.scrollTop = savedScroll.current;
+      });
+    }
+  }, [suspended]);
   return (
     <dialog
       ref={ref}
@@ -492,12 +574,29 @@ function History({
       </header>
       {searchOpen && (
         <div className="history-search">
-          <input
-            aria-label="Поиск по имени файла или передачи"
-            placeholder="Поиск"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
+          <div className="history-search-field">
+            <input
+              ref={searchInput}
+              aria-label="Поиск по имени файла или передачи"
+              placeholder="Поиск"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            {query && (
+              <button
+                type="button"
+                className="icon-button search-clear"
+                aria-label="Очистить поиск"
+                title="Очистить"
+                onClick={() => {
+                  setQuery("");
+                  searchInput.current.focus();
+                }}
+              >
+                <Icon name="cancel" />
+              </button>
+            )}
+          </div>
           {[
             ["password", "lock", "С паролем"],
             ["infinite", null, "Бессрочные"],
@@ -531,6 +630,14 @@ function History({
             key={t.id}
             transfer={t}
             onSettings={onSettings}
+            onRenameFile={onRenameFile}
+            onRenameTitle={onRenameTitle}
+            renaming={renaming}
+            onView={(record, index) => {
+              ref.current.close();
+              onClose();
+              onView(record, index);
+            }}
             onOpen={
               uploading
                 ? undefined
@@ -578,7 +685,9 @@ export function OwnerView(p) {
     appendTarget = useRef(null),
     settings = useRef(),
     passwordClick = useRef(),
-    passwordVersion = useRef(0);
+    passwordVersion = useRef(0),
+    editorTimer = useRef();
+  useEffect(() => () => clearTimeout(editorTimer.current), []);
   useEffect(() => {
     const reset = () => window.scrollTo(0, 0);
     reset();
@@ -636,10 +745,15 @@ export function OwnerView(p) {
     document.addEventListener("paste", paste);
     return () => document.removeEventListener("paste", paste);
   }, [p.upload, p.choose, historyOpen, draft, folders]);
+  useEffect(() => {
+    if (config && !p.history.some((t) => t.id === config && t.url))
+      setConfig(null);
+  }, [config, p.history]);
   const editText = async (transfer) => {
     if (opening) return;
     setOpening(true);
     setEditorError("");
+    clearTimeout(editorTimer.current);
     try {
       const text = await p.readText(transfer);
       setDraft({
@@ -649,7 +763,8 @@ export function OwnerView(p) {
         filename: transfer.files[0].name,
       });
     } catch (error) {
-      setEditorError(error.message);
+      setEditorError(transfer.id);
+      editorTimer.current = setTimeout(() => setEditorError(""), 2400);
       p.refresh();
     } finally {
       setOpening(false);
@@ -702,6 +817,7 @@ export function OwnerView(p) {
     [259200, "3", "д", "3 дня"],
     [604800, "7", "д", "7 дней"],
     [0, "∞", "", "Бессрочно"],
+    [-1, "1", "", "Одноразовая"],
   ];
   const durationIndex = durations.findIndex(([value]) => value === p.ttl),
     duration = durations[durationIndex];
@@ -709,7 +825,7 @@ export function OwnerView(p) {
   const busyAppend = latest?.appendState && latest.appendState !== "failed";
   const completed =
     !p.upload &&
-    !busyAppend &&
+    (!busyAppend || p.renaming) &&
     ["ready", "empty"].includes(latest?.state) &&
     latest.url;
   const preparing =
@@ -729,6 +845,11 @@ export function OwnerView(p) {
       onDrop={(e) => {
         e.preventDefault();
         p.setDrag(false);
+        if (
+          e.target instanceof Element &&
+          e.target.closest("[contenteditable=true]")
+        )
+          return;
         if (!p.upload && !folders) receiveFiles(e.dataTransfer);
       }}
       className={p.drag ? "owner dragging" : "owner"}
@@ -848,6 +969,8 @@ export function OwnerView(p) {
           <TransferSettings
             transfer={p.history.find((t) => t.id === config)}
             api={p.settingsApi}
+            renaming={p.renaming}
+            onRename={(record, patch) => p.rename(record, patch)}
             onClose={() => setConfig(null)}
             onEdit={editText}
           />
@@ -955,11 +1078,9 @@ export function OwnerView(p) {
                 }}
                 onDelete={() => p.remove(latest.id)}
                 onSettings={() => setConfig(latest.id)}
-                onEdit={
-                  latest.preview && !opening
-                    ? () => editText(latest)
-                    : undefined
-                }
+                editFailed={editorError === latest.id}
+                editBusy={opening}
+                onEdit={latest.preview ? () => editText(latest) : undefined}
               />
             </>
           ) : preparing ? (
@@ -990,30 +1111,56 @@ export function OwnerView(p) {
               summary={<Icon name="chevron" />}
             >
               <div className="transfer-information">
-                {latest.title && <p>{latest.title}</p>}
+                {latest.files.length > 1 && (
+                  <p>
+                    <EditableName
+                      value={
+                        latest.title || latest.name || date(latest.created)
+                      }
+                      label="Название передачи"
+                      disabled={p.renaming}
+                      onSave={(value) => p.rename(latest, { title: value })}
+                    />
+                  </p>
+                )}
                 <FileList
                   files={latest.files}
+                  onRename={(index, value) =>
+                    p.rename(latest, {
+                      names: latest.files.map((file, i) =>
+                        i === index ? value : file.name,
+                      ),
+                    })
+                  }
+                  disabled={p.renaming}
                   onPreview={(index) => setViewing({ record: latest, index })}
                 />
                 <p className="muted">{bytes(latest.size)}</p>
                 <p className="muted">
-                  {latest.expires === null ? "∞" : date(latest.expires)}
+                  {latest.oneTime
+                    ? "1"
+                    : latest.expires === null
+                      ? "∞"
+                      : date(latest.expires)}
                 </p>
               </div>
             </AnimatedDetails>
           )}
-          {(p.error || latest?.appendError || editorError) && (
-            <p role="alert">{p.error || latest?.appendError || editorError}</p>
+          {(p.error || latest?.appendError) && (
+            <p role="alert">{p.error || latest?.appendError}</p>
           )}
         </div>
       </section>
-      {completed && <Expiry value={latest.expires} />}
+      {completed && <Expiry value={latest.expires} oneTime={latest.oneTime} />}
       {viewing && (
         <Suspense fallback={null}>
           {viewing.record.files[viewing.index].media ? (
             <MediaViewer
               token=""
-              info={{ ...viewing.record.files[viewing.index] }}
+              info={{
+                ...viewing.record,
+                ...viewing.record.files[viewing.index],
+              }}
               source={
                 "/api/transfers/" +
                 viewing.record.id +
@@ -1073,11 +1220,22 @@ export function OwnerView(p) {
       {historyOpen && (
         <History
           items={p.history}
+          suspended={!!config}
           onClose={() => setHistoryOpen(false)}
           onDelete={p.remove}
           onRemoveFiles={p.removeFiles}
           onRemoveHistory={p.removeHistory}
           onEdit={editText}
+          renaming={p.renaming}
+          onRenameFile={(record, index, value) =>
+            p.rename(record, {
+              names: record.files.map((file, i) =>
+                i === index ? value : file.name,
+              ),
+            })
+          }
+          onRenameTitle={(record, value) => p.rename(record, { title: value })}
+          onView={(record, index) => setViewing({ record, index })}
           uploading={!!p.upload || p.preparingUpload}
           onOpen={(item) => p.setSelected(item.id)}
           onSettings={(item) => setConfig(item.id)}

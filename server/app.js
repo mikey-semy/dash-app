@@ -125,6 +125,8 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
       ttl: t.ttl,
       hasPassword: !!t.password,
       title: t.title || "",
+      name: t.output?.name || "",
+      demo: !!t.demo,
       oneTime: !!t.one_time,
       consumed: !!t.consumed,
       files: t.files.map(({ name, size }) => ({
@@ -197,10 +199,18 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
     res.json({ ok: true });
   });
   api.post("/transfers", async (req, res) => {
-    const { files, ttl = 86400, password = "" } = req.body;
-    if (typeof password !== "string" || password.length > 256)
+    const { files, ttl = 86400, password = "", oneTime = false } = req.body;
+    if (
+      typeof password !== "string" ||
+      password.length > 256 ||
+      typeof oneTime !== "boolean"
+    )
       return res.status(400).json({ error: "Неверный пароль" });
-    const id = await service.locked(() => service.create(files, ttl, password));
+    const id = await service.locked(() =>
+      service.create(files, oneTime ? 0 : ttl, password),
+    );
+    if (oneTime)
+      db.prepare("UPDATE transfers SET one_time=1 WHERE id=?").run(id);
     if (password)
       db.prepare("UPDATE transfers SET password_cipher=? WHERE id=?").run(
         vault.seal(id, password),
@@ -230,13 +240,15 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
       names,
       revision: expectedRevision,
       oneTime,
+      demo,
     } = req.body;
     if (
       (ttl === undefined &&
         password === undefined &&
         title === undefined &&
         names === undefined &&
-        oneTime === undefined) ||
+        oneTime === undefined &&
+        demo === undefined) ||
       (ttl !== undefined &&
         ![0, 3600, 21600, 86400, 259200, 604800].includes(ttl)) ||
       (password !== undefined &&
@@ -244,7 +256,8 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
         !/^\d{6}$/.test(password)) ||
       (title !== undefined &&
         (typeof title !== "string" || title.length > 180)) ||
-      (oneTime !== undefined && typeof oneTime !== "boolean")
+      (oneTime !== undefined && typeof oneTime !== "boolean") ||
+      (demo !== undefined && typeof demo !== "boolean")
     )
       return res.status(400).json({ error: "Неверные настройки" });
     await service.locked(() => {
@@ -262,6 +275,15 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
           title.trim(),
           t.id,
         );
+      if (demo !== undefined)
+        db.prepare("UPDATE transfers SET demo=? WHERE id=?").run(
+          demo ? 1 : 0,
+          t.id,
+        );
+      if (ttl !== undefined && oneTime !== true)
+        db.prepare("UPDATE transfers SET one_time=0,consumed=0 WHERE id=?").run(
+          t.id,
+        );
       if (oneTime !== undefined)
         db.prepare("UPDATE transfers SET one_time=?,consumed=0 WHERE id=?").run(
           oneTime ? 1 : 0,
@@ -275,10 +297,10 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
           vault.seal(t.id, password),
           t.id,
         );
-      if (ttl !== undefined)
+      if (ttl !== undefined || oneTime === true)
         db.prepare("UPDATE transfers SET ttl=?,expires=? WHERE id=?").run(
-          ttl,
-          ttl ? Date.now() + ttl * 1000 : null,
+          oneTime ? 0 : ttl,
+          oneTime ? null : ttl ? Date.now() + ttl * 1000 : null,
           t.id,
         );
     });
@@ -442,7 +464,10 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
       });
     if (t.files.length > 1)
       t.output.name = t.title
-        ? safeNames([{ name: t.title, size: 0 }])[0].name + ".zip"
+        ? safeNames([{ name: t.title, size: 0 }])[0].name.replace(
+            /(?:\.zip)?$/i,
+            ".zip",
+          )
         : archiveName(t.created);
     return t;
   }
@@ -527,6 +552,7 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
         ? {
             locked: false,
             title: t.title || "",
+            demo: !!t.demo,
             oneTime: !!t.one_time,
             preview: textCandidate(t),
             media:

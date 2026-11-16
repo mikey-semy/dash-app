@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
+  Presentation,
+  ArrowLeft,
   Search,
   Clock,
   CodeXml,
@@ -30,6 +32,8 @@ import {
   Settings,
 } from "lucide-react";
 const glyphs = {
+  presentation: Presentation,
+  left: ArrowLeft,
   search: Search,
   clock: Clock,
   edit: Pencil,
@@ -144,7 +148,11 @@ export function DeleteButton({
     </button>
   );
 }
-export function Expiry({ value, className = "expiry-corner" }) {
+export function Expiry({
+  value,
+  oneTime = false,
+  className = "expiry-corner",
+}) {
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
     if (value === null || value === undefined) return;
@@ -157,6 +165,12 @@ export function Expiry({ value, className = "expiry-corner" }) {
       document.removeEventListener("visibilitychange", tick);
     };
   }, [value]);
+  if (oneTime)
+    return (
+      <span className={className} title="Одноразовая" aria-label="Одноразовая">
+        1
+      </span>
+    );
   if (value === null)
     return (
       <span className={className} title="Бессрочно" aria-label="Бессрочно">

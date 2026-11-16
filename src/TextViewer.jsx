@@ -41,7 +41,7 @@ export default function TextViewer({
         shareUrl={shareUrl}
       />
       <footer className="viewer-footer">
-        <Expiry value={info.expires} />
+        <Expiry value={info.expires} oneTime={info.oneTime} />
       </footer>
     </dialog>
   );

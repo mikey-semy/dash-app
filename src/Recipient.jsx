@@ -12,6 +12,7 @@ import React, {
 import { Expiry } from "./Icons.jsx";
 import { RecipientShare } from "./RecipientShare.jsx";
 import { FileList, bytes, date } from "./View.jsx";
+const DemoView = lazy(() => import("./DemoView.jsx"));
 const MediaViewer = lazy(() => import("./MediaViewer.jsx"));
 const TextViewer = lazy(() => import("./TextViewer.jsx"));
 export function Recipient({ token, api }) {
@@ -30,17 +31,21 @@ export function Recipient({ token, api }) {
   const [textUnavailable, setTextUnavailable] = useState(false);
   useEffect(() => setTextUnavailable(false), [token, info?.etag, info?.name]);
   useEffect(() => {
-    document.title = info?.locked
-      ? "Пароль передачи"
-      : error
-        ? "Передача недоступна"
-        : viewer && info
-          ? viewer.index === undefined
-            ? info.name
-            : info.files[viewer.index]?.name || info.name
-          : info?.preview && !textUnavailable
-            ? info.name
-            : "Скачивание";
+    document.title =
+      info?.demo && !info.locked
+        ? info.title ||
+          (info.files.length === 1 ? info.files[0].name : "Демонстрация")
+        : info?.locked
+          ? "Пароль передачи"
+          : error
+            ? "Передача недоступна"
+            : viewer && info
+              ? viewer.index === undefined
+                ? info.name
+                : info.files[viewer.index]?.name || info.name
+              : info?.preview && !textUnavailable
+                ? info.name
+                : "Скачивание";
   }, [info, error, textUnavailable, viewer]);
   const load = useCallback(
     async (background = false) => {
@@ -117,6 +122,12 @@ export function Recipient({ token, api }) {
           size: info.files[viewer.index]?.size,
           media: info.files[viewer.index]?.media,
         };
+  if (info?.demo && !info.locked)
+    return (
+      <Suspense fallback={null}>
+        <DemoView token={token} info={info} onUnavailable={() => load(true)} />
+      </Suspense>
+    );
   return (
     <main className="recipient center">
       <a
@@ -257,19 +268,23 @@ export function Recipient({ token, api }) {
                     onPreview={openFile}
                   />
                   <p className="muted">{bytes(info.size)}</p>
-                  {info.expires !== null && (
-                    <p className="muted">
-                      <time dateTime={new Date(info.expires).toISOString()}>
-                        {date(info.expires)}
-                      </time>
-                    </p>
+                  {info.oneTime ? (
+                    <p className="muted">1</p>
+                  ) : (
+                    info.expires !== null && (
+                      <p className="muted">
+                        <time dateTime={new Date(info.expires).toISOString()}>
+                          {date(info.expires)}
+                        </time>
+                      </p>
+                    )
                   )}
                   <RecipientShare
                     url={new URL(location.pathname, location.origin).href}
                   />
                 </div>
               </AnimatedDetails>
-              <Expiry value={info.expires} />
+              <Expiry value={info.expires} oneTime={info.oneTime} />
             </>
           )
         )}

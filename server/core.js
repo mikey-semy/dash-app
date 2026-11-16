@@ -103,6 +103,7 @@ export function openDB(path) {
     .map((c) => c.name);
   for (const [name, type] of [
     ["title", "TEXT"],
+    ["demo", "INTEGER NOT NULL DEFAULT 0"],
     ["one_time", "INTEGER NOT NULL DEFAULT 0"],
     ["consumed", "INTEGER NOT NULL DEFAULT 0"],
   ])

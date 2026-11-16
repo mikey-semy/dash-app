@@ -56,7 +56,7 @@ function App() {
       try {
         const stored = localStorage.getItem("du.ttl");
         const value = stored === null ? 86400 : Number(stored);
-        return [0, 3600, 21600, 86400, 259200, 604800].includes(value)
+        return [-1, 0, 3600, 21600, 86400, 259200, 604800].includes(value)
           ? value
           : 86400;
       } catch {
@@ -71,7 +71,8 @@ function App() {
     [elapsed, setElapsed] = useState(0),
     [drag, setDrag] = useState(false),
     [selected, setSelected] = useState(null),
-    [preparingUpload, setPreparingUpload] = useState(false);
+    [preparingUpload, setPreparingUpload] = useState(false),
+    [renaming, setRenaming] = useState(false);
   const control = useRef({ paused: false, cancel: false, xhr: null }),
     start = useRef(0),
     active = useRef(false),
@@ -219,7 +220,8 @@ function App() {
           : "/api/transfers",
         {
           files: files.map((f) => ({ name: f.name, size: f.size })),
-          ttl,
+          ttl: ttl === -1 ? 0 : ttl,
+          oneTime: ttl === -1,
           password: secret,
           ...(replacement === null ? {} : { revision: replacement }),
         },
@@ -406,6 +408,7 @@ function App() {
       {...{
         history,
         preparingUpload,
+        renaming,
         ttl,
         setTtl,
         secret,
@@ -442,6 +445,41 @@ function App() {
       replaceText={(files, transfer) =>
         choose(files, transfer.id, transfer.revision)
       }
+      rename={async (record, patch) => {
+        setRenaming(true);
+        setError("");
+        try {
+          let current = await api(
+            "/api/transfers/" + record.id + "/settings",
+            { ...patch, revision: record.revision },
+            "PATCH",
+          );
+          await reload();
+          for (
+            let attempt = 0;
+            current.appendState && attempt < 240;
+            attempt++
+          ) {
+            if (current.appendState === "failed")
+              throw new Error(
+                current.appendError || "Не удалось переименовать",
+              );
+            await new Promise((resolve) => setTimeout(resolve, 500));
+            const list = await api("/api/transfers");
+            setHistory(list);
+            current = list.find((t) => t.id === record.id);
+            if (!current) throw new Error("Передача удалена");
+          }
+          if (current.appendState)
+            throw new Error("Переименование ещё выполняется");
+          return true;
+        } catch (error) {
+          setError(error.message);
+          throw error;
+        } finally {
+          setRenaming(false);
+        }
+      }}
       settingsApi={async (path, body, method) => {
         const result = await api(path, body, method);
         if (method) await reload();

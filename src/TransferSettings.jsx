@@ -7,18 +7,16 @@ export const durations = [
   [259200, "3", "д", "3 дня"],
   [604800, "7", "д", "7 дней"],
   [0, "∞", "", "Бессрочно"],
+  [-1, "1", "", "Одноразовая"],
 ];
-export default function TransferSettings({ transfer, api, onClose, onEdit }) {
+export default function TransferSettings({ transfer, api, onClose }) {
   const clickTimer = useRef();
   const ref = useRef(),
     [password, setPassword] = useState(null),
     [visible, setVisible] = useState(false),
     [busy, setBusy] = useState(false),
     [copied, setCopied] = useState(false),
-    [error, setError] = useState(""),
-    [renaming, setRenaming] = useState(false),
-    [title, setTitle] = useState(transfer.title || ""),
-    [names, setNames] = useState(transfer.files.map((file) => file.name));
+    [error, setError] = useState("");
   useEffect(() => {
     ref.current.showModal();
     let active = true;
@@ -68,8 +66,9 @@ export default function TransferSettings({ transfer, api, onClose, onEdit }) {
       setError("Не удалось скопировать. Повторите.");
     }
   };
+  const currentMode = transfer.oneTime ? -1 : transfer.ttl;
   const duration =
-    durations.find((item) => item[0] === transfer.ttl) || durations[2];
+    durations.find((item) => item[0] === currentMode) || durations[2];
   return (
     <dialog
       ref={ref}
@@ -100,11 +99,16 @@ export default function TransferSettings({ transfer, api, onClose, onEdit }) {
             aria-label={"Срок текущей передачи: " + duration[3]}
             title="Сменить срок от текущего момента"
             onClick={() =>
-              update({
-                ttl: durations[
-                  (durations.indexOf(duration) + 1) % durations.length
-                ][0],
-              })
+              (() => {
+                const next =
+                  durations[
+                    (durations.indexOf(duration) + 1) % durations.length
+                  ][0];
+                return update({
+                  ttl: next === -1 ? 0 : next,
+                  oneTime: next === -1,
+                });
+              })()
             }
           >
             <span className="duration-value">
@@ -112,94 +116,21 @@ export default function TransferSettings({ transfer, api, onClose, onEdit }) {
               <small>{duration[2]}</small>
             </span>
           </button>
-          {transfer.expires !== null && (
+          {!transfer.oneTime && transfer.expires !== null && (
             <Expiry value={transfer.expires} className="expiry-inline" />
           )}
           <button
             type="button"
             className="icon-button"
-            aria-label="Переименовать передачу и файлы"
-            title="Переименовать"
+            aria-label="Демонстрация без интерфейса"
+            title="Показать медиа и текст без панелей DU"
+            aria-pressed={!!transfer.demo}
             disabled={busy}
-            onClick={() => {
-              setNames(transfer.files.map((file) => file.name));
-              setTitle(transfer.title || "");
-              setRenaming(!renaming);
-            }}
+            onClick={() => update({ demo: !transfer.demo })}
           >
-            <Icon name="edit" />
+            <Icon name="presentation" />
           </button>
-          <button
-            type="button"
-            className="icon-button"
-            aria-label="Одноразовое скачивание"
-            title={
-              transfer.consumed
-                ? "Уже получено. Выключите и включите, чтобы разрешить снова"
-                : "Отключить ссылку после успешного скачивания"
-            }
-            aria-pressed={!!transfer.oneTime}
-            disabled={busy}
-            onClick={() => update({ oneTime: !transfer.oneTime })}
-          >
-            <span>1</span>
-          </button>
-          {onEdit && transfer.preview && (
-            <button
-              type="button"
-              className="icon-button"
-              aria-label="Редактировать текст"
-              onClick={() => {
-                onClose();
-                onEdit(transfer);
-              }}
-            >
-              <Icon name="edit" />
-            </button>
-          )}
         </div>
-        {renaming && (
-          <form
-            className="rename-fields"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              if (await update({ title, names, revision: transfer.revision }))
-                setRenaming(false);
-            }}
-          >
-            <input
-              aria-label="Название передачи"
-              placeholder="Название передачи"
-              value={title}
-              maxLength={180}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-            {names.map((name, i) => (
-              <input
-                key={i}
-                aria-label={"Имя файла " + (i + 1)}
-                value={name}
-                required
-                maxLength={180}
-                onChange={(e) =>
-                  setNames((previous) =>
-                    previous.map((value, index) =>
-                      index === i ? e.target.value : value,
-                    ),
-                  )
-                }
-              />
-            ))}
-            <button
-              type="submit"
-              className="icon-button"
-              disabled={busy}
-              aria-label="Сохранить имена"
-            >
-              <Icon name="check" />
-            </button>
-          </form>
-        )}
         <div className="password-field transfer-password">
           <input
             aria-label="Пароль текущей передачи"

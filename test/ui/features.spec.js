@@ -130,6 +130,22 @@ test("rename keeps the same URL and a one-time individual download closes the pu
   ]);
   await expect(page.locator(".share-ready")).toBeVisible();
   const before = await current(page);
+  await page.getByLabel("Подробности передачи", { exact: true }).click();
+  const details = page.locator(".owner-details");
+  const rename = async (label, value) => {
+    const field = details.getByRole("textbox", { name: label, exact: true });
+    expect(await field.evaluate((el) => el.tagName)).toBe("SPAN");
+    await field.click();
+    await field.fill(value);
+    await field.press("Enter");
+    await expect(field).toHaveAttribute("aria-readonly", "true");
+  };
+  await rename("Название передачи", "Документы");
+  await rename("Имя файла 1", "first.py");
+  await rename("Имя файла 2", "second.md");
+  await expect
+    .poll(async () => (await current(page)).files[0].name)
+    .toBe("first.py");
   await page
     .locator(".share-ready")
     .getByRole("button", { name: "Параметры передачи", exact: true })
@@ -138,29 +154,19 @@ test("rename keeps the same URL and a one-time individual download closes the pu
     name: "Параметры передачи",
     exact: true,
   });
-  await dialog
-    .getByRole("button", {
-      name: "Переименовать передачу и файлы",
-      exact: true,
-    })
-    .click();
-  await dialog
-    .getByLabel("Название передачи", { exact: true })
-    .fill("Документы");
-  await dialog.getByLabel("Имя файла 1", { exact: true }).fill("first.py");
-  await dialog.getByLabel("Имя файла 2", { exact: true }).fill("second.md");
-  await dialog
-    .getByRole("button", { name: "Сохранить имена", exact: true })
-    .click();
-  await expect
-    .poll(async () => (await current(page)).files[0].name)
-    .toBe("first.py");
-  await dialog
-    .getByRole("button", { name: "Одноразовое скачивание", exact: true })
-    .click();
   await expect(
-    dialog.getByRole("button", { name: "Одноразовое скачивание", exact: true }),
-  ).toHaveAttribute("aria-pressed", "true");
+    dialog.getByRole("textbox", { name: "Название передачи", exact: true }),
+  ).toHaveCount(0);
+  for (let step = 0; step < 4; step++)
+    await dialog
+      .getByRole("button", { name: /^Срок текущей передачи:/ })
+      .click();
+  await expect(
+    dialog.getByRole("button", {
+      name: "Срок текущей передачи: Одноразовая",
+      exact: true,
+    }),
+  ).toBeVisible();
   await dialog
     .getByRole("button", { name: "Закрыть параметры", exact: true })
     .click();
@@ -302,13 +308,11 @@ test("lost local file cache asks for the same files and refuses changed bytes be
     }
   });
   const data = Buffer.alloc(9 * 1024 * 1024, 37);
-  await page
-    .locator("input[type=file]")
-    .setInputFiles({
-      name: "reselect.bin",
-      mimeType: "application/octet-stream",
-      buffer: data,
-    });
+  await page.locator("input[type=file]").setInputFiles({
+    name: "reselect.bin",
+    mimeType: "application/octet-stream",
+    buffer: data,
+  });
   await expect.poll(() => partTwo).toBeGreaterThan(0);
   await page.getByRole("button", { name: "Пауза", exact: true }).click();
   await page.evaluate(
@@ -332,21 +336,17 @@ test("lost local file cache asks for the same files and refuses changed bytes be
   await expect(
     page.getByRole("button", { name: "Продолжить", exact: true }),
   ).toBeVisible();
-  await page
-    .locator("input[type=file]")
-    .setInputFiles({
-      name: "reselect.bin",
-      mimeType: "application/octet-stream",
-      buffer: Buffer.alloc(data.length, 99),
-    });
+  await page.locator("input[type=file]").setInputFiles({
+    name: "reselect.bin",
+    mimeType: "application/octet-stream",
+    buffer: Buffer.alloc(data.length, 99),
+  });
   await expect(page.getByRole("alert")).toContainText("Содержимое");
-  await page
-    .locator("input[type=file]")
-    .setInputFiles({
-      name: "reselect.bin",
-      mimeType: "application/octet-stream",
-      buffer: data,
-    });
+  await page.locator("input[type=file]").setInputFiles({
+    name: "reselect.bin",
+    mimeType: "application/octet-stream",
+    buffer: data,
+  });
   await expect(page.locator(".share-ready")).toBeVisible();
   expect(partOne).toBe(1);
 });

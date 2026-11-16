@@ -252,6 +252,7 @@ test("icon controls generate and copy six-digit password; manifest and icons are
     "3 дня",
     "7 дней",
     "Бессрочно",
+    "Одноразовая",
     "1 час",
     "6 часов",
     "Сутки",
@@ -260,7 +261,7 @@ test("icon controls generate and copy six-digit password; manifest and icons are
       "aria-label",
       "Срок хранения: " + name,
     );
-    if (index < 6) await duration.click();
+    if (index < 7) await duration.click();
   }
   const gear = await page
       .getByLabel("Настройки", { exact: true })

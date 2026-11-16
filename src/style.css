@@ -426,14 +426,6 @@ dialog[open],
     bottom: 16px;
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation: none !important;
-    transition: none !important;
-  }
-}
 
 .share-ready {
   position: relative;
@@ -757,15 +749,6 @@ main,
     scale: 1;
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation: none !important;
-    transition: none !important;
-    scroll-behavior: auto !important;
-  }
-}
 
 /* Animate measured pixels; grid fractions can snap at intrinsic content limits. */
 .disclosure,
@@ -903,14 +886,6 @@ a {
 .inline-details-body .icon-button:disabled {
   opacity: 0.4;
 }
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation: none !important;
-    transition: none !important;
-  }
-}
 
 .upload-times,
 .upload-metrics {
@@ -1035,6 +1010,13 @@ body:has(.owner) {
 .archive-status svg {
   animation: archive-pulse 1.2s ease-in-out infinite;
 }
+.text-preview-body > .archive-status,
+.text-dialog-body > .archive-status {
+  position: fixed;
+  inset: 0;
+  align-items: center;
+  pointer-events: none;
+}
 @keyframes archive-pulse {
   0%,
   100% {
@@ -1053,11 +1035,6 @@ body:has(.owner) {
   .share-ready .share-controls {
     left: auto;
     gap: 12px;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .archive-status svg {
-    animation: none;
   }
 }
 
@@ -2015,4 +1992,49 @@ summary * {
   max-width: 100%;
   max-height: 180px;
   align-self: center;
+}
+
+.drop-zones {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  pointer-events: none;
+  animation: appear 0.18s ease-out;
+}
+.drop-zone {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.3;
+  transition:
+    opacity 0.18s,
+    background-color 0.18s;
+}
+.drop-zone + .drop-zone {
+  border-top: 1px solid #eee;
+}
+.drop-zone.active {
+  opacity: 1;
+  background: #fafafa;
+}
+.current-close {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 5;
+}
+button.unavailable {
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+@media (max-width: 600px) {
+  .current-close {
+    top: 12px;
+    left: 12px;
+  }
 }

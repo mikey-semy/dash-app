@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   Presentation,
+  RotateCw,
   ArrowLeft,
   Search,
   Clock,
@@ -32,6 +33,7 @@ import {
   Settings,
 } from "lucide-react";
 const glyphs = {
+  reload: RotateCw,
   presentation: Presentation,
   left: ArrowLeft,
   search: Search,

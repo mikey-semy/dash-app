@@ -23,11 +23,7 @@ export function Disclosure({ open, children, className = "", id }) {
     };
     element.style.height = to + "px";
     element.style.visibility = open || from > 0 ? "visible" : "hidden";
-    if (
-      !initialized.current ||
-      matchMedia("(prefers-reduced-motion: reduce)").matches ||
-      Math.abs(to - from) < 0.5
-    ) {
+    if (!initialized.current || Math.abs(to - from) < 0.5) {
       initialized.current = true;
       finish();
       return;

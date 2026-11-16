@@ -1,4 +1,4 @@
-import { ErrorNotice } from "./Errors.jsx";
+import { ErrorNotice, connectionError } from "./Errors.jsx";
 import { Disclosure, AnimatedDetails } from "./Disclosure.jsx";
 import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import EditableName from "./EditableName.jsx";
@@ -265,7 +265,11 @@ function HistoryItem({
           onChange={onSelect}
         />
         <span
-          className="history-state"
+          className={
+            ["queued", "archiving"].includes(t.state)
+              ? "history-state archive-status"
+              : "history-state"
+          }
           role="img"
           aria-label={
             t.consumed
@@ -483,10 +487,7 @@ function History({
   const close = () => {
     if (closing) return;
     setClosing(true);
-    timer.current = setTimeout(
-      onClose,
-      matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 180,
-    );
+    timer.current = setTimeout(onClose, 180);
   };
   useEffect(() => {
     ref.current.showModal();
@@ -694,6 +695,7 @@ function History({
 export function OwnerView(p) {
   const [draft, setDraft] = useState(null),
     [folders, setFolders] = useState(null),
+    [dropZone, setDropZone] = useState("new"),
     [config, setConfig] = useState(null),
     [opening, setOpening] = useState(false),
     [editorError, setEditorError] = useState(""),
@@ -732,10 +734,10 @@ export function OwnerView(p) {
       passwordVersion.current++;
     }
   }, [p.upload]);
-  const receiveFiles = (data) => {
+  const receiveFiles = (data, parentId = null) => {
     const source = captureFiles(data);
-    if (source.folders) setFolders(source);
-    else p.choose(source.files);
+    if (source.folders) setFolders({ ...source, parentId });
+    else p.choose(source.files, parentId);
   };
   useEffect(() => {
     const paste = (event) => {
@@ -751,7 +753,7 @@ export function OwnerView(p) {
         return;
       if (event.clipboardData.files.length) {
         event.preventDefault();
-        receiveFiles(event.clipboardData);
+        receiveFiles(event.clipboardData, latest?.url ? latest.id : null);
       } else {
         const text = event.clipboardData.getData("text/plain");
         if (text) {
@@ -763,7 +765,7 @@ export function OwnerView(p) {
     };
     document.addEventListener("paste", paste);
     return () => document.removeEventListener("paste", paste);
-  }, [p.upload, p.choose, historyOpen, draft, folders]);
+  }, [p.upload, p.choose, historyOpen, draft, folders, p.selected, p.history]);
   useEffect(() => {
     if (config && !p.history.some((t) => t.id === config && t.url))
       setConfig(null);
@@ -857,11 +859,32 @@ export function OwnerView(p) {
   return (
     <main
       onDragOver={(e) => {
+        if (!Array.from(e.dataTransfer.types).includes("Files")) return;
         e.preventDefault();
-        if (!p.upload) p.setDrag(true);
+        if (
+          !p.upload &&
+          !p.preparingUpload &&
+          !preparing &&
+          !folders &&
+          !historyOpen &&
+          !config &&
+          !draft
+        ) {
+          p.setDrag(true);
+          setDropZone(
+            completed && e.clientY >= innerHeight / 2 ? "append" : "new",
+          );
+        }
       }}
       onDragLeave={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget)) p.setDrag(false);
+        if (
+          !e.currentTarget.contains(e.relatedTarget) &&
+          (e.clientX <= 0 ||
+            e.clientY <= 0 ||
+            e.clientX >= innerWidth ||
+            e.clientY >= innerHeight)
+        )
+          p.setDrag(false);
       }}
       onDrop={(e) => {
         e.preventDefault();
@@ -871,10 +894,53 @@ export function OwnerView(p) {
           e.target.closest("[contenteditable=true]")
         )
           return;
-        if (!p.upload && !folders) receiveFiles(e.dataTransfer);
+        if (
+          !p.upload &&
+          !p.preparingUpload &&
+          !preparing &&
+          !folders &&
+          !historyOpen &&
+          !config &&
+          !draft
+        )
+          receiveFiles(
+            e.dataTransfer,
+            completed && e.clientY >= innerHeight / 2 ? latest.id : null,
+          );
       }}
       className={p.drag ? "owner dragging" : "owner"}
     >
+      {p.drag && (
+        <div className="drop-zones" aria-label="Куда загрузить файлы">
+          <div
+            className={dropZone === "new" ? "drop-zone active" : "drop-zone"}
+            aria-label="Новая передача"
+          >
+            <Icon name="upload" size={28} />
+          </div>
+          {completed && (
+            <div
+              className={
+                dropZone === "append" ? "drop-zone active" : "drop-zone"
+              }
+              aria-label="Добавить к текущей передаче"
+            >
+              <Icon name="add" size={28} />
+            </div>
+          )}
+        </div>
+      )}
+      {completed && (
+        <button
+          type="button"
+          className="icon-button current-close"
+          aria-label="Закрыть текущую передачу"
+          title="Новая передача"
+          onClick={p.startNew}
+        >
+          <Icon name="cancel" />
+        </button>
+      )}
       <AnimatedDetails
         className="settings"
         inline
@@ -1008,7 +1074,7 @@ export function OwnerView(p) {
           <FolderUpload
             source={folders}
             onClose={() => setFolders(null)}
-            onSend={p.choose}
+            onSend={(files) => p.choose(files, folders.parentId)}
           />
         </Suspense>
       )}
@@ -1039,8 +1105,14 @@ export function OwnerView(p) {
       />
       <section className="center">
         <div className="content">
-          {p.preparingUpload ? (
-            <div role="status" aria-label="Подготовка загрузки">
+          {connectionError(p.error) && !p.upload ? (
+            <ErrorNotice error={p.error} />
+          ) : p.preparingUpload ? (
+            <div
+              className="archive-status"
+              role="status"
+              aria-label="Подготовка загрузки"
+            >
               <Icon name="archive" />
             </div>
           ) : p.upload ? (
@@ -1131,7 +1203,7 @@ export function OwnerView(p) {
               <Icon name="upload" />
             </button>
           )}
-          {completed && (
+          {completed && !connectionError(p.error) && (
             <AnimatedDetails
               className="transfer-details owner-details"
               label="Подробности передачи"
@@ -1177,9 +1249,10 @@ export function OwnerView(p) {
               </div>
             </AnimatedDetails>
           )}
-          {(p.error || latest?.appendError) && (
-            <ErrorNotice error={p.error || latest?.appendError} />
-          )}
+          {(p.error || latest?.appendError) &&
+            !(connectionError(p.error) && !p.upload) && (
+              <ErrorNotice error={p.error || latest?.appendError} />
+            )}
         </div>
       </section>
       {completed && <Expiry value={latest.expires} oneTime={latest.oneTime} />}

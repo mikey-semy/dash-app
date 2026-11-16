@@ -438,6 +438,10 @@ function App() {
         setDrag,
         selected,
         setSelected,
+        startNew: () => {
+          setSelected(null);
+          setError("");
+        },
         error,
         choose,
         run,

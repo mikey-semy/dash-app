@@ -1,16 +1,30 @@
 import React, { useEffect } from "react";
 import { Icon } from "./Icons.jsx";
+export const connectionError = (error) =>
+  /связаться с сервером|соединени.*прерван|временно недоступна|failed to fetch|network|load failed/i.test(
+    error?.message || error || "",
+  ) || error?.status >= 500;
 export function ErrorNotice({ error, context = "interface" }) {
   useEffect(() => {
     if (error) console.error("[DU]", context, error);
   }, [error, context]);
-  return error ? (
+  return error && connectionError(error) ? (
+    <button
+      type="button"
+      className="icon-button error-notice"
+      aria-label="Перезагрузить страницу"
+      onClick={() => location.reload()}
+    >
+      <Icon name="reload" />
+    </button>
+  ) : error ? (
     <span className="error-notice" role="img" aria-label="Ошибка">
       <Icon name="cancel" />
     </span>
   ) : null;
 }
 export function ErrorPage({ error, status }) {
+  const retry = connectionError(error) || status >= 500;
   useEffect(() => {
     document.title = "Ошибка";
     console.error(
@@ -33,11 +47,22 @@ export function ErrorPage({ error, status }) {
   }, [error, status]);
   return (
     <main className="center">
-      <a className="unavailable" href="/" aria-label="Вернуться к загрузке">
-        <span role="img" aria-label="Передача недоступна">
-          <Icon name="cancel" />
-        </span>
-      </a>
+      {retry ? (
+        <button
+          type="button"
+          className="icon-button unavailable"
+          aria-label="Перезагрузить страницу"
+          onClick={() => location.reload()}
+        >
+          <Icon name="reload" />
+        </button>
+      ) : (
+        <a className="unavailable" href="/" aria-label="Вернуться к загрузке">
+          <span role="img" aria-label="Передача недоступна">
+            <Icon name="cancel" />
+          </span>
+        </a>
+      )}
     </main>
   );
 }

@@ -99,7 +99,11 @@ export default function TextComposer({
       <div className="text-dialog-body">
         <Suspense
           fallback={
-            <div className="archive-status">
+            <div
+              className="archive-status"
+              role="status"
+              aria-label="Загрузка редактора"
+            >
               <Icon name="code" />
             </div>
           }

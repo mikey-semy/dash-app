@@ -161,7 +161,15 @@ export default function TextPreview({
         </header>
       )}
       <div className="text-preview-body">
-        {source !== null && (
+        {source === null ? (
+          <div
+            className="archive-status"
+            role="status"
+            aria-label="Загрузка текста"
+          >
+            <Icon name="code" />
+          </div>
+        ) : (
           <Suspense
             fallback={
               <div className="archive-status">

@@ -449,7 +449,7 @@ test("history expansion preserves modal and clicked header positions throughout 
     await page
       .locator(".settings .inline-details-body")
       .evaluate((el) => getComputedStyle(el).transitionDuration),
-  ).toBe("0s");
+  ).not.toBe("0s");
 });
 
 test("password is enabled only after successful copy", async ({ page }) => {
@@ -987,15 +987,13 @@ test("failed delete closes QR and never leaks Safari JSON parser errors; retry r
       .getByRole("button", { name: /Удалить|Подтвердить/ }),
   );
   await expect(page.locator(".qr-popover.is-open")).toHaveCount(0);
-  await expect(
-    page.getByRole("img", { name: "Ошибка", exact: true }),
-  ).toBeVisible();
+  const retry = page.getByRole("button", {
+    name: "Перезагрузить страницу",
+    exact: true,
+  });
+  await expect(retry).toBeVisible();
   await page.unroute("**/api/transfers/*");
-  await confirmDelete(
-    page
-      .locator(".share-ready")
-      .getByRole("button", { name: /Удалить|Подтвердить/ }),
-  );
+  await retry.click();
   await expect(page.locator(".share-ready")).toHaveCount(0);
   await expect(page.getByRole("alert")).toHaveCount(0);
   await expect(page.locator(".primary-action")).toBeVisible();

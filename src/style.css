@@ -2050,3 +2050,28 @@ button.unavailable {
   height: 100%;
   border: 0;
 }
+
+.transfer-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 16px;
+}
+.transfer-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.transfer-heading form {
+  flex-shrink: 0;
+  margin: 0;
+}
+.file-selection-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.file-selection-actions .select-all {
+  margin: 0;
+}

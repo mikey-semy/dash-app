@@ -105,6 +105,7 @@ export function FileList({
             )}
             {onRemove && (
               <DeleteButton
+                icon="cancel"
                 label={"Удалить " + f.name}
                 disabled={disabled}
                 confirmationKey={confirmationKey || f.name}
@@ -360,26 +361,41 @@ function HistoryItem({
             </span>
           </div>
           {t.files.length > 0 && (
-            <label className="select-all">
-              <input
-                type="checkbox"
-                aria-label="Выбрать все файлы"
-                checked={selection.size === t.files.length}
-                disabled={!!busy || ["deleted", "deleting"].includes(t.state)}
-                ref={(el) => {
-                  if (el)
-                    el.indeterminate =
-                      selection.size > 0 && selection.size < t.files.length;
-                }}
-                onChange={() =>
-                  setSelection(
-                    selection.size === t.files.length
-                      ? new Set()
-                      : new Set(t.files.map((f, i) => i)),
-                  )
+            <div className="file-selection-actions">
+              <label className="select-all">
+                <input
+                  type="checkbox"
+                  aria-label="Выбрать все файлы"
+                  checked={selection.size === t.files.length}
+                  disabled={!!busy || ["deleted", "deleting"].includes(t.state)}
+                  ref={(el) => {
+                    if (el)
+                      el.indeterminate =
+                        selection.size > 0 && selection.size < t.files.length;
+                  }}
+                  onChange={() =>
+                    setSelection(
+                      selection.size === t.files.length
+                        ? new Set()
+                        : new Set(t.files.map((f, i) => i)),
+                    )
+                  }
+                />
+              </label>
+              <DeleteButton
+                label="Удалить выбранные файлы"
+                disabled={
+                  !!busy ||
+                  !selection.size ||
+                  ["deleted", "deleting"].includes(t.state)
                 }
+                confirmationKey={JSON.stringify([t.revision, ...selection])}
+                onDelete={async () => {
+                  if (await onRemoveFiles(t.id, [...selection], t.revision))
+                    setSelection(new Set());
+                }}
               />
-            </label>
+            </div>
           )}
           <FileList
             files={t.files}
@@ -401,17 +417,6 @@ function HistoryItem({
             confirmationKey={t.revision}
             disabled={!!busy || ["deleted", "deleting"].includes(t.state)}
           />
-          {selection.size > 0 && (
-            <DeleteButton
-              label="Удалить выбранные файлы"
-              disabled={!!busy}
-              confirmationKey={JSON.stringify([t.revision, ...selection])}
-              onDelete={async () => {
-                if (await onRemoveFiles(t.id, [...selection], t.revision))
-                  setSelection(new Set());
-              }}
-            />
-          )}
           {!t.files.length && <p className="muted">Пока нет файлов</p>}
           <p className="muted">{bytes(t.size)}</p>
           {(t.error || t.appendError) && (

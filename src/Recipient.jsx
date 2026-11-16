@@ -240,27 +240,33 @@ export function Recipient({ token, api }) {
                 summary={<Icon name="chevron" />}
               >
                 <div className="transfer-information">
-                  {info.title && <p>{info.title}</p>}
-                  {info.files.length > 1 && (
-                    <form
-                      method="get"
-                      action={"/public/" + token + "/selection"}
-                    >
-                      <input
-                        type="hidden"
-                        name="indices"
-                        value={JSON.stringify([...fileSelection])}
-                      />
-                      <button
-                        type="submit"
-                        className="icon-button"
-                        disabled={!fileSelection.size}
-                        aria-label="Скачать выбранные файлы"
-                        title="Скачать выбранное"
-                      >
-                        <Icon name="download" />
-                      </button>
-                    </form>
+                  {(info.files.length > 1 || info.title) && (
+                    <div className="transfer-heading">
+                      <span className="transfer-name">
+                        {info.title || info.name}
+                      </span>
+                      {info.files.length > 1 && (
+                        <form
+                          method="get"
+                          action={"/public/" + token + "/selection"}
+                        >
+                          <input
+                            type="hidden"
+                            name="indices"
+                            value={JSON.stringify([...fileSelection])}
+                          />
+                          <button
+                            type="submit"
+                            className="icon-button"
+                            disabled={!fileSelection.size}
+                            aria-label="Скачать выбранные файлы"
+                            title="Скачать выбранное"
+                          >
+                            <Icon name="download" />
+                          </button>
+                        </form>
+                      )}
+                    </div>
                   )}
                   <FileList
                     selection={

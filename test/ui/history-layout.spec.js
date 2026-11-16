@@ -69,6 +69,20 @@ test("history header order, aligned file actions and individual removals preserv
   ]);
   expect(await item.locator(".history-row time").count()).toBe(0);
   await item.locator(".history-toggle").click();
+  const selectAll = await item
+      .locator(".file-selection-actions input")
+      .boundingBox(),
+    bulk = await item
+      .getByRole("button", { name: "Удалить выбранные файлы", exact: true })
+      .boundingBox();
+  expect(
+    Math.abs(selectAll.y + selectAll.height / 2 - bulk.y - bulk.height / 2),
+  ).toBeLessThan(2);
+  await expect(
+    item
+      .getByRole("button", { name: "Удалить short.txt", exact: true })
+      .locator("svg.lucide-x"),
+  ).toBeVisible();
   await expect(item.locator(".history-dates time")).toBeVisible();
   await expect(item.locator(".history-remaining .expiry-inline")).toBeVisible();
   await confirm(

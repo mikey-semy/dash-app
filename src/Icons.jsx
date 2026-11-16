@@ -112,6 +112,7 @@ export function DeleteButton({
   onPrepare,
   disabled,
   label = "Удалить",
+  icon = "delete",
   confirmationKey = "",
 }) {
   const [armed, setArmed] = useState(false),
@@ -153,7 +154,7 @@ export function DeleteButton({
         }
       }}
     >
-      <Icon name={armed ? "question" : "delete"} />
+      <Icon name={armed ? "question" : icon} />
     </button>
   );
 }

@@ -372,6 +372,20 @@ test("browser selection form downloads only checked files without leaving the tr
   await page
     .getByRole("checkbox", { name: "Выбрать c.txt", exact: true })
     .check();
+  await expect(page.locator(".transfer-name")).toHaveText(
+    record.title || record.name,
+  );
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: 844 });
+    const name = await page.locator(".transfer-name").boundingBox(),
+      action = await page
+        .getByRole("button", { name: "Скачать выбранные файлы", exact: true })
+        .boundingBox();
+    expect(action.x).toBeGreaterThan(name.x + name.width);
+    expect(
+      Math.abs(action.y + action.height / 2 - name.y - name.height / 2),
+    ).toBeLessThan(2);
+  }
   const event = page.waitForEvent("download");
   await page
     .getByRole("button", { name: "Скачать выбранные файлы", exact: true })

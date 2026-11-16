@@ -2052,6 +2052,10 @@ button.unavailable {
 }
 
 .transfer-heading {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #fff;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2063,6 +2067,8 @@ button.unavailable {
   overflow-wrap: anywhere;
 }
 .transfer-heading form {
+  display: flex;
+  align-items: center;
   flex-shrink: 0;
   margin: 0;
 }

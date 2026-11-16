@@ -1,27 +1,13 @@
-# Проверки — 15 ноября 2026
+# Validation
 
-Проверено локально на Windows, Node 24.19.0:
+Run `npm run lint`, `npm run format:check`, `npm test`, `npm run build`, then `npx playwright test` before publishing.
 
-- Production React/Vite build: успешно. В этом sandbox использован `npm run build -- --configLoader runner`, чтобы загрузчик конфигурации esbuild не обходил запрещённые родительские каталоги. Обычный `npm run build` также успешно выполнен с разрешением среды.
-- 15 backend HTTP/integration тестов проходят. Используется тестовая реализация S3 в памяти: сетевой протокол Yandex этими тестами не проверяется.
-- Проверены авторизация/Origin/приватность передачи, строгий срок доступа, удаление без раннего освобождения квоты, конкурентное резервирование, повторное продолжение multipart и потеря ответа CompleteMultipartUpload, безопасные имена/Unicode/пустые файлы, ZIP без сжатия, несколько частей ZIP и retry после ошибки, ошибки S3, HEAD/Range/If-Range/условные запросы.
-- SQLite закрывается и повторно открывается в тесте восстановления ZIP и отложенного удаления. Отдельно проверено, что длительный ZIP не блокирует уборку другой передачи и новый upload API.
-- 3 UI-теста в настоящем headless Chrome проходят: владелец→загрузка→пароль получателя→ZIP→удаление; мобильная ширина 390px; браузерная пауза/продолжение multipart 9 MiB и автоматический retry после HTTP 503. S3 в UI — локальный тестовый HTTP endpoint, не облако.
-- Скриншоты desktop/mobile/recipient просмотрены. Главный экран — белый фон, крупная надпись «ЗАГРУЗИТЬ» по центру, шестерёнка справа сверху; без логотипа, слоганов и цветного оформления. История и настройки скрыты в шестерёнке. «СКАЧАТЬ» оформлено аналогично, подробности в аккордеоне, сверху справа ссылка на загрузку. Обе надписи проверены на ширинах 320, 390, 768, 1280 и 2560 px: без переноса и переполнения, с центрированием. Шрифт Manrope поставляется локально.
-- npm install/audit после обновления ZIP-библиотеки и override minimatch: 0 известных уязвимостей на момент проверки.
+The regular tests use in-memory storage and SQLite fixtures. They cover authentication, quota, multipart interruption/recovery, archive bytes, append/removal, original and Raw ranges, password/expiry/deletion, site publication, custom-domain boundaries and readable names.
 
-Не проверено: реальный S3/Yandex/MinIO, Docker image/Compose на работающем Docker, загрузка 2 ГБ, длительное докачивание сторонними менеджерами, нагрузка и память в 768 MiB/1 CPU, фактическая уборка ≤5 минут при полной квоте на server. Docker в среде отсутствует. Не выдавать fake-S3 тесты за проверку реального облака. Подготовлен `test/real-s3.test.js`, он явно пропускается без `TEST_S3_ENDPOINT`.
+Browser tests cover desktop/mobile geometry, keyboard and pointer focus, folder review, editor and Markdown behavior, media, QR positioning, history selection, inline renaming, publication and domain controls. Product labels are English; international filenames and document contents remain unchanged in fixtures.
 
-GitHub CLI сообщает `You are not logged into any GitHub hosts`. Репозиторий GitHub и push требуют `gh auth login`; приватный remote не создан, URL отсутствует. Секреты и production-конфигурация не использовались. server и его действующие контейнеры не изменялись.
+The optional real-S3 test uses its own temporary objects and cleans them up. It is skipped when its explicit test configuration is absent.
 
-Добавлен и проверен S3_PREFIX=holder/: префикс применяется ровно один раз, multipart и удаление ограничены конкретной передачей под holder/, выход из префикса отклоняется. SSH-проверка server read-only: сеть edge, resolver letsencrypt. В env действующего example-app и app_settings его БД S3-ключи не найдены; секреты не выводились.
+After GitHub Actions deploys, verify the deployed commit and container health. Production UI checks use mocked owner APIs; server smoke fixtures use an isolated in-memory database. Do not upload, rename or delete user data for a smoke check.
 
-## Проверка с предоставленным .env
-
-Файл был сохранён как `.env.txt`, переименован в `.env` и исключён из git. Реальная интеграция Yandex S3 в `example-bucket/holder/` прошла: multipart 9 MiB, восстановление SQLite, потоковый ZIP, побайтовая проверка, Range и очистка тестовых объектов. CORS и lifecycle в бакете отсутствуют, versioning выключен.
-
-Проверка приватности выявила блокер запуска: временный объект под holder/ читается анонимно (HTTP 200). Тестовый объект удалён. До запуска необходимо ограничить публичное чтение holder/ без нарушения публичного доступа к остальным объектам example-app. Настройки общего бакета этой проверкой не изменялись. ADMIN_PASSWORD в .env остаётся шаблонным; значение не выводилось.
-
-## Публикация и CI/CD
-
-Авторизация GitHub найдена в Windows Credential Manager (gh auth status сам по себе её не видел). Создан приватный example-user/s3-flash-drive, main отправлен. Первый GitHub Actions run 43709217136 завершён success: тесты и сборка Docker на GitHub, передача образа, запуск holder-flash-1 healthy, HTTPS-проверка files.example.com. S3 CORS для домена и lifecycle AbortIncompleteMultipartUpload только holder/ добавлены с сохранением существующих правил; публичность бакета не менялась по решению владельца. Случайный пароль входа сохранён в локальном и серверном .env; секреты в git не включались.
+Real certificate issuance requires a domain whose DNS points at the server. A mock DNS/probe test is not evidence that a real certificate has been issued.

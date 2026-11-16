@@ -75,7 +75,7 @@ test("folder limits reject excessive included files and a failed restore leaves 
     ],
   };
   const plan = await scanFolders(source);
-  await assert.rejects(() => plan.restore(plan.excluded[0]), /100 файлов/);
+  await assert.rejects(() => plan.restore(plan.excluded[0]), /100 files/);
   assert.equal(plan.files.length, 1);
   assert.equal(plan.excluded.length, 1);
   await assert.rejects(
@@ -88,6 +88,6 @@ test("folder limits reject excessive included files and a failed restore leaves 
           ),
         ],
       }),
-    /100 файлов/,
+    /100 files/,
   );
 });

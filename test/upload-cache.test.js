@@ -19,5 +19,8 @@ test("resume checks every byte and matches duplicate filenames by content rather
   const result = await matchUpload(upload, [other, original]);
   assert.equal(result.files[0], original);
   assert.equal(result.files[1], other);
-  await assert.rejects(() => matchUpload(upload, [other, other]), /Содержимое/);
+  await assert.rejects(
+    () => matchUpload(upload, [other, other]),
+    /File contents/,
+  );
 });

@@ -1,16 +1,12 @@
+import { TIMING } from "../shared/config.js";
+import { IconButton } from "./components/IconButton.jsx";
+import { copy } from "../shared/copy.js";
 import { ErrorNotice } from "./Errors.jsx";
 import React, { useEffect, useRef, useState } from "react";
 import { Icon, Expiry } from "./Icons.jsx";
 import PublicationButton from "./PublicationButton.jsx";
-export const durations = [
-  [3600, "1", "ч", "1 час"],
-  [21600, "6", "ч", "6 часов"],
-  [86400, "24", "ч", "Сутки"],
-  [259200, "3", "д", "3 дня"],
-  [604800, "7", "д", "7 дней"],
-  [0, "∞", "", "Бессрочно"],
-  [-1, "1", "", "Одноразовая"],
-];
+import { durations } from "./lib/retention.js";
+import { generatePin } from "./lib/password.js";
 export default function TransferSettings({ transfer, api, onClose }) {
   const clickTimer = useRef();
   const ref = useRef(),
@@ -39,7 +35,7 @@ export default function TransferSettings({ transfer, api, onClose }) {
   }, [transfer.id]);
   useEffect(() => {
     if (copied) {
-      const timer = setTimeout(() => setCopied(false), 1500);
+      const timer = setTimeout(() => setCopied(false), TIMING.feedback);
       return () => clearTimeout(timer);
     }
   }, [copied]);
@@ -80,16 +76,12 @@ export default function TransferSettings({ transfer, api, onClose }) {
     }
   };
   const generate = async () => {
-    const bytes = new Uint32Array(1);
-    do {
-      crypto.getRandomValues(bytes);
-    } while (bytes[0] >= 4294000000);
-    const pin = String(bytes[0] % 1000000).padStart(6, "0");
+    const pin = generatePin();
     try {
       await navigator.clipboard.writeText(pin);
       if (await update({ password: pin })) setCopied(true);
     } catch {
-      setError("Не удалось скопировать. Повторите.");
+      setError(copy.couldNotCopyTryAgain);
     }
   };
   const currentMode = transfer.oneTime ? -1 : transfer.ttl;
@@ -102,7 +94,7 @@ export default function TransferSettings({ transfer, api, onClose }) {
     <dialog
       ref={ref}
       className="history-dialog transfer-settings-dialog"
-      aria-label="Параметры передачи"
+      aria-label={copy.transferSettings}
       onCancel={(e) => {
         e.preventDefault();
         onClose();
@@ -110,14 +102,9 @@ export default function TransferSettings({ transfer, api, onClose }) {
     >
       <header className="dialog-header">
         <Icon name="settings" />
-        <button
-          type="button"
-          className="icon-button"
-          aria-label="Закрыть параметры"
-          onClick={onClose}
-        >
+        <IconButton aria-label={copy.closeSettings} onClick={onClose}>
           <Icon name="cancel" />
-        </button>
+        </IconButton>
       </header>
       <div className="dialog-body">
         <div className="transfer-settings-controls">
@@ -130,25 +117,22 @@ export default function TransferSettings({ transfer, api, onClose }) {
                   await update({ published });
                 }}
               />
-              <button
-                type="button"
-                className="icon-button"
-                aria-label="Маршруты React/Vue"
+              <IconButton
+                aria-label={copy.reactVueRoutes}
                 aria-pressed={!!transfer.spa}
-                title="Маршруты React/Vue: адреса вроде /profile открывает приложение из index.html"
+                title={copy.spaRoutingHint}
                 disabled={busy}
                 onClick={() => update({ spa: !transfer.spa })}
               >
                 <Icon name="route" />
-              </button>
+              </IconButton>
             </>
           )}
-          <button
-            type="button"
+          <IconButton
             className="icon-button duration-button"
             disabled={busy}
-            aria-label={"Срок текущей передачи: " + duration[3]}
-            title="Сменить срок от текущего момента"
+            aria-label={copy.currentRetentionPrefix + duration[3]}
+            title={copy.changeRetentionFromNow}
             onClick={() =>
               (() => {
                 const next =
@@ -166,53 +150,43 @@ export default function TransferSettings({ transfer, api, onClose }) {
               <span>{duration[1]}</span>
               <small>{duration[2]}</small>
             </span>
-          </button>
+          </IconButton>
           {!transfer.oneTime && transfer.expires !== null && (
             <Expiry value={transfer.expires} className="expiry-inline" />
           )}
-          <button
-            type="button"
-            className="icon-button"
-            aria-label="Демонстрация без интерфейса"
-            title="Показать медиа и текст без панелей DU"
+          <IconButton
+            aria-label={copy.presentationWithoutControls}
+            title={copy.showMediaAndTextWithoutDuControls}
             aria-pressed={!!transfer.demo}
             disabled={busy}
             onClick={() => update({ demo: !transfer.demo })}
           >
             <Icon name="presentation" />
-          </button>
+          </IconButton>
         </div>
         <div className="password-field transfer-password">
           <input
-            aria-label="Пароль текущей передачи"
+            aria-label={copy.currentTransferPassword}
             type={visible ? "text" : "password"}
             readOnly
             value={password || ""}
             placeholder={transfer.hasPassword ? "••••••" : "—"}
           />
-          <button
-            className="icon-button"
-            type="button"
-            aria-label={visible ? "Скрыть пароль" : "Показать пароль"}
+          <IconButton
+            aria-label={visible ? copy.hidePassword : copy.showPassword}
             onClick={() => setVisible(!visible)}
           >
             <Icon name={visible ? "hidden" : "eye"} />
-          </button>
-          <button
-            className="icon-button"
-            type="button"
-            aria-label="Сгенерировать и скопировать пароль передачи"
-            title={
-              copied
-                ? "Скопировано"
-                : "Клик — создать и скопировать, двойной — убрать"
-            }
+          </IconButton>
+          <IconButton
+            aria-label={copy.generateAndCopyTransferPassword}
+            title={copied ? copy.copied : copy.passwordActionHint}
             disabled={busy}
             onClick={(event) => {
               clearTimeout(clickTimer.current);
               if (event.detail === 0) generate();
               else if (event.detail === 1)
-                clickTimer.current = setTimeout(generate, 350);
+                clickTimer.current = setTimeout(generate, TIMING.multiClick);
             }}
             onDoubleClick={() => {
               clearTimeout(clickTimer.current);
@@ -231,18 +205,16 @@ export default function TransferSettings({ transfer, api, onClose }) {
             <Icon
               name={copied ? "check" : transfer.hasPassword ? "lock" : "unlock"}
             />
-          </button>
+          </IconButton>
         </div>
         {transfer.hasPassword && password === null && (
-          <p className="muted">
-            Старый пароль не сохранён. Можно создать новый.
-          </p>
+          <p className="muted">{copy.legacyPasswordUnavailable}</p>
         )}
         {transfer.hasSite && (
           <div className="password-field domain-field">
             <input
-              aria-label="Домен сайта"
-              placeholder="example.com"
+              aria-label={copy.siteDomain}
+              placeholder={copy.domainExample}
               value={domain}
               autoCapitalize="none"
               autoComplete="off"
@@ -271,10 +243,8 @@ export default function TransferSettings({ transfer, api, onClose }) {
               }}
             />
             {domain && (
-              <button
-                type="button"
-                className="icon-button"
-                aria-label="Убрать домен"
+              <IconButton
+                aria-label={copy.removeDomain}
                 disabled={busy}
                 onPointerDown={(event) => event.preventDefault()}
                 onClick={() => {
@@ -283,10 +253,9 @@ export default function TransferSettings({ transfer, api, onClose }) {
                 }}
               >
                 <Icon name="cancel" />
-              </button>
+              </IconButton>
             )}
-            <button
-              type="button"
+            <IconButton
               className={
                 "icon-button " +
                 (verifiedDomain
@@ -298,11 +267,13 @@ export default function TransferSettings({ transfer, api, onClose }) {
               disabled={busy}
               aria-label={
                 domain.trim() !== (transfer.domain || "")
-                  ? "Подключить домен"
-                  : "Проверить домен"
+                  ? copy.connectDomain
+                  : copy.checkDomain
               }
               title={
-                verifiedDomain ? "Успешно проверено" : "Проверить DNS и HTTPS"
+                verifiedDomain
+                  ? copy.successfullyVerified
+                  : copy.checkDnsAndHttps
               }
               onPointerDown={(event) => event.preventDefault()}
               onClick={() => saveDomain()}
@@ -320,7 +291,7 @@ export default function TransferSettings({ transfer, api, onClose }) {
                           : "enter"
                 }
               />
-            </button>
+            </IconButton>
           </div>
         )}
         {error && <ErrorNotice error={error} />}

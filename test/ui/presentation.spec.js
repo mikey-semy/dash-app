@@ -5,8 +5,8 @@ const gif = Buffer.from(
 );
 async function login(page) {
   await page.goto("/");
-  await page.getByLabel("Пароль", { exact: true }).fill("123456");
-  await page.getByRole("button", { name: "Войти", exact: true }).click();
+  await page.getByLabel("Password", { exact: true }).fill("123456");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.locator(".owner")).toBeVisible();
 }
 test("clean image collection uses native scroll snap, fills mobile viewport and hides DU panels", async ({
@@ -49,9 +49,7 @@ test("clean image collection uses native scroll snap, fills mobile viewport and 
       .locator(".demo-carousel")
       .evaluate((el) => getComputedStyle(el).scrollSnapType),
   ).toBe("x mandatory");
-  await page
-    .getByRole("button", { name: "Следующее изображение", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Next image", exact: true }).click();
   await expect
     .poll(() =>
       page
@@ -117,18 +115,16 @@ test("names edit in place, Escape cancels, settings have no names and their geom
   page,
 }) => {
   await login(page);
-  await page
-    .locator("input[type=file]")
-    .setInputFiles({
-      name: "name.txt",
-      mimeType: "text/plain",
-      buffer: Buffer.from("hello"),
-    });
+  await page.locator("input[type=file]").setInputFiles({
+    name: "name.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("hello"),
+  });
   await expect(page.locator(".share-ready")).toBeVisible();
-  await page.getByLabel("Подробности передачи", { exact: true }).click();
+  await page.getByLabel("Transfer details", { exact: true }).click();
   const field = page
     .locator(".owner-details")
-    .getByRole("textbox", { name: "Имя файла 1", exact: true });
+    .getByRole("textbox", { name: "Filename 1", exact: true });
   expect(await field.evaluate((el) => el.tagName)).toBe("SPAN");
   await field.click();
   await field.fill("cancel.txt");
@@ -139,17 +135,17 @@ test("names edit in place, Escape cancels, settings have no names and their geom
   await field.press("Enter");
   await expect(field).toHaveText("renamed.md");
   await expect(field).toHaveAttribute("aria-readonly", "true");
-  await page.getByLabel("Настройки", { exact: true }).click();
-  await page.getByRole("button", { name: "История", exact: true }).click();
-  const history = page.getByRole("dialog", { name: "История", exact: true }),
+  await page.getByLabel("Settings", { exact: true }).click();
+  await page.getByRole("button", { name: "History", exact: true }).click();
+  const history = page.getByRole("dialog", { name: "History", exact: true }),
     box = await history.boundingBox();
   await page
     .locator(".history-item")
     .first()
-    .getByRole("button", { name: "Параметры передачи", exact: true })
+    .getByRole("button", { name: "Transfer settings", exact: true })
     .click();
   const settings = page.getByRole("dialog", {
-    name: "Параметры передачи",
+    name: "Transfer settings",
     exact: true,
   });
   expect(await settings.boundingBox()).toMatchObject({
@@ -160,22 +156,22 @@ test("names edit in place, Escape cancels, settings have no names and their geom
   });
   await expect(page.locator("dialog[open]")).toHaveCount(1);
   await expect(
-    settings.getByRole("textbox", { name: "Название передачи", exact: true }),
+    settings.getByRole("textbox", { name: "Transfer name", exact: true }),
   ).toHaveCount(0);
   await expect(
-    settings.getByRole("button", { name: "Редактировать текст", exact: true }),
+    settings.getByRole("button", { name: "Edit text", exact: true }),
   ).toHaveCount(0);
   await settings
-    .getByRole("button", { name: "Закрыть параметры", exact: true })
+    .getByRole("button", { name: "Close settings", exact: true })
     .click();
   await expect(history).toBeVisible();
   await page
-    .getByRole("button", { name: "Поиск в истории", exact: true })
+    .getByRole("button", { name: "Search history", exact: true })
     .click();
-  const search = page.getByLabel("Поиск по имени файла или передачи");
+  const search = page.getByLabel("Search filenames or transfers");
   await search.fill("renamed");
   const clear = page.getByRole("button", {
-    name: "Очистить поиск",
+    name: "Clear search",
     exact: true,
   });
   expect(
@@ -201,34 +197,32 @@ test("one-time mode follows infinity in the lifetime cycle and demo setting pers
   );
   await page
     .locator(".share-ready")
-    .getByRole("button", { name: "Параметры передачи", exact: true })
+    .getByRole("button", { name: "Transfer settings", exact: true })
     .click();
   const dialog = page.getByRole("dialog", {
-    name: "Параметры передачи",
+    name: "Transfer settings",
     exact: true,
   });
   for (let step = 0; step < 4; step++)
-    await dialog
-      .getByRole("button", { name: /^Срок текущей передачи:/ })
-      .click();
+    await dialog.getByRole("button", { name: /^Current retention:/ }).click();
   await expect(
     dialog.getByRole("button", {
-      name: "Срок текущей передачи: Одноразовая",
+      name: "Current retention: One-time",
       exact: true,
     }),
   ).toBeVisible();
-  await expect(dialog.getByLabel("Бессрочно", { exact: true })).toHaveCount(0);
+  await expect(dialog.getByLabel("Forever", { exact: true })).toHaveCount(0);
   await expect(
     dialog.getByRole("button", { name: "Одноразовое скачивание", exact: true }),
   ).toHaveCount(0);
   const mode = dialog.getByRole("button", {
-    name: "Демонстрация без интерфейса",
+    name: "Presentation without controls",
     exact: true,
   });
   await mode.click();
   await expect(mode).toHaveAttribute("aria-pressed", "true");
   await dialog
-    .getByRole("button", { name: "Закрыть параметры", exact: true })
+    .getByRole("button", { name: "Close settings", exact: true })
     .click();
   await page.goto(transfer.url);
   await expect(page.locator(".demo-image")).toBeVisible();
@@ -238,50 +232,42 @@ test("Excel has no content editor and a mislabeled binary shows a brief red cros
   page,
 }) => {
   await login(page);
-  await page
-    .locator("input[type=file]")
-    .setInputFiles({
-      name: "sheet.xlsx",
-      mimeType:
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      buffer: Buffer.from([80, 75, 0, 1, 2]),
-    });
+  await page.locator("input[type=file]").setInputFiles({
+    name: "sheet.xlsx",
+    mimeType:
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    buffer: Buffer.from([80, 75, 0, 1, 2]),
+  });
   await expect(page.locator(".share-ready")).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Редактировать текст", exact: true }),
+    page.getByRole("button", { name: "Edit text", exact: true }),
   ).toHaveCount(0);
-  await page.getByLabel("Настройки", { exact: true }).click();
+  await page.getByLabel("Settings", { exact: true }).click();
   await page
-    .getByRole("button", { name: "Новая текстовая передача", exact: true })
+    .getByRole("button", { name: "New text transfer", exact: true })
     .click();
-  await page
-    .getByRole("button", { name: "Закрыть редактор", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Close editor", exact: true }).click();
   // A fresh owner screen lets a separate file be uploaded, not appended to Excel.
   await page.reload();
-  await page
-    .locator("input[type=file]")
-    .setInputFiles({
-      name: "binary.txt",
-      mimeType: "text/plain",
-      buffer: Buffer.from([0, 1, 2]),
-    });
+  await page.locator("input[type=file]").setInputFiles({
+    name: "binary.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from([0, 1, 2]),
+  });
   await expect(page.locator(".share-ready")).toBeVisible();
-  await page
-    .getByRole("button", { name: "Редактировать текст", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Edit text", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "Не удалось открыть текст", exact: true }),
+    page.getByRole("button", { name: "Could not open the text", exact: true }),
   ).toBeVisible();
   expect(
     await page
       .locator(".edit-error")
       .evaluate((el) => getComputedStyle(el).color),
   ).toBe("rgb(204, 34, 34)");
+  await expect(page.getByText("Unsupported text", { exact: true })).toHaveCount(
+    0,
+  );
   await expect(
-    page.getByText("Неподдерживаемый текст", { exact: true }),
-  ).toHaveCount(0);
-  await expect(
-    page.getByRole("button", { name: "Редактировать текст", exact: true }),
+    page.getByRole("button", { name: "Edit text", exact: true }),
   ).toBeVisible({ timeout: 5000 });
 });

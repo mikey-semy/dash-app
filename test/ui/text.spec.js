@@ -1,8 +1,8 @@
 import { test, expect } from "@playwright/test";
 async function login(page) {
   await page.goto("/");
-  await page.getByLabel("Пароль", { exact: true }).fill("123456");
-  await page.getByRole("button", { name: "Войти", exact: true }).click();
+  await page.getByLabel("Password", { exact: true }).fill("123456");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.locator(".owner")).toBeVisible();
 }
 async function paste(page, text, target = "main") {
@@ -23,9 +23,7 @@ async function paste(page, text, target = "main") {
 }
 async function shareURL(page) {
   await expect(page.locator(".share-ready")).toBeVisible();
-  await page
-    .getByRole("button", { name: "Копировать ссылку", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Copy link", exact: true }).click();
   return page.evaluate(() => navigator.clipboard.readText());
 }
 
@@ -41,16 +39,16 @@ test("pasted code keeps original bytes, highlights immediately and supports prot
     );
   });
   await login(page);
-  await page.getByLabel("Настройки", { exact: true }).click();
+  await page.getByLabel("Settings", { exact: true }).click();
   await page
     .getByRole("button", {
-      name: "Сгенерировать и скопировать пароль",
+      name: "Generate and copy password",
       exact: true,
     })
     .click();
   await expect(
     page.getByRole("button", {
-      name: "Сгенерировать и скопировать пароль",
+      name: "Generate and copy password",
       exact: true,
     }),
   ).toHaveAttribute("data-active", "true");
@@ -61,18 +59,16 @@ test("pasted code keeps original bytes, highlights immediately and supports prot
   await page.mouse.click(30, 200);
   await page.keyboard.press("Control+V");
   await expect(
-    page.getByRole("dialog", { name: "Текстовая передача" }),
+    page.getByRole("dialog", { name: "Text transfer" }),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Закрыть редактор", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Close editor", exact: true }).click();
   const source =
     '{\r\n\t"message": "Привет 🌍",\r\n\r\n\t"html": "<script>window.injected = true</script>",\r\n\t"long": "' +
     "x".repeat(500) +
     '"\r\n}\r\n';
   await paste(page, source);
   await expect(
-    page.getByRole("dialog", { name: "Текстовая передача" }),
+    page.getByRole("dialog", { name: "Text transfer" }),
   ).toBeVisible();
   await expect(page.locator(".code-editor")).toHaveAttribute(
     "data-language",
@@ -99,13 +95,13 @@ test("pasted code keeps original bytes, highlights immediately and supports prot
   });
   await receiver.goto(url);
   await expect(
-    receiver.getByLabel("Пароль передачи", { exact: true }),
+    receiver.getByLabel("Transfer password", { exact: true }),
   ).toBeVisible();
   expect((await context.request.get("/raw/" + token)).status()).toBe(401);
-  await receiver.getByLabel("Пароль передачи", { exact: true }).fill(pin);
-  await receiver.getByRole("button", { name: "Открыть", exact: true }).click();
+  await receiver.getByLabel("Transfer password", { exact: true }).fill(pin);
+  await receiver.getByRole("button", { name: "Open", exact: true }).click();
   await receiver
-    .getByRole("button", { name: "Открыть просмотр", exact: true })
+    .getByRole("button", { name: "Open preview", exact: true })
     .click();
   await expect(receiver.locator(".code-editor")).toHaveAttribute(
     "data-language",
@@ -113,7 +109,7 @@ test("pasted code keeps original bytes, highlights immediately and supports prot
     { timeout: 15000 },
   );
   await receiver
-    .getByRole("button", { name: "Копировать текст", exact: true })
+    .getByRole("button", { name: "Copy text", exact: true })
     .click();
   expect(await receiver.evaluate(() => navigator.clipboard.readText())).toBe(
     source,
@@ -169,16 +165,16 @@ test("pasted code keeps original bytes, highlights immediately and supports prot
   expect(viewer.width).toBe(receiver.viewportSize().width);
   expect(viewer.height).toBe(receiver.viewportSize().height);
   await receiver
-    .getByRole("button", { name: "Закрыть просмотр", exact: true })
+    .getByRole("button", { name: "Close preview", exact: true })
     .click();
   await expect(
-    receiver.getByRole("button", { name: "Открыть просмотр", exact: true }),
+    receiver.getByRole("button", { name: "Open preview", exact: true }),
   ).toBeVisible();
   await expect(receiver.locator(".viewer-dialog")).toHaveCount(0);
   await receiver.waitForTimeout(5200);
   await expect(receiver.locator(".viewer-dialog")).toHaveCount(0);
   await receiver
-    .getByRole("button", { name: "Открыть просмотр", exact: true })
+    .getByRole("button", { name: "Open preview", exact: true })
     .click();
   await expect(receiver.locator(".viewer-dialog")).toBeVisible();
   await receiver.close();
@@ -194,9 +190,9 @@ test("mobile editor opens from menu, preserves pasted indentation inside field a
     if (r.method() === "POST" && new URL(r.url()).pathname === "/api/transfers")
       created++;
   });
-  await page.getByLabel("Настройки", { exact: true }).click();
+  await page.getByLabel("Settings", { exact: true }).click();
   await page
-    .getByRole("button", { name: "Новая текстовая передача", exact: true })
+    .getByRole("button", { name: "New text transfer", exact: true })
     .click();
   await expect(page.locator(".cm-content[contenteditable=true]")).toBeVisible();
   const screen = await page.locator(".text-dialog").boundingBox();
@@ -227,13 +223,11 @@ test("mobile editor opens from menu, preserves pasted indentation inside field a
       .locator(".cm-content")
       .evaluate((el) => getComputedStyle(el).whiteSpace),
   ).toBe("pre");
-  await page
-    .getByRole("button", { name: "Закрыть редактор", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Close editor", exact: true }).click();
   await expect(page.locator(".text-dialog")).toHaveCount(0);
   expect(created).toBe(0);
   await expect(
-    page.getByRole("button", { name: "ЗАГРУЗИТЬ", exact: true }),
+    page.getByRole("button", { name: "UPLOAD", exact: true }),
   ).toBeVisible();
 });
 
@@ -252,7 +246,7 @@ test("single source files preview, binary text falls back, and appending switche
   const receiver = await context.newPage();
   await receiver.goto(url);
   await receiver
-    .getByRole("button", { name: "Открыть просмотр", exact: true })
+    .getByRole("button", { name: "Open preview", exact: true })
     .click();
   await expect(receiver.locator(".code-editor")).toHaveAttribute(
     "data-language",
@@ -260,7 +254,7 @@ test("single source files preview, binary text falls back, and appending switche
     { timeout: 15000 },
   );
   const choosing = page.waitForEvent("filechooser");
-  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await page.getByRole("button", { name: "Add", exact: true }).click();
   await (
     await choosing
   ).setFiles({
@@ -283,7 +277,7 @@ test("single source files preview, binary text falls back, and appending switche
   await receiver.evaluate(() => window.dispatchEvent(new Event("focus")));
   await expect(receiver.locator(".text-preview")).toHaveCount(0);
   await expect(
-    receiver.getByRole("link", { name: "СКАЧАТЬ", exact: true }),
+    receiver.getByRole("link", { name: "DOWNLOAD", exact: true }),
   ).toBeVisible();
   expect(
     (await context.request.get("/raw/" + url.split("/").pop())).status(),
@@ -301,7 +295,7 @@ test("single source files preview, binary text falls back, and appending switche
   await expect(
     receiver
       .locator(".viewer-dialog")
-      .getByRole("link", { name: "СКАЧАТЬ", exact: true }),
+      .getByRole("link", { name: "DOWNLOAD", exact: true }),
   ).toHaveAttribute(
     "href",
     "/public/" + url.split("/").pop() + "/files/0/download",
@@ -310,7 +304,7 @@ test("single source files preview, binary text falls back, and appending switche
     receiver.getByRole("link", { name: "Raw", exact: true }),
   ).toHaveAttribute("href", "/raw/" + url.split("/").pop() + "/0");
   await receiver
-    .getByRole("button", { name: "Закрыть просмотр", exact: true })
+    .getByRole("button", { name: "Close preview", exact: true })
     .click();
   await expect(receiver.locator(".viewer-dialog")).toHaveCount(0);
   await page.reload();
@@ -322,10 +316,10 @@ test("single source files preview, binary text falls back, and appending switche
   const binaryURL = await shareURL(page);
   await receiver.goto(binaryURL);
   await receiver
-    .getByRole("button", { name: "Открыть просмотр", exact: true })
+    .getByRole("button", { name: "Open preview", exact: true })
     .click();
   await expect(
-    receiver.getByRole("link", { name: "СКАЧАТЬ", exact: true }),
+    receiver.getByRole("link", { name: "DOWNLOAD", exact: true }),
   ).toBeVisible();
   await expect(receiver.locator(".has-text")).toHaveCount(0);
   await expect(receiver.locator(".code-editor")).toHaveCount(0);
@@ -353,11 +347,9 @@ test("oversize text remains in the editor and highlighter startup failure preser
   );
   await paste(page, source);
   await expect(page.locator(".cm-content[contenteditable=true]")).toBeVisible();
-  await page
-    .getByRole("button", { name: "Отправить текст", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Send text", exact: true }).click();
   await expect(
-    page.getByRole("img", { name: "Ошибка", exact: true }),
+    page.getByRole("img", { name: "Error", exact: true }),
   ).toBeVisible();
   await expect(page.locator(".code-editor")).toHaveAttribute(
     "data-language",
@@ -365,9 +357,7 @@ test("oversize text remains in the editor and highlighter startup failure preser
   );
   expect(created).toBe(0);
   await expect(page.locator(".cm-line").first()).toHaveText("x".repeat(100));
-  await page
-    .getByRole("button", { name: "Закрыть редактор", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Close editor", exact: true }).click();
   await expect(page.locator(".text-dialog")).toHaveCount(0);
 });
 
@@ -393,9 +383,7 @@ test("Markdown opens formatted with safe GFM rendering and switches between prev
   const url = await shareURL(page),
     token = url.split("/").pop();
   await page.goto(url);
-  await page
-    .getByRole("button", { name: "Открыть просмотр", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Open preview", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Заметки", exact: true }),
   ).toBeVisible();
@@ -425,12 +413,10 @@ test("Markdown opens formatted with safe GFM rendering and switches between prev
       .getAttribute("href"),
   ).not.toMatch(/^javascript:/i);
   expect(await page.evaluate(() => window.violations)).toEqual([]);
-  await page
-    .getByRole("button", { name: "Копировать текст", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Copy text", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "Копировать текст", exact: true }),
-  ).toHaveAttribute("title", "Скопировано");
+    page.getByRole("button", { name: "Copy text", exact: true }),
+  ).toHaveAttribute("title", "Copied");
   expect(
     (await page.evaluate(() => navigator.clipboard.readText())).replace(
       /\r\n/g,
@@ -441,9 +427,7 @@ test("Markdown opens formatted with safe GFM rendering and switches between prev
   expect(await raw.body()).toEqual(Buffer.from(source));
   const download = await context.request.get("/public/" + token + "/download");
   expect(await download.body()).toEqual(Buffer.from(source));
-  await page
-    .getByRole("button", { name: "Показать исходник", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Show source", exact: true }).click();
   await expect(page.locator(".code-editor")).toHaveAttribute(
     "data-language",
     "Markdown",
@@ -452,9 +436,7 @@ test("Markdown opens formatted with safe GFM rendering and switches between prev
   await expect(page.locator(".markdown-preview")).toHaveCount(0);
   await page.waitForTimeout(5200);
   await expect(page.locator(".code-editor")).toBeVisible();
-  await page
-    .getByRole("button", { name: "Показать превью", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Show preview", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Заметки", exact: true }),
   ).toBeVisible();
@@ -478,10 +460,8 @@ test("owner reopens uploaded text full screen, cancels or saves to the same link
   });
   await expect(page.locator(".share-ready")).toBeVisible();
   const url = await currentURL();
-  await page
-    .getByRole("button", { name: "Редактировать текст", exact: true })
-    .click();
-  const dialog = page.getByRole("dialog", { name: "Редактирование текста" });
+  await page.getByRole("button", { name: "Edit text", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Edit text" });
   await expect(dialog.locator(".cm-content")).toHaveText("print('old')");
   const viewport = page.viewportSize();
   expect(await dialog.boundingBox()).toMatchObject({
@@ -492,35 +472,31 @@ test("owner reopens uploaded text full screen, cancels or saves to the same link
   });
   await dialog.locator(".cm-content").fill("print('cancelled')");
   await dialog
-    .getByRole("button", { name: "Закрыть редактор", exact: true })
+    .getByRole("button", { name: "Close editor", exact: true })
     .click();
-  await page
-    .getByRole("button", { name: "Редактировать текст", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Edit text", exact: true }).click();
   await expect(dialog.locator(".cm-content")).toHaveText("print('old')");
   await dialog.locator(".cm-content").fill("print('new')");
-  await dialog
-    .getByRole("button", { name: "Сохранить текст", exact: true })
-    .click();
+  await dialog.getByRole("button", { name: "Save text", exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await expect(page.locator(".share-ready")).toBeVisible();
   expect(await currentURL()).toBe(url);
   await page
-    .getByRole("button", { name: "Подробности передачи", exact: true })
+    .getByRole("button", { name: "Transfer details", exact: true })
     .click();
   await page
-    .getByRole("button", { name: "Просмотреть edit.py", exact: true })
+    .getByRole("button", { name: "Preview edit.py", exact: true })
     .click();
   await expect(page.locator(".viewer-dialog .cm-content")).toHaveText(
     "print('new')",
   );
   await page
-    .getByRole("button", { name: "Закрыть просмотр", exact: true })
+    .getByRole("button", { name: "Close preview", exact: true })
     .click();
   const recipient = await context.newPage();
   await recipient.goto(url);
   await recipient
-    .getByRole("button", { name: "Открыть просмотр", exact: true })
+    .getByRole("button", { name: "Open preview", exact: true })
     .click();
   await expect(recipient.locator(".viewer-dialog .cm-content")).toHaveText(
     "print('new')",
@@ -555,9 +531,7 @@ for (const [language, extension, source] of [
       language,
       { timeout: 15000 },
     );
-    await page
-      .getByRole("button", { name: "Отправить текст", exact: true })
-      .click();
+    await page.getByRole("button", { name: "Send text", exact: true }).click();
     await expect(page.locator(".share-ready")).toBeVisible();
     const transfer = await page.evaluate(
       async () => (await (await fetch("/api/transfers")).json())[0],

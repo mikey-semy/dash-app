@@ -1,0 +1,357 @@
+.history-toggle:active {
+  scale: 1;
+}
+.history-toggle:hover,
+.history-toggle:active {
+  transform: none;
+}
+
+.primary-action > svg {
+  display: block;
+  width: var(--size-22);
+  height: var(--size-22);
+}
+
+button,
+a {
+  transition-property:
+    opacity, transform, scale, border-color, background-color;
+  transition-duration: var(--duration-180);
+}
+.icon-button:not(:disabled):active {
+  scale: 1;
+}
+
+.settings > .details-body {
+  width: var(--size-184);
+}
+.settings-toolbar {
+  width: var(--size-184);
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--size-8);
+  padding: var(--size-8);
+}
+.settings-toolbar > .icon-button {
+  width: var(--size-34);
+  height: var(--size-34);
+  padding: var(--size-7);
+  position: relative;
+}
+.duration-value {
+  display: flex;
+  align-items: baseline;
+  gap: var(--size-1);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-medium);
+  font-variant-numeric: tabular-nums;
+  animation: icon-feedback var(--duration-180) var(--ease-out);
+}
+.duration-value small {
+  font-size: var(--font-size-micro);
+  font-weight: var(--font-weight-normal);
+}
+
+.upload-link > svg {
+  width: var(--size-22);
+  height: var(--size-22);
+}
+.settings-toolbar button {
+  touch-action: manipulation;
+}
+
+/* Settings unfold in a single line to the left of the gear. */
+.settings > .inline-details-body {
+  position: absolute;
+  right: calc(100% + var(--size-8));
+  top: 0;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(var(--size-8));
+  transition:
+    opacity var(--duration-200) var(--ease),
+    transform var(--duration-240) var(--ease),
+    visibility var(--duration-0) var(--duration-240);
+}
+.settings > .inline-details-body[data-open="true"] {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(0);
+  transition:
+    opacity var(--duration-200) var(--ease),
+    transform var(--duration-240) var(--ease),
+    visibility var(--duration-0);
+}
+.settings .settings-toolbar {
+  border: 0;
+  background: transparent;
+  width: max-content;
+  padding: 0;
+  gap: var(--size-6);
+}
+.settings .details-toggle > svg {
+  transition: transform var(--duration-300) var(--easing-disclosure);
+}
+.settings[data-open="true"] .details-toggle > svg {
+  transform: rotate(90deg);
+}
+.inline-details-body .icon-button {
+  opacity: 0;
+  transform: translateX(var(--size-5));
+  transition:
+    opacity var(--duration-200) var(--ease),
+    transform var(--duration-240) var(--ease);
+}
+.inline-details-body[data-open="true"] .icon-button {
+  opacity: 1;
+  transform: translateX(0);
+}
+.inline-details-body[data-open="true"] .icon-button:nth-child(1) {
+  transition-delay: var(--duration-75);
+}
+.inline-details-body[data-open="true"] .icon-button:nth-child(2) {
+  transition-delay: var(--duration-50);
+}
+.inline-details-body[data-open="true"] .icon-button:nth-child(3) {
+  transition-delay: var(--duration-25);
+}
+.inline-details-body .icon-button:disabled {
+  opacity: var(--opacity-0-4);
+}
+
+.upload-times,
+.upload-metrics {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--size-20);
+  font-size: var(--font-size-caption);
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+}
+.upload-times {
+  margin: var(--size-20) 0 var(--size-10);
+}
+.upload-metrics {
+  margin-top: var(--size-10);
+}
+.upload-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--size-16);
+  margin-top: var(--size-20);
+}
+.upload-actions .icon-button {
+  padding: var(--size-7);
+}
+
+.dialog-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--size-12);
+}
+
+.file-choice {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--size-10);
+  min-width: 0;
+  font-size: var(--font-size-detail);
+  color: var(--color-text);
+}
+.file-choice input,
+.select-all input {
+  width: var(--size-12);
+  height: var(--size-12);
+  padding: 0;
+  margin: 0;
+  accent-color: var(--color-text);
+  flex-shrink: 0;
+}
+.select-all {
+  display: flex;
+  flex-direction: row;
+  margin: 0 0 var(--size-10);
+}
+.history-information .files li {
+  align-items: center;
+}
+
+.unavailable {
+  display: flex;
+  justify-content: center;
+  color: var(--color-danger);
+}
+.unavailable svg {
+  width: var(--size-24);
+  height: var(--size-24);
+}
+
+/* Keep the owner screen inside the visible mobile viewport after file selection. */
+html:has(.owner),
+body:has(.owner),
+#root:has(> .owner) {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+body:has(.owner) {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+}
+.owner {
+  position: fixed;
+  inset: 0;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+.owner > .center {
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.owner .content > .files {
+  max-height: 40dvh;
+  overflow: auto;
+  scrollbar-width: thin;
+  width: calc(100% + var(--size-18));
+  margin-right: var(--size-minus-18);
+  padding-right: var(--size-18);
+}
+.share-ready {
+  display: flex;
+  width: max-content;
+  max-width: 100%;
+  gap: var(--size-24);
+}
+.share-ready .share-controls {
+  position: relative;
+  left: auto;
+  top: auto;
+  transform: none;
+  gap: var(--size-24);
+}
+.archive-status {
+  display: flex;
+  justify-content: center;
+}
+.archive-status svg {
+  animation: archive-pulse var(--duration-1200) var(--ease-in-out) infinite;
+}
+.text-preview-body > .archive-status,
+.text-dialog-body > .archive-status {
+  position: fixed;
+  inset: 0;
+  align-items: center;
+  pointer-events: none;
+}
+@keyframes archive-pulse {
+  0%,
+  100% {
+    opacity: var(--opacity-0-35);
+    transform: translateY(var(--size-1));
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(var(--size-minus-1));
+  }
+}
+@media (--mobile) {
+  .share-ready {
+    gap: var(--size-12);
+  }
+  .share-ready .share-controls {
+    left: auto;
+    gap: var(--size-12);
+  }
+}
+
+.history-toggle .archive-status {
+  justify-content: flex-start;
+}
+.history-toggle .archive-status svg {
+  width: var(--size-14);
+  height: var(--size-14);
+}
+.dialog-header h2 {
+  display: flex;
+  align-items: center;
+}
+.recipient-share-actions {
+  display: flex;
+  justify-content: center;
+  gap: var(--size-16);
+}
+.expiry-inline {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.recipient .transfer-information {
+  max-height: calc(50dvh - var(--size-95));
+  overflow-y: auto;
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
+  padding-right: var(--size-18);
+  padding-left: var(--size-18);
+}
+.recipient .transfer-details {
+  width: min(var(--size-516), calc(100% - var(--size-12)));
+}
+
+.history-row {
+  grid-template-columns: var(--size-14) minmax(0, 1fr) auto;
+  gap: var(--size-8);
+}
+.history-select {
+  width: var(--size-12);
+  height: var(--size-12);
+  padding: 0;
+  margin: 0;
+  accent-color: var(--color-text);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.history-select:disabled {
+  cursor: default;
+}
+.history-toggle > .history-state {
+  display: flex;
+  flex-direction: row;
+  flex-shrink: 0;
+}
+.history-toggle > .history-date {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-5);
+  flex: 1;
+  min-width: 0;
+}
+.history-state svg {
+  width: var(--size-16);
+  height: var(--size-16);
+}
+@media (--mobile) {
+  .history-toggle {
+    gap: var(--size-6);
+    font-size: var(--font-size-small);
+  }
+  .history-row .share-controls {
+    gap: 0;
+  }
+}
+
+.dialog-header-start {
+  display: flex;
+  align-items: center;
+  gap: var(--size-20);
+}
+.dialog-header > .icon-button {
+  width: var(--size-32);
+  height: var(--size-32);
+}
+/* Text and code use the same plain surface as file transfers. */

@@ -10,10 +10,10 @@ test("archive preparation and text loading indicators remain centered on desktop
   page,
 }) => {
   await page.goto("/");
-  await page.getByLabel("Пароль", { exact: true }).fill("123456");
-  await page.getByRole("button", { name: "Войти", exact: true }).click();
+  await page.getByLabel("Password", { exact: true }).fill("123456");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "ЗАГРУЗИТЬ", exact: true }),
+    page.getByRole("button", { name: "UPLOAD", exact: true }),
   ).toBeVisible();
   let release;
   const pending = new Promise((resolve) => (release = resolve));
@@ -34,7 +34,7 @@ test("archive preparation and text loading indicators remain centered on desktop
       await centered(
         page,
         page
-          .getByRole("status", { name: "Подготовка загрузки", exact: true })
+          .getByRole("status", { name: "Preparing upload", exact: true })
           .locator("svg"),
       );
     }
@@ -63,14 +63,14 @@ test("archive preparation and text loading indicators remain centered on desktop
   try {
     await page.goto("/Load01");
     await page
-      .getByRole("button", { name: "Открыть просмотр", exact: true })
+      .getByRole("button", { name: "Open preview", exact: true })
       .click();
     for (const width of [1280, 390]) {
       await page.setViewportSize({ width, height: 844 });
       await centered(
         page,
         page
-          .getByRole("status", { name: "Загрузка текста", exact: true })
+          .getByRole("status", { name: "Loading text", exact: true })
           .locator("svg"),
       );
     }

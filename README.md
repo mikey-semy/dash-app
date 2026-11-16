@@ -1,40 +1,38 @@
 # DU
 
-Личная передача файлов: [files.example.com](https://files.example.com).
+Personal file sharing and static-site publishing at [files.example.com](https://files.example.com).
 
-## Использование
+- Upload files or folders by selection, drag-and-drop or paste. Folder paths are preserved; ignore rules exclude dependencies, caches and secrets. Review excluded entries before sending.
+- Share a short link. Recipients download original files, a ZIP, or selected members. Images, audio, video, PDF, UTF-8 text and Markdown support preview.
+- Paste text to open the full-screen editor. Syntax detection, source copying and password-protected Raw preserve the original text. Preview/editor limit: 5 MiB.
+- History supports search, selection, individual removal and adding files to an existing link. Rename transfer titles and filenames independently, directly in place.
+- Retention: 1/6/24 hours, 3/7 days, forever, or one completed download. The lock generates and copies a six-digit PIN; double-click removes it. Current-transfer settings are independent of new-upload defaults.
+- Trash and file removal require a second click to confirm. Deleted and expired transfers disappear from history; restoration is not available.
+- A transfer containing `index.html` or `index.htm` is a site. New sites receive a distinct readable title; the inline generator proposes another title while editing. Enter/blur saves, Escape cancels. Files and links remain unchanged.
+- Publish/unpublish controls public access. Presentation mode hides DU controls. A custom `404.html` handles missing site pages; otherwise a centered red cross is shown.
+- Connect a domain in transfer settings after pointing its DNS at the DU server. HTTPS is issued and renewed by Traefik. Once verified, copy, QR and native sharing use the domain; otherwise they use the DU short link. React/Vue route fallback is optional for built SPAs.
 
-- Файлы: выбор, перетаскивание или вставка из буфера. Папки сохраняют вложенные пути; общий ZIP формируется для скачивания. перед отправкой можно проверить состав и вернуть исключённое. Учитываются вложенные `.gitignore`, окружения и кэши языков, `.git`, `node_modules`, `target`, `.env` и ключи. `dist`, `build`, `outputs` исключаются только по `.gitignore`.
-- Незавершённая загрузка восстанавливается в том же браузере в течение суток. Нажать продолжение; уже принятые части не отправляются повторно. Если локальная копия недоступна, выбрать исходные файлы заново: содержимое сверяется. После завершения или отмены локальная копия удаляется.
-- Получатель скачивает оригинал, весь ZIP или отдельные/выбранные файлы из подробностей. Владелец может удалять файлы по одному рядом с просмотром или по выделению, сохраняя ссылку. Изображения, PDF, аудио и видео открываются на весь экран; воспроизведение зависит от кодеков браузера.
-- Вложенные Markdown открываются по ссылкам друг на друга, локальные картинки загружаются из той же передачи. Распознавание Markdown использует CommonMark/GFM-парсер remark; расширение файла имеет приоритет.
-- Текст: вставить на главном экране или открыть `</>` в меню. До 5 МиБ UTF-8, подсветка, номера строк, Raw и Markdown-превью. Уверенное определение даёт расширение языка, иначе `.txt`. При выключенной демонстрации просмотр открывается вручную; публичный просмотр — только чтение; карандаш владельца сохраняет изменения по той же ссылке.
-- Иконка экрана в параметрах включает демонстрацию без панелей DU. Картинки — нативная прокрутка Scroll Snap, медиа и PDF — браузерные просмотрщики, Markdown — полноэкранное превью. Статический сайт с `index.html` открывается в изолированном sandbox: страницы, CSS, изображения и JavaScript. Исходники скачиваются без изменений. Доступ к родительской странице и её хранилищу закрыт; серверный код не запускается. Для отсутствующих страниц используется загруженный `404.html` с HTTP 404; без него — красный крестик.
-- Новые передачи с `index.html` или `index.htm` (включая вложенные папки) получают свободное название вроде `amber-river`. Обычные файлы сохраняют прежние названия. При редактировании названия сайта появляется ↻: предложенный вариант сохраняется по Enter/уходу из поля, Esc отменяет. Имена файлов не меняются; существующие названия не заменяются автоматически.
-- Статический сайт: планета публикует, пауза закрывает публичную ссылку и скачивание, но сохраняет файлы у владельца. В параметрах можно привязать домен (`example.com`) и включить SPA-маршруты для собранного React/Vue. Загружать готовый `dist`/`build` с `index.html` и ресурсами, без серверной части. На своём домене сайт работает в отдельном origin; стили не обнуляются.
-- История: удалённые и истёкшие передачи не показываются, восстановления нет. Поиск по имени файла или передачи, фильтры по паролю, бессрочным и истекающим за сутки. В строке записи доступны открытие текущей, добавление файлов, параметры, QR, копирование и удаление. Даты и оставшееся время находятся внутри аккордиона.
-- У готовой передачи и в истории параметры меняют срок и пароль; название передачи и имена её файлов независимы; заголовок меняет только название, строка файла — только файл. Имена редактируются прямо на месте: клик, Enter/уход для сохранения, Esc для отмены. Переименование ZIP выполняется без изменения ссылки; прежняя версия доступна до готовности новой. Плюс добавляет файлы к той же ссылке.
-- Замок: клик создаёт и копирует шесть цифр, двойной убирает пароль. Галочка подтверждает копирование. Новые пароли хранятся зашифрованными и доступны владельцу после перезагрузки; старый хеш можно только заменить.
-- В цикле срока после `∞` идёт `1` — одноразовое скачивание, затем снова час. После завершённой полной выдачи файла/выбранного ZIP ссылка закрывается. Предпросмотр, Raw, HEAD и ошибки её не расходуют. Одноразовое скачивание при обрыве начинается заново; обычное поддерживает Range. Выключение режима открывает ссылку снова.
-- Корзина: первое нажатие показывает `?`, второе удаляет. Можно выбрать файлы или записи истории для удаления. Удаление всех файлов сохраняет пустую ссылку; удаление записей убирает передачи целиком.
+Up to **100 files / 2 GB** per transfer. Total quota: **20 GB**, including temporary ZIPs. Interrupted uploads can resume in the same browser for 24 hours; changed source files are rejected.
 
-До **100 файлов / 2 ГБ** в передаче, включая содержимое папок. Общая квота — **20 ГБ** с временными ZIP. Сроки: 1/6/24 часа, 3/7 дней, ∞, одноразовое скачивание. В шестерёнке предустановки новой загрузки; срок запоминается в браузере. Изменённый срок текущей передачи отсчитывается от момента изменения, смена пароля отзывает прежние разрешения получателей.
+## Setup and deployment
 
-При перетаскивании поверх текущей передачи верхняя зона создаёт новую, нижняя добавляет файлы к текущей. Вставка файлов из буфера добавляет к текущей; крестик слева сверху возвращает к новой загрузке без удаления.
-Из просмотра вставка или перетаскивание файлов закрывает просмотр и добавляет их к этой передаче. В редакторе с черновиком файловая вставка и перетаскивание блокируются, чтобы сохранить текст и не запускать скрытую загрузку.
+Copy `.env.example` to `.env` and fill in the owner PIN, S3 and hosting configuration. Example values are neutral; credentials and runtime data are excluded from Git.
 
-Изображения показываются без увеличения, крупные уменьшаются до экрана. Ошибки показывают красный крестик, сбой связи — красную кнопку перезагрузки; подробности выводятся в консоль разработчика.
+Pushes to `main` run checks and deploy through GitHub Actions. The service uses the `holder` Compose project, S3 objects and a persistent SQLite volume. `holder-sites.service` exports validated domain routes without giving the app access to Docker socket or other applications' configuration.
 
-## Настройка и публикация
+## Development
 
-Скопировать `.env.example` в `.env`, заполнить домен, пароль владельца из шести цифр, S3 и Traefik. Значения в примере условные; `.env` не попадает в Git.
+Node.js 24:
 
-Пуш в `main` запускает проверки и публикацию на server. Compose-проект `holder`, один экземпляр. Файлы — в S3, история — SQLite в томе `flash-data`. Смена ключа S3 или пароля владельца не меняет PIN передач, но сохранённые PIN для просмотра потребуется заменить.
+```sh
+npm ci
+npm run lint
+npm run format:check
+npm test
+npm run build
+npx playwright test
+```
 
-Для своего домена направить A/AAAA на тот же сервер, что и основной домен DU, затем ввести домен в параметрах передачи. Значок часов означает ожидание DNS/HTTPS, галочка — доступность по HTTPS. После успешной проверки копирование, QR и «Поделиться» используют `https://домен/`; до проверки или после отвязки — короткую ссылку DU. Сертификат Let’s Encrypt выпускается и обновляется Traefik автоматически; для HTTP-01 нужны доступные порты 80/443 и корректный DNS. Домены других приложений сервера не перехватываются. Маршруты экспортируются через отдельный `holder-sites.service`: приложение не получает Docker socket.
+Start with `node --env-file=.env server/main.js`. For a local address, set `PUBLIC_URL=http://localhost:3000` and allow that origin in the bucket CORS configuration.
 
-## Разработка
-
-Node.js 24: `npm ci`, `npm test`, `npm run build`.
-
-Запуск: `node --env-file=.env server/main.js`. Для локального адреса задать `PUBLIC_URL=http://localhost:3000`; CORS бакета должен разрешать этот адрес.
+Project conventions are in [AGENTS.md](AGENTS.md), boundaries in [ARCHITECTURE.md](ARCHITECTURE.md), and test guidance in [VALIDATION.md](VALIDATION.md).

@@ -1,8 +1,10 @@
+import { IconButton } from "./components/IconButton.jsx";
+import { copy } from "../shared/copy.js";
 import React, { useState } from "react";
 import { Icon } from "./Icons.jsx";
 export function PasswordInput({
-  label = "Пароль",
-  submitLabel = "Войти",
+  label = copy.password,
+  submitLabel = copy.signIn,
   error,
   ...props
 }) {
@@ -15,33 +17,31 @@ export function PasswordInput({
         placeholder={label}
         type={visible ? "text" : "password"}
       />
-      <button
-        type="button"
-        className="icon-button"
-        aria-label={visible ? "Скрыть пароль" : "Показать пароль"}
-        title={visible ? "Скрыть пароль" : "Показать пароль"}
+      <IconButton
+        aria-label={visible ? copy.hidePassword : copy.showPassword}
+        title={visible ? copy.hidePassword : copy.showPassword}
         aria-pressed={visible}
         onClick={() => setVisible(!visible)}
       >
         <Icon name={visible ? "hidden" : "eye"} />
-      </button>
+      </IconButton>
       {error && (
         <span
           className="password-error"
           role="img"
-          aria-label="Неверный пароль"
+          aria-label={copy.incorrectPassword}
         >
           <Icon name="cancel" />
         </span>
       )}
-      <button
+      <IconButton
         type="submit"
-        className="icon-button"
+
         aria-label={submitLabel}
         title={submitLabel}
       >
         <Icon name="enter" />
-      </button>
+      </IconButton>
     </div>
   );
 }

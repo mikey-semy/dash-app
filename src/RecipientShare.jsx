@@ -1,3 +1,5 @@
+import { IconButton } from "./components/IconButton.jsx";
+import { copy } from "../shared/copy.js";
 import React, { useState } from "react";
 import QRButton from "./QRButton.jsx";
 import { CopyButton, Icon } from "./Icons.jsx";
@@ -9,11 +11,9 @@ export function RecipientShare({ url }) {
         <CopyButton value={url} />
         <QRButton url={url} />
         {typeof navigator.share === "function" && (
-          <button
-            type="button"
-            className="icon-button"
-            aria-label="Поделиться"
-            title={failed ? "Не удалось поделиться" : "Поделиться"}
+          <IconButton
+            aria-label={copy.share}
+            title={failed ? copy.couldNotShare : copy.share}
             onClick={async () => {
               try {
                 await navigator.share({ url });
@@ -24,7 +24,7 @@ export function RecipientShare({ url }) {
             }}
           >
             <Icon name={failed ? "warning" : "share"} />
-          </button>
+          </IconButton>
         )}
       </div>
     </div>

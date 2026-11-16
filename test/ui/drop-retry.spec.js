@@ -2,8 +2,8 @@ import { test, expect } from "@playwright/test";
 import { unzipSync } from "fflate";
 async function login(page) {
   await page.goto("/");
-  await page.getByLabel("Пароль", { exact: true }).fill("123456");
-  await page.getByRole("button", { name: "Войти", exact: true }).click();
+  await page.getByLabel("Password", { exact: true }).fill("123456");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.locator(".owner")).toBeVisible();
 }
 async function transfer(page) {
@@ -32,7 +32,7 @@ async function drop(page, name, bottom) {
   );
   await expect(page.locator(".drop-zone.active")).toHaveAttribute(
     "aria-label",
-    bottom ? "Добавить к текущей передаче" : "Новая передача",
+    bottom ? "Add to current transfer" : "New transfer",
   );
   await page.evaluate(
     ({ name, bottom }) => {
@@ -62,7 +62,7 @@ test("drop zones append below and create above; closing current keeps its files"
   });
   await expect(
     page.getByRole("button", {
-      name: "Добавить",
+      name: "Add",
       exact: true,
     }),
   ).toBeVisible();
@@ -71,7 +71,7 @@ test("drop zones append below and create above; closing current keeps its files"
   await expect.poll(async () => (await transfer(page)).files.length).toBe(2);
   await expect(
     page.getByRole("button", {
-      name: "Добавить",
+      name: "Add",
       exact: true,
     }),
   ).toBeVisible();
@@ -84,11 +84,11 @@ test("drop zones append below and create above; closing current keeps its files"
   await drop(page, "third.txt", false);
   await expect.poll(async () => (await transfer(page)).id).not.toBe(first.id);
   await expect(
-    page.getByRole("button", { name: "Закрыть текущую передачу" }),
+    page.getByRole("button", { name: "Close current transfer" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Закрыть текущую передачу" }).click();
+  await page.getByRole("button", { name: "Close current transfer" }).click();
   await expect(
-    page.getByRole("button", { name: "ЗАГРУЗИТЬ", exact: true }),
+    page.getByRole("button", { name: "UPLOAD", exact: true }),
   ).toBeVisible();
   expect(
     await page.evaluate(
@@ -114,7 +114,7 @@ test("connection failures offer a centered red reload button without an error se
         }),
   );
   await page.goto("/Retry1");
-  const retry = page.getByRole("button", { name: "Перезагрузить страницу" });
+  const retry = page.getByRole("button", { name: "Reload page" });
   await expect(retry).toBeVisible();
   expect((await page.locator("body").innerText()).trim()).toBe("");
   expect(await retry.evaluate((el) => getComputedStyle(el).color)).toBe(
@@ -127,7 +127,7 @@ test("connection failures offer a centered red reload button without an error se
   failed = false;
   await retry.click();
   await expect(
-    page.getByRole("link", { name: "СКАЧАТЬ", exact: true }),
+    page.getByRole("link", { name: "DOWNLOAD", exact: true }),
   ).toBeVisible();
 });
 
@@ -147,11 +147,11 @@ test("a brief proxy 404 during startup recovers without showing an error or losi
       : route.continue(),
   );
   await page.goto("/");
-  await expect(page.getByLabel("Пароль", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
   expect(calls).toBe(3);
   expect(failures).toEqual([]);
   await expect(
-    page.getByRole("button", { name: "Перезагрузить страницу", exact: true }),
+    page.getByRole("button", { name: "Reload page", exact: true }),
   ).toHaveCount(0);
 });
 test("desktop archive and menu feedback animate even with system motion disabled", async ({
@@ -172,13 +172,13 @@ test("desktop archive and menu feedback animate even with system motion disabled
     }),
   );
   await login(page);
-  await page.getByLabel("Настройки", { exact: true }).click();
+  await page.getByLabel("Settings", { exact: true }).click();
   expect(
     await page
       .locator(".settings .inline-details-body")
       .evaluate((el) => getComputedStyle(el).transitionDuration),
   ).not.toBe("0s");
-  await page.getByRole("button", { name: "История", exact: true }).click();
+  await page.getByRole("button", { name: "History", exact: true }).click();
   expect(
     await page
       .locator(".history-state svg")

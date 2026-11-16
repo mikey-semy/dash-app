@@ -1,3 +1,4 @@
+import { copy } from "../shared/copy.js";
 import { Open } from "unzipper";
 import { PassThrough, Readable } from "node:stream";
 export async function archiveTextObject(store, t, index, range) {
@@ -61,7 +62,7 @@ export async function archiveTextObject(store, t, index, range) {
       entry.compressedSize !== entry.uncompressedSize ||
       entry.flags & 1
     )
-      throw Object.assign(new Error("Архив не поддерживается"), {
+      throw Object.assign(new Error(copy.unsupportedArchive), {
         status: 415,
       });
   } catch (error) {

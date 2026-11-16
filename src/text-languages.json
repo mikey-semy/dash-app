@@ -2,129 +2,79 @@
   {
     "name": "C",
     "id": "c",
-    "extensions": [
-      "c",
-      "h",
-      "ino"
-    ],
+    "extensions": ["c", "h", "ino"],
     "filename": null
   },
   {
     "name": "C++",
     "id": "cpp",
-    "extensions": [
-      "cpp",
-      "c++",
-      "cc",
-      "cxx",
-      "hpp",
-      "h++",
-      "hh",
-      "hxx"
-    ],
+    "extensions": ["cpp", "c++", "cc", "cxx", "hpp", "h++", "hh", "hxx"],
     "filename": null
   },
   {
     "name": "CSS",
     "id": "css",
-    "extensions": [
-      "css"
-    ],
+    "extensions": ["css"],
     "filename": null
   },
   {
     "name": "Go",
     "id": "go",
-    "extensions": [
-      "go"
-    ],
+    "extensions": ["go"],
     "filename": null
   },
   {
     "name": "HTML",
     "id": "xml",
-    "extensions": [
-      "html",
-      "htm",
-      "handlebars",
-      "hbs"
-    ],
+    "extensions": ["html", "htm", "handlebars", "hbs"],
     "filename": null
   },
   {
     "name": "Java",
     "id": "java",
-    "extensions": [
-      "java"
-    ],
+    "extensions": ["java"],
     "filename": null
   },
   {
     "name": "JavaScript",
     "id": "javascript",
-    "extensions": [
-      "js",
-      "mjs",
-      "cjs"
-    ],
+    "extensions": ["js", "mjs", "cjs"],
     "filename": null
   },
   {
     "name": "Jinja",
     "id": "django",
-    "extensions": [
-      "j2",
-      "jinja",
-      "jinja2"
-    ],
+    "extensions": ["j2", "jinja", "jinja2"],
     "filename": null
   },
   {
     "name": "JSON",
     "id": "json",
-    "extensions": [
-      "json",
-      "map"
-    ],
+    "extensions": ["json", "map"],
     "filename": null
   },
   {
     "name": "JSX",
     "id": "javascript",
-    "extensions": [
-      "jsx"
-    ],
+    "extensions": ["jsx"],
     "filename": null
   },
   {
     "name": "LESS",
     "id": "less",
-    "extensions": [
-      "less"
-    ],
+    "extensions": ["less"],
     "filename": null
   },
   {
     "name": "Markdown",
     "id": "markdown",
-    "extensions": [
-      "md",
-      "markdown",
-      "mkd"
-    ],
+    "extensions": ["md", "markdown", "mkd"],
     "filename": null
   },
   {
     "name": "PHP",
     "id": "php",
-    "extensions": [
-      "php",
-      "php3",
-      "php4",
-      "php5",
-      "php7",
-      "phtml"
-    ],
+    "extensions": ["php", "php3", "php4", "php5", "php7", "phtml"],
     "filename": null
   },
   {
@@ -136,12 +86,7 @@
   {
     "name": "Python",
     "id": "python",
-    "extensions": [
-      "BUILD",
-      "bzl",
-      "py",
-      "pyw"
-    ],
+    "extensions": ["BUILD", "bzl", "py", "pyw"],
     "filename": {
       "source": "^(BUCK|BUILD)$",
       "flags": ""
@@ -150,99 +95,67 @@
   {
     "name": "Rust",
     "id": "rust",
-    "extensions": [
-      "rs"
-    ],
+    "extensions": ["rs"],
     "filename": null
   },
   {
     "name": "SCSS",
     "id": "scss",
-    "extensions": [
-      "scss"
-    ],
+    "extensions": ["scss"],
     "filename": null
   },
   {
     "name": "SQL",
     "id": "sql",
-    "extensions": [
-      "sql"
-    ],
+    "extensions": ["sql"],
     "filename": null
   },
   {
     "name": "TSX",
     "id": "typescript",
-    "extensions": [
-      "tsx"
-    ],
+    "extensions": ["tsx"],
     "filename": null
   },
   {
     "name": "TypeScript",
     "id": "typescript",
-    "extensions": [
-      "ts",
-      "mts",
-      "cts"
-    ],
+    "extensions": ["ts", "mts", "cts"],
     "filename": null
   },
   {
     "name": "XML",
     "id": "xml",
-    "extensions": [
-      "xml",
-      "xsl",
-      "xsd",
-      "svg"
-    ],
+    "extensions": ["xml", "xsl", "xsd", "svg"],
     "filename": null
   },
   {
     "name": "YAML",
     "id": "yaml",
-    "extensions": [
-      "yaml",
-      "yml"
-    ],
+    "extensions": ["yaml", "yml"],
     "filename": null
   },
   {
     "name": "Brainfuck",
     "id": "brainfuck",
-    "extensions": [
-      "b",
-      "bf"
-    ],
+    "extensions": ["b", "bf"],
     "filename": null
   },
   {
     "name": "C#",
     "id": "csharp",
-    "extensions": [
-      "cs"
-    ],
+    "extensions": ["cs"],
     "filename": null
   },
   {
     "name": "Clojure",
     "id": "clojure",
-    "extensions": [
-      "clj",
-      "cljc",
-      "cljx"
-    ],
+    "extensions": ["clj", "cljc", "cljx"],
     "filename": null
   },
   {
     "name": "CMake",
     "id": "cmake",
-    "extensions": [
-      "cmake",
-      "cmake.in"
-    ],
+    "extensions": ["cmake", "cmake.in"],
     "filename": {
       "source": "^CMakeLists\\.txt$",
       "flags": ""
@@ -251,52 +164,37 @@
   {
     "name": "CoffeeScript",
     "id": "coffeescript",
-    "extensions": [
-      "coffee"
-    ],
+    "extensions": ["coffee"],
     "filename": null
   },
   {
     "name": "Common Lisp",
     "id": "lisp",
-    "extensions": [
-      "cl",
-      "lisp",
-      "el"
-    ],
+    "extensions": ["cl", "lisp", "el"],
     "filename": null
   },
   {
     "name": "Crystal",
     "id": "crystal",
-    "extensions": [
-      "cr"
-    ],
+    "extensions": ["cr"],
     "filename": null
   },
   {
     "name": "D",
     "id": "d",
-    "extensions": [
-      "d"
-    ],
+    "extensions": ["d"],
     "filename": null
   },
   {
     "name": "Dart",
     "id": "dart",
-    "extensions": [
-      "dart"
-    ],
+    "extensions": ["dart"],
     "filename": null
   },
   {
     "name": "diff",
     "id": "diff",
-    "extensions": [
-      "diff",
-      "patch"
-    ],
+    "extensions": ["diff", "patch"],
     "filename": null
   },
   {
@@ -317,62 +215,43 @@
   {
     "name": "edn",
     "id": "clojure",
-    "extensions": [
-      "edn"
-    ],
+    "extensions": ["edn"],
     "filename": null
   },
   {
     "name": "Elm",
     "id": "elm",
-    "extensions": [
-      "elm"
-    ],
+    "extensions": ["elm"],
     "filename": null
   },
   {
     "name": "Erlang",
     "id": "erlang",
-    "extensions": [
-      "erl"
-    ],
+    "extensions": ["erl"],
     "filename": null
   },
   {
     "name": "Fortran",
     "id": "fortran",
-    "extensions": [
-      "f",
-      "for",
-      "f77",
-      "f90",
-      "f95"
-    ],
+    "extensions": ["f", "for", "f77", "f90", "f95"],
     "filename": null
   },
   {
     "name": "F#",
     "id": "fsharp",
-    "extensions": [
-      "fs"
-    ],
+    "extensions": ["fs"],
     "filename": null
   },
   {
     "name": "Gherkin",
     "id": "gherkin",
-    "extensions": [
-      "feature"
-    ],
+    "extensions": ["feature"],
     "filename": null
   },
   {
     "name": "Groovy",
     "id": "groovy",
-    "extensions": [
-      "groovy",
-      "gradle"
-    ],
+    "extensions": ["groovy", "gradle"],
     "filename": {
       "source": "^Jenkinsfile$",
       "flags": ""
@@ -381,17 +260,13 @@
   {
     "name": "Haskell",
     "id": "haskell",
-    "extensions": [
-      "hs"
-    ],
+    "extensions": ["hs"],
     "filename": null
   },
   {
     "name": "Haxe",
     "id": "haxe",
-    "extensions": [
-      "hx"
-    ],
+    "extensions": ["hx"],
     "filename": null
   },
   {
@@ -403,45 +278,31 @@
   {
     "name": "Julia",
     "id": "julia",
-    "extensions": [
-      "jl"
-    ],
+    "extensions": ["jl"],
     "filename": null
   },
   {
     "name": "Kotlin",
     "id": "kotlin",
-    "extensions": [
-      "kt",
-      "kts"
-    ],
+    "extensions": ["kt", "kts"],
     "filename": null
   },
   {
     "name": "LiveScript",
     "id": "livescript",
-    "extensions": [
-      "ls"
-    ],
+    "extensions": ["ls"],
     "filename": null
   },
   {
     "name": "Lua",
     "id": "lua",
-    "extensions": [
-      "lua"
-    ],
+    "extensions": ["lua"],
     "filename": null
   },
   {
     "name": "Mathematica",
     "id": "mathematica",
-    "extensions": [
-      "m",
-      "nb",
-      "wl",
-      "wls"
-    ],
+    "extensions": ["m", "nb", "wl", "wls"],
     "filename": null
   },
   {
@@ -456,116 +317,79 @@
   {
     "name": "NSIS",
     "id": "nsis",
-    "extensions": [
-      "nsh",
-      "nsi"
-    ],
+    "extensions": ["nsh", "nsi"],
     "filename": null
   },
   {
     "name": "Objective-C",
     "id": "objectivec",
-    "extensions": [
-      "m"
-    ],
+    "extensions": ["m"],
     "filename": null
   },
   {
     "name": "Objective-C++",
     "id": "objectivec",
-    "extensions": [
-      "mm"
-    ],
+    "extensions": ["mm"],
     "filename": null
   },
   {
     "name": "OCaml",
     "id": "ocaml",
-    "extensions": [
-      "ml",
-      "mli",
-      "mll",
-      "mly"
-    ],
+    "extensions": ["ml", "mli", "mll", "mly"],
     "filename": null
   },
   {
     "name": "Pascal",
     "id": "delphi",
-    "extensions": [
-      "p",
-      "pas"
-    ],
+    "extensions": ["p", "pas"],
     "filename": null
   },
   {
     "name": "Perl",
     "id": "perl",
-    "extensions": [
-      "pl",
-      "pm"
-    ],
+    "extensions": ["pl", "pm"],
     "filename": null
   },
   {
     "name": "PowerShell",
     "id": "powershell",
-    "extensions": [
-      "ps1",
-      "psd1",
-      "psm1"
-    ],
+    "extensions": ["ps1", "psd1", "psm1"],
     "filename": null
   },
   {
     "name": "Properties files",
     "id": "ini",
-    "extensions": [
-      "properties",
-      "ini",
-      "in"
-    ],
+    "extensions": ["properties", "ini", "in"],
     "filename": null
   },
   {
     "name": "ProtoBuf",
     "id": "protobuf",
-    "extensions": [
-      "proto"
-    ],
+    "extensions": ["proto"],
     "filename": null
   },
   {
     "name": "Puppet",
     "id": "puppet",
-    "extensions": [
-      "pp"
-    ],
+    "extensions": ["pp"],
     "filename": null
   },
   {
     "name": "Q",
     "id": "q",
-    "extensions": [
-      "q"
-    ],
+    "extensions": ["q"],
     "filename": null
   },
   {
     "name": "R",
     "id": "r",
-    "extensions": [
-      "r",
-      "R"
-    ],
+    "extensions": ["r", "R"],
     "filename": null
   },
   {
     "name": "Ruby",
     "id": "ruby",
-    "extensions": [
-      "rb"
-    ],
+    "extensions": ["rb"],
     "filename": {
       "source": "^(Gemfile|Rakefile)$",
       "flags": ""
@@ -574,36 +398,25 @@
   {
     "name": "SAS",
     "id": "sas",
-    "extensions": [
-      "sas"
-    ],
+    "extensions": ["sas"],
     "filename": null
   },
   {
     "name": "Scala",
     "id": "scala",
-    "extensions": [
-      "scala"
-    ],
+    "extensions": ["scala"],
     "filename": null
   },
   {
     "name": "Scheme",
     "id": "scheme",
-    "extensions": [
-      "scm",
-      "ss"
-    ],
+    "extensions": ["scm", "ss"],
     "filename": null
   },
   {
     "name": "Shell",
     "id": "bash",
-    "extensions": [
-      "sh",
-      "ksh",
-      "bash"
-    ],
+    "extensions": ["sh", "ksh", "bash"],
     "filename": {
       "source": "^PKGBUILD$",
       "flags": ""
@@ -612,20 +425,13 @@
   {
     "name": "Smalltalk",
     "id": "smalltalk",
-    "extensions": [
-      "st"
-    ],
+    "extensions": ["st"],
     "filename": null
   },
   {
     "name": "SML",
     "id": "sml",
-    "extensions": [
-      "sml",
-      "sig",
-      "fun",
-      "smackspec"
-    ],
+    "extensions": ["sml", "sig", "fun", "smackspec"],
     "filename": null
   },
   {
@@ -637,80 +443,55 @@
   {
     "name": "Stylus",
     "id": "stylus",
-    "extensions": [
-      "styl"
-    ],
+    "extensions": ["styl"],
     "filename": null
   },
   {
     "name": "Swift",
     "id": "swift",
-    "extensions": [
-      "swift"
-    ],
+    "extensions": ["swift"],
     "filename": null
   },
   {
     "name": "LaTeX",
     "id": "latex",
-    "extensions": [
-      "text",
-      "ltx",
-      "tex"
-    ],
+    "extensions": ["text", "ltx", "tex"],
     "filename": null
   },
   {
     "name": "Tcl",
     "id": "tcl",
-    "extensions": [
-      "tcl"
-    ],
+    "extensions": ["tcl"],
     "filename": null
   },
   {
     "name": "TOML",
     "id": "ini",
-    "extensions": [
-      "toml"
-    ],
+    "extensions": ["toml"],
     "filename": null
   },
   {
     "name": "VBScript",
     "id": "vbscript",
-    "extensions": [
-      "vbs"
-    ],
+    "extensions": ["vbs"],
     "filename": null
   },
   {
     "name": "Verilog",
     "id": "verilog",
-    "extensions": [
-      "v"
-    ],
+    "extensions": ["v"],
     "filename": null
   },
   {
     "name": "VHDL",
     "id": "vhdl",
-    "extensions": [
-      "vhd",
-      "vhdl"
-    ],
+    "extensions": ["vhd", "vhdl"],
     "filename": null
   },
   {
     "name": "XQuery",
     "id": "xquery",
-    "extensions": [
-      "xy",
-      "xquery",
-      "xq",
-      "xqm",
-      "xqy"
-    ],
+    "extensions": ["xy", "xquery", "xq", "xqm", "xqy"],
     "filename": null
   }
 ]

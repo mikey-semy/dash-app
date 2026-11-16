@@ -11,6 +11,8 @@ COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/dist ./dist
 COPY --chown=node:node package.json ./
 COPY --chown=node:node server ./server
+COPY --chown=node:node shared ./shared
+COPY --chown=node:node src/styles/tokens.css src/styles/status-page.css ./src/styles/
 COPY --chown=node:node src/text-languages.json ./src/text-languages.json
 COPY --chown=node:node src/resource-name.js ./src/resource-name.js
 RUN mkdir /app/data && chown node:node /app/data

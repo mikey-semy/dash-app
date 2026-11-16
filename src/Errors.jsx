@@ -1,8 +1,10 @@
+import { IconButton } from "./components/IconButton.jsx";
+import { copy } from "../shared/copy.js";
 import React, { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "./Icons.jsx";
 export const connectionError = (error) =>
-  /связаться с сервером|соединени.*прерван|временно недоступна|failed to fetch|network|load failed/i.test(
+  /could not connect|connection.*interrupted|temporarily unavailable|failed to fetch|network|load failed/i.test(
     error?.message || error || "",
   ) || error?.status >= 500;
 export function ErrorNotice({ error, context = "interface" }) {
@@ -11,16 +13,15 @@ export function ErrorNotice({ error, context = "interface" }) {
   }, [error, context]);
   const content =
     error && connectionError(error) ? (
-      <button
-        type="button"
+      <IconButton
         className="icon-button error-notice"
-        aria-label="Перезагрузить страницу"
+        aria-label={copy.reloadPage}
         onClick={() => location.reload()}
       >
         <Icon name="reload" />
-      </button>
+      </IconButton>
     ) : error ? (
-      <span className="error-notice" role="img" aria-label="Ошибка">
+      <span className="error-notice" role="img" aria-label={copy.error}>
         <Icon name="cancel" />
       </span>
     ) : null;
@@ -35,12 +36,12 @@ export function ErrorNotice({ error, context = "interface" }) {
 export function ErrorPage({ error, status }) {
   const retry = connectionError(error) || status >= 500;
   useEffect(() => {
-    document.title = "Ошибка";
+    document.title = copy.error;
     console.error(
       "[DU]",
       status || "Error",
       location.pathname,
-      error || "Страница недоступна",
+      error || copy.pageUnavailable,
     );
     if (status)
       fetch(location.href, { headers: { Accept: "application/json" } })
@@ -57,17 +58,16 @@ export function ErrorPage({ error, status }) {
   return (
     <main className="center">
       {retry ? (
-        <button
-          type="button"
+        <IconButton
           className="icon-button unavailable"
-          aria-label="Перезагрузить страницу"
+          aria-label={copy.reloadPage}
           onClick={() => location.reload()}
         >
           <Icon name="reload" />
-        </button>
+        </IconButton>
       ) : (
-        <a className="unavailable" href="/" aria-label="Вернуться к загрузке">
-          <span role="img" aria-label="Передача недоступна">
+        <a className="unavailable" href="/" aria-label={copy.backToUpload}>
+          <span role="img" aria-label={copy.transferUnavailable}>
             <Icon name="cancel" />
           </span>
         </a>
@@ -89,7 +89,7 @@ export class ErrorBoundary extends React.Component {
         error:
           event.error ||
           event.reason ||
-          new Error(event.message || "Необработанная ошибка"),
+          new Error(event.message || copy.unhandledError),
       });
     window.addEventListener("error", this.failure);
     window.addEventListener("unhandledrejection", this.failure);

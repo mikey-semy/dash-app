@@ -1,3 +1,4 @@
+import { copy } from "../shared/copy.js";
 import { DatabaseSync } from "node:sqlite";
 import {
   randomBytes,
@@ -6,9 +7,15 @@ import {
   timingSafeEqual,
   createHash,
 } from "node:crypto";
-export const PART = 8 * 1024 * 1024,
-  LIMIT = 2_000_000_000,
-  QUOTA = 20_000_000_000;
+import {
+  PART,
+  LIMIT,
+  QUOTA,
+  MAX_FILES,
+  RETENTION_SECONDS,
+  TIME_ZONE,
+} from "../shared/config.js";
+export { PART, LIMIT, QUOTA };
 export const revision = (t) =>
   createHash("sha256")
     .update(t.output?.key || "empty")
@@ -32,7 +39,7 @@ function uniqueShareToken(db) {
   return value;
 }
 const archiveDateFormat = new Intl.DateTimeFormat("en-GB", {
-  timeZone: "Europe/Moscow",
+  timeZone: TIME_ZONE,
   year: "numeric",
   month: "2-digit",
   day: "2-digit",
@@ -173,7 +180,7 @@ export function insertTransfer(db, files, ttl, password, append = null) {
   if (
     !Array.isArray(files) ||
     !files.length ||
-    files.length > 100 ||
+    files.length > MAX_FILES ||
     files.some(
       (f) =>
         !f ||
@@ -183,11 +190,11 @@ export function insertTransfer(db, files, ttl, password, append = null) {
     ) ||
     files.reduce((n, f) => n + f.size, 0) > LIMIT
   )
-    throw Object.assign(new Error("До 100 файлов, суммарно до 2 ГБ"), {
+    throw Object.assign(new Error(copy.upTo100Files2GbInTotal), {
       status: 400,
     });
-  if (![0, 3600, 21600, 86400, 259200, 604800].includes(ttl))
-    throw Object.assign(new Error("Неверный срок"), { status: 400 });
+  if (!RETENTION_SECONDS.includes(ttl))
+    throw Object.assign(new Error(copy.invalidRetention), { status: 400 });
   const clean = safeNames(
     files.map(({ name, size, directory }) => ({
       name,
@@ -208,7 +215,7 @@ export function insertTransfer(db, files, ttl, password, append = null) {
       .prepare("SELECT coalesce(sum(reserved),0) n FROM transfers")
       .get().n;
     if (used + reserved > QUOTA)
-      throw Object.assign(new Error("Недостаточно места"), { status: 409 });
+      throw Object.assign(new Error(copy.notEnoughStorage), { status: 409 });
     db.prepare(
       "INSERT INTO transfers(id,token,state,created,ttl,password,files,reserved,parent,base) VALUES(?,?,?,?,?,?,?,?,?,?)",
     ).run(

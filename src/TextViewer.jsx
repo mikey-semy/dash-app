@@ -1,3 +1,4 @@
+import { copy } from "../shared/copy.js";
 import React, { useEffect, useRef } from "react";
 import { Expiry } from "./Icons.jsx";
 import TextPreview from "./TextPreview.jsx";
@@ -22,7 +23,7 @@ export default function TextViewer({
     <dialog
       ref={ref}
       className="viewer-dialog"
-      aria-label="Просмотр текста"
+      aria-label={copy.textPreview}
       onCancel={(event) => {
         event.preventDefault();
         onClose();

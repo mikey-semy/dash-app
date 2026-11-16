@@ -34,31 +34,27 @@ test("owner shares the verified domain while Markdown links still use the DU tok
   );
   const history = async () => {
     await page.goto("/");
-    await page.getByLabel("Настройки", { exact: true }).click();
-    await page.getByRole("button", { name: "История", exact: true }).click();
+    await page.getByLabel("Settings", { exact: true }).click();
+    await page.getByRole("button", { name: "History", exact: true }).click();
   };
   await history();
-  await page
-    .getByRole("button", { name: "Копировать ссылку", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Copy link", exact: true }).click();
   await expect
     .poll(() => page.evaluate(() => navigator.clipboard.readText()))
     .toBe(shareUrl);
   await page.locator(".history-toggle").click();
   await page
-    .getByRole("button", { name: "Просмотреть README.md", exact: true })
+    .getByRole("button", { name: "Preview README.md", exact: true })
     .click();
   await expect(
     page.getByRole("link", { name: "Next", exact: true }),
   ).toHaveAttribute("href", "/Abc123?file=docs%2Fnext.md");
   await page
-    .getByRole("button", { name: "Закрыть просмотр", exact: true })
+    .getByRole("button", { name: "Close preview", exact: true })
     .click();
   shareUrl = canonical;
   await history();
-  await page
-    .getByRole("button", { name: "Копировать ссылку", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Copy link", exact: true }).click();
   await expect
     .poll(() => page.evaluate(() => navigator.clipboard.readText()))
     .toBe(canonical);
@@ -94,17 +90,15 @@ test("recipient copy, QR and native share use the verified domain", async ({
     }),
   );
   await page.goto("/Abc123");
-  await page.getByLabel("Подробности передачи", { exact: true }).click();
-  await page
-    .getByRole("button", { name: "Копировать ссылку", exact: true })
-    .click();
+  await page.getByLabel("Transfer details", { exact: true }).click();
+  await page.getByRole("button", { name: "Copy link", exact: true }).click();
   await expect
     .poll(() => page.evaluate(() => navigator.clipboard.readText()))
     .toBe(shareUrl);
-  await page.getByRole("button", { name: "Поделиться", exact: true }).click();
+  await page.getByRole("button", { name: "Share", exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.sharedURL)).toBe(shareUrl);
-  await page.getByRole("button", { name: "QR-код", exact: true }).click();
+  await page.getByRole("button", { name: "QR code", exact: true }).click();
   await expect(
-    page.getByRole("img", { name: "QR-код ссылки", exact: true }),
+    page.getByRole("img", { name: "Link QR code", exact: true }),
   ).toBeVisible();
 });

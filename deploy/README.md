@@ -1,7 +1,9 @@
-# Существующий бакет example-bucket
+# Deployment
 
-Приложение использует только `holder/`, задайте `S3_BUCKET=example-bucket` и `S3_PREFIX=holder/`. Это префикс объектов S3, отдельный объект-папку создавать не требуется.
+The established GitHub Actions workflow builds and deploys the `holder` Compose service after checks pass. Runtime configuration is kept in the server `.env`; use `.env.example` as the complete neutral template.
 
-JSON-файлы — шаблоны для проверки и слияния, а не готовые команды замены конфигурации общего бакета. Сначала прочитайте существующие CORS, lifecycle, policy и versioning. Затем добавьте CORS для https://files.example.com и lifecycle AbortIncompleteMultipartUpload через 1 день только для holder/, сохранив все существующие правила и доступ example-app. Если нет прав прочитать или безопасно обновить настройки, изменение останавливается.
+S3 configuration is shared infrastructure. Read existing CORS, lifecycle, policy and versioning settings before merging changes. Restrict this application's object access and multipart cleanup to its configured prefix; preserve other applications' rules and credentials. The JSON files in this directory are templates to review and merge, not replacement commands.
 
-Объектные права нового сервисного аккаунта по возможности ограничьте arn:aws:s3:::example-bucket/holder/*. Существующие credentials example-app не печатать, не сохранять в git и не отзывать. Для безопасного освобождения физического места требуется выключенное versioning/Object Lock либо отдельная доработка учёта версий. Не отключать общие настройки бакета без согласования.
+Custom domains use the existing Traefik file provider and certificate resolver. `sync-sites.py` accepts only validated domain names, refuses hostnames already used by other applications, and writes only its own routing file. The app exports domain data through a dedicated bind mount and receives no Docker socket.
+
+Point domain A/AAAA records at the same server as DU. HTTP-01 certificate issuance requires correct DNS and accessible ports 80/443. Domains stay separate from transfer titles and share tokens.

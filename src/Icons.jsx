@@ -1,3 +1,7 @@
+import { IconButton } from "./components/IconButton.jsx";
+import { date } from "./lib/format.js";
+import { UI, TIMING } from "../shared/config.js";
+import { copy } from "../shared/copy.js";
 import React, { useState, useEffect, useRef } from "react";
 import {
   Presentation,
@@ -69,11 +73,18 @@ const glyphs = {
   download: ArrowDown,
   settings: Settings,
 };
-export function Icon({ name, size = 18 }) {
+export function Icon({ name, size = UI.iconSize }) {
   const Glyph = glyphs[name] || CircleHelp;
-  return <Glyph key={name} size={size} strokeWidth={1.4} aria-hidden="true" />;
+  return (
+    <Glyph
+      key={name}
+      size={size}
+      strokeWidth={UI.iconStroke}
+      aria-hidden="true"
+    />
+  );
 }
-export function CopyButton({ value, label = "Копировать ссылку" }) {
+export function CopyButton({ value, label = copy.copyLink }) {
   const [copied, setCopied] = useState(false),
     [failed, setFailed] = useState(false);
   useEffect(() => {
@@ -81,16 +92,15 @@ export function CopyButton({ value, label = "Копировать ссылку" 
       const id = setTimeout(() => {
         setCopied(false);
         setFailed(false);
-      }, 1500);
+      }, TIMING.feedback);
       return () => clearTimeout(id);
     }
   }, [copied, failed]);
   return (
-    <button
-      type="button"
+    <IconButton
       className={failed ? "icon-button edit-error" : "icon-button"}
       aria-label={label}
-      title={failed ? undefined : copied ? "Скопировано" : label}
+      title={failed ? undefined : copied ? copy.copied : label}
       disabled={!value}
       onClick={async () => {
         try {
@@ -106,16 +116,16 @@ export function CopyButton({ value, label = "Копировать ссылку" 
     >
       <Icon name={failed ? "cancel" : copied ? "check" : "copy"} />
       <span className="sr-only" role="status">
-        {copied ? "Скопировано" : ""}
+        {copied ? copy.copied : ""}
       </span>
-    </button>
+    </IconButton>
   );
 }
 export function DeleteButton({
   onDelete,
   onPrepare,
   disabled,
-  label = "Удалить",
+  label = copy.delete,
   icon = "delete",
   confirmationKey = "",
 }) {
@@ -127,14 +137,12 @@ export function DeleteButton({
   }, [disabled, label, confirmationKey]);
   useEffect(() => {
     if (!armed) return;
-    const timer = setTimeout(() => setArmed(false), 4000);
+    const timer = setTimeout(() => setArmed(false), TIMING.confirmation);
     return () => clearTimeout(timer);
   }, [armed]);
-  const text = armed ? "Подтвердить удаление" : label;
+  const text = armed ? copy.confirmDeletion : label;
   return (
-    <button
-      type="button"
-      className="icon-button"
+    <IconButton
       disabled={disabled || busy}
       aria-label={text}
       title={text}
@@ -159,7 +167,7 @@ export function DeleteButton({
       }}
     >
       <Icon name={armed ? "question" : icon} />
-    </button>
+    </IconButton>
   );
 }
 export function Expiry({
@@ -181,13 +189,21 @@ export function Expiry({
   }, [value]);
   if (oneTime)
     return (
-      <span className={className} title="Одноразовая" aria-label="Одноразовая">
+      <span
+        className={className}
+        title={copy.oneTime}
+        aria-label={copy.oneTime}
+      >
         1
       </span>
     );
   if (value === null)
     return (
-      <span className={className} title="Бессрочно" aria-label="Бессрочно">
+      <span
+        className={className}
+        title={copy.forever}
+        aria-label={copy.forever}
+      >
         ∞
       </span>
     );
@@ -203,8 +219,8 @@ export function Expiry({
     <time
       className={className}
       dateTime={new Date(value).toISOString()}
-      title={new Date(value).toLocaleString("ru-RU")}
-      aria-label={"Осталось: " + text}
+      title={date(value)}
+      aria-label={copy.remainingPrefix + text}
     >
       {text}
     </time>

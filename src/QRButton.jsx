@@ -1,3 +1,5 @@
+import { IconButton } from "./components/IconButton.jsx";
+import { copy } from "../shared/copy.js";
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import QRCode from "qrcode";
@@ -19,7 +21,14 @@ export default function QRButton({ url }) {
     QRCode.toDataURL(url, {
       margin: 1,
       width: 144,
-      color: { dark: "#111111", light: "#ffffff" },
+      color: {
+        dark: getComputedStyle(document.documentElement)
+          .getPropertyValue("--color-text")
+          .trim(),
+        light: getComputedStyle(document.documentElement)
+          .getPropertyValue("--color-surface")
+          .trim(),
+      },
     })
       .then((value) => {
         if (active) setQr(value);
@@ -79,12 +88,11 @@ export default function QRButton({ url }) {
   }, [open]);
   return (
     <>
-      <button
+      <IconButton
         ref={button}
-        type="button"
-        className="icon-button"
-        aria-label="QR-код"
-        title="QR-код"
+
+        aria-label={copy.qrCode}
+        title={copy.qrCode}
         disabled={!url}
         aria-expanded={open}
         onClick={() => {
@@ -93,7 +101,7 @@ export default function QRButton({ url }) {
         }}
       >
         <Icon name="qr" />
-      </button>
+      </IconButton>
       {open &&
         container &&
         createPortal(
@@ -101,7 +109,7 @@ export default function QRButton({ url }) {
             ref={popup}
             className="qr-popover qr-dropdown is-open"
             role="region"
-            aria-label="QR-код ссылки"
+            aria-label={copy.linkQrCode}
             style={{
               left: position.left,
               top: position.top,
@@ -110,7 +118,7 @@ export default function QRButton({ url }) {
             }}
           >
             {qr ? (
-              <img src={qr} alt="QR-код ссылки" width="144" height="144" />
+              <img src={qr} alt={copy.linkQrCode} width="144" height="144" />
             ) : (
               <Icon name="qr" />
             )}

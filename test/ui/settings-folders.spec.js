@@ -2,8 +2,8 @@ import { test, expect } from "@playwright/test";
 import { unzipSync } from "fflate";
 async function login(page) {
   await page.goto("/");
-  await page.getByLabel("Пароль", { exact: true }).fill("123456");
-  await page.getByRole("button", { name: "Войти", exact: true }).click();
+  await page.getByLabel("Password", { exact: true }).fill("123456");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.locator(".owner")).toBeVisible();
 }
 test("folder drop reviews ignored files, restores a folder and uploads a complete nested ZIP", async ({
@@ -50,7 +50,7 @@ test("folder drop reviews ignored files, restores a folder and uploads a complet
     });
     document.querySelector("main").dispatchEvent(event);
   });
-  const dialog = page.getByRole("dialog", { name: "Папки", exact: true });
+  const dialog = page.getByRole("dialog", { name: "Folders", exact: true });
   await expect(
     dialog.getByText("project/src/main.py", { exact: true }),
   ).toBeVisible();
@@ -62,13 +62,13 @@ test("folder drop reviews ignored files, restores a folder and uploads a complet
     dialog.getByText("project/node_modules/", { exact: true }),
   ).toBeVisible();
   await dialog
-    .getByRole("button", { name: "Вернуть project/build", exact: true })
+    .getByRole("button", { name: "Restore project/build", exact: true })
     .click();
   await expect(
     dialog.getByText("project/build/index.js", { exact: true }),
   ).toBeVisible();
   await dialog
-    .getByRole("button", { name: "Загрузить папки", exact: true })
+    .getByRole("button", { name: "Upload folders", exact: true })
     .click();
   await expect(page.locator(".share-ready")).toBeVisible();
   const transfer = await page.evaluate(
@@ -100,12 +100,12 @@ test("wrong login keeps input in place, clears it and resets the inline error on
   page,
 }) => {
   await page.goto("/");
-  const input = page.getByLabel("Пароль", { exact: true }),
+  const input = page.getByLabel("Password", { exact: true }),
     before = await input.boundingBox();
   await input.fill("000000");
-  await page.getByRole("button", { name: "Войти", exact: true }).click();
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
-    page.getByRole("img", { name: "Неверный пароль", exact: true }),
+    page.getByRole("img", { name: "Incorrect password", exact: true }),
   ).toBeVisible();
   await expect(input).toHaveValue("");
   const after = await input.boundingBox();
@@ -114,7 +114,7 @@ test("wrong login keeps input in place, clears it and resets the inline error on
   expect(after.height).toBe(before.height);
   await input.fill("1");
   await expect(
-    page.getByRole("img", { name: "Неверный пароль", exact: true }),
+    page.getByRole("img", { name: "Incorrect password", exact: true }),
   ).toHaveCount(0);
 });
 test("current and history settings change their own retention and PIN through one lock button", async ({
@@ -123,16 +123,16 @@ test("current and history settings change their own retention and PIN through on
 }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await login(page);
-  await page.getByLabel("Настройки", { exact: true }).click();
+  await page.getByLabel("Settings", { exact: true }).click();
   await page
     .getByRole("button", {
-      name: "Сгенерировать и скопировать пароль",
+      name: "Generate and copy password",
       exact: true,
     })
     .click();
   await expect(
     page.getByRole("button", {
-      name: "Сгенерировать и скопировать пароль",
+      name: "Generate and copy password",
       exact: true,
     }),
   ).toHaveAttribute("data-active", "true");
@@ -144,24 +144,22 @@ test("current and history settings change their own retention and PIN through on
     buffer: Buffer.from([0, 1, 2]),
   });
   await expect(page.locator(".share-ready")).toBeVisible();
-  await page.getByLabel("Настройки", { exact: true }).click();
-  await expect(
-    page.getByRole("button", { name: /^Срок хранения:/ }),
-  ).toBeHidden();
+  await page.getByLabel("Settings", { exact: true }).click();
+  await expect(page.getByRole("button", { name: /^Retention:/ })).toBeHidden();
   await page.mouse.click(20, 200);
   await page
     .locator(".share-ready")
-    .getByRole("button", { name: "Параметры передачи", exact: true })
+    .getByRole("button", { name: "Transfer settings", exact: true })
     .click();
   const dialog = page.getByRole("dialog", {
-      name: "Параметры передачи",
+      name: "Transfer settings",
       exact: true,
     }),
     lock = dialog.getByRole("button", {
-      name: "Сгенерировать и скопировать пароль передачи",
+      name: "Generate and copy transfer password",
       exact: true,
     });
-  await expect(dialog.getByLabel("Пароль текущей передачи")).toHaveValue(
+  await expect(dialog.getByLabel("Current transfer password")).toHaveValue(
     initialPin,
   );
   await lock.click();
@@ -176,29 +174,29 @@ test("current and history settings change their own retention and PIN through on
   expect(transfer.hasPassword).toBe(true);
   const url = transfer.url;
   await dialog
-    .getByRole("button", { name: "Срок текущей передачи: Сутки", exact: true })
+    .getByRole("button", { name: "Current retention: 24 hours", exact: true })
     .click();
   await expect(
     dialog.getByRole("button", {
-      name: "Срок текущей передачи: 3 дня",
+      name: "Current retention: 3 days",
       exact: true,
     }),
   ).toBeVisible();
   await dialog
-    .getByRole("button", { name: "Закрыть параметры", exact: true })
+    .getByRole("button", { name: "Close settings", exact: true })
     .click();
   await page.reload();
-  await page.getByLabel("Настройки", { exact: true }).click();
-  await page.getByRole("button", { name: "История", exact: true }).click();
+  await page.getByLabel("Settings", { exact: true }).click();
+  await page.getByRole("button", { name: "History", exact: true }).click();
   await page
     .locator(".history-item")
     .first()
-    .getByRole("button", { name: "Параметры передачи", exact: true })
+    .getByRole("button", { name: "Transfer settings", exact: true })
     .click();
-  await expect(dialog.getByLabel("Пароль текущей передачи")).toHaveValue(pin);
+  await expect(dialog.getByLabel("Current transfer password")).toHaveValue(pin);
   await expect(
     dialog.getByRole("button", {
-      name: "Срок текущей передачи: 3 дня",
+      name: "Current retention: 3 days",
       exact: true,
     }),
   ).toBeVisible();
@@ -206,7 +204,7 @@ test("current and history settings change their own retention and PIN through on
   await expect.poll(async () => (await get()).hasPassword).toBe(false);
   expect((await get()).url).toBe(url);
   await dialog
-    .getByRole("button", { name: "Закрыть параметры", exact: true })
+    .getByRole("button", { name: "Close settings", exact: true })
     .click();
 });
 test("unavailable cross returns to upload or login", async ({ page }) => {
@@ -215,10 +213,10 @@ test("unavailable cross returns to upload or login", async ({ page }) => {
   );
   await page.goto("/Dead12");
   const cross = page.getByRole("link", {
-    name: "Вернуться к загрузке",
+    name: "Back to upload",
     exact: true,
   });
   await expect(cross).toHaveAttribute("href", "/");
   await cross.click();
-  await expect(page.getByLabel("Пароль", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
 });

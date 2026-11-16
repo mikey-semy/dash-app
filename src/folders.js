@@ -1,3 +1,5 @@
+import { MAX_FILES, LIMIT } from "../shared/config.js";
+import { copy } from "../shared/copy.js";
 import ignore from "ignore";
 
 const directories =
@@ -48,7 +50,7 @@ export async function scanFolders(source) {
     restore = false,
     depth = 0,
   ) => {
-    if (depth > 64) throw new Error("Слишком большая глубина папок");
+    if (depth > 64) throw new Error(copy.folderNestingIsTooDeep);
     const relative = path.join("/"),
       directory = entry.isDirectory;
     let ignored = false;
@@ -83,7 +85,7 @@ export async function scanFolders(source) {
     );
     if (gitignore && !restore) {
       const file = await readFile(gitignore);
-      if (file.size > 1024 * 1024) throw new Error(".gitignore больше 1 МиБ");
+      if (file.size > 1024 * 1024) throw new Error(copy.gitignoreExceeds1Mib);
       nested = [
         ...scopes,
         {
@@ -132,12 +134,12 @@ export async function scanFolders(source) {
 function checkPlan(plan) {
   if (
     plan.files.filter((item) => !item.directory).length + plan.loose.length >
-      100 ||
+      MAX_FILES ||
     plan.files.reduce((sum, item) => sum + (item.file?.size || 0), 0) +
       plan.loose.reduce((sum, file) => sum + file.size, 0) >
-      2e9
+      LIMIT
   )
-    throw new Error("Максимум 100 файлов и 2 ГБ суммарно внутри папок");
+    throw new Error(copy.foldersCanContainUpTo100FilesAnd2);
 }
 export function folderFiles(plan) {
   return [
@@ -166,7 +168,7 @@ async function crc32(file, cancelled) {
       if (done) break;
       if (cancelled()) {
         await reader.cancel();
-        throw new Error("Отменено");
+        throw new Error(copy.cancelled);
       }
       for (const byte of value)
         crc = crcTable[(crc ^ byte) & 255] ^ (crc >>> 8);
@@ -178,23 +180,23 @@ async function crc32(file, cancelled) {
 }
 // STORE ZIP references original File blobs: no full-file copies in JS memory.
 export async function folderZip(name, entries, cancelled = () => false) {
-  if (entries.length > 65535) throw new Error("Слишком много каталогов в ZIP");
+  if (entries.length > 65535) throw new Error(copy.tooManyDirectoriesInZip);
   const parts = [],
     central = [];
   let offset = 0,
     directorySize = 0;
   for (const entry of entries) {
-    if (cancelled()) throw new Error("Отменено");
+    if (cancelled()) throw new Error(copy.cancelled);
     if (
       entry.path.startsWith("/") ||
       entry.path.includes("\\") ||
       entry.path.includes(":") ||
       entry.path.split("/").some((part) => part === ".." || part === ".")
     )
-      throw new Error("Неподдерживаемый путь в папке");
+      throw new Error(copy.unsupportedFolderPath);
     const path = encoder.encode(entry.path),
       size = entry.file?.size || 0;
-    if (path.length > 65535) throw new Error("Слишком длинный путь в папке");
+    if (path.length > 65535) throw new Error(copy.folderPathIsTooLong);
     const crc = entry.file ? await crc32(entry.file, cancelled) : 0;
     const date = new Date(entry.file?.lastModified || Date.now());
     const time =
@@ -245,7 +247,7 @@ export async function folderZip(name, entries, cancelled = () => false) {
   e.setUint16(10, entries.length, true);
   e.setUint32(12, directorySize, true);
   e.setUint32(16, offset, true);
-  if (cancelled()) throw new Error("Отменено");
+  if (cancelled()) throw new Error(copy.cancelled);
   return new File([...parts, ...central, end], name + ".zip", {
     type: "application/zip",
   });

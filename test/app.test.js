@@ -413,7 +413,7 @@ test("append preserves original link/password/expiry, atomically replaces flat Z
   assert.equal((await agent.get("/api/transfers")).body.length, 1);
   assert.throws(
     () => service.append(parent, [{ name: "other", size: 0 }]),
-    /уже выполняется/,
+    /already in progress/,
   );
   const restarted = new Service(db, store);
   await restarted.tick();
@@ -478,7 +478,7 @@ test("cancelled/failed append never deletes or replaces the original; parent del
   store.failGet = false;
   assert.throws(
     () => service.append(parent, [{ name: "retry", size: 1 }]),
-    /очищается/,
+    /cleaned up/,
   );
   await service.tick();
   assert.equal(store.objects.get(key).toString(), "keep");

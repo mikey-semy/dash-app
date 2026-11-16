@@ -1,0 +1,72 @@
+/* Standalone server pages share the same design values as the React UI. */
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  display: grid;
+  place-items: center;
+  height: 100dvh;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: var(--font-size-body) var(--font-sans);
+}
+a,
+button {
+  color: inherit;
+}
+a {
+  display: flex;
+}
+button {
+  border: 0;
+  background: none;
+  padding: var(--size-7);
+  display: flex;
+  cursor: pointer;
+}
+.close {
+  position: fixed;
+  right: var(--size-24);
+  top: var(--size-24);
+}
+.unavailable {
+  color: var(--color-danger);
+}
+.unavailable svg,
+.close svg {
+  width: var(--size-24);
+  height: var(--size-24);
+}
+form {
+  display: flex;
+  align-items: center;
+  border: var(--size-1) solid var(--color-border-input);
+  padding: var(--size-9);
+  width: min(var(--size-280), calc(100vw - var(--size-48)));
+  height: var(--size-44);
+}
+input {
+  font: inherit;
+  font-size: var(--font-size-body);
+  min-width: 0;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  outline: 0;
+}
+#error {
+  color: var(--color-danger);
+}
+#error svg {
+  width: var(--size-18);
+  height: var(--size-18);
+}
+button:focus-visible,
+a:focus-visible {
+  outline: var(--size-1) solid var(--color-text);
+  outline-offset: var(--size-3);
+}
+[hidden] {
+  display: none !important;
+}

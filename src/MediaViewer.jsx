@@ -1,3 +1,5 @@
+import { IconButton } from "./components/IconButton.jsx";
+import { copy } from "../shared/copy.js";
 import { ErrorNotice } from "./Errors.jsx";
 import React, { useEffect, useRef, useState } from "react";
 import { Icon, CopyButton } from "./Icons.jsx";
@@ -14,7 +16,7 @@ export default function MediaViewer({
   const ref = useRef(),
     [error, setError] = useState("");
   const failure = (event) =>
-    setError(event.currentTarget.error?.message || "Не удалось показать файл");
+    setError(event.currentTarget.error?.message || copy.couldNotDisplayTheFile);
   useEffect(() => {
     ref.current.showModal();
     return () => ref.current?.close();
@@ -25,7 +27,7 @@ export default function MediaViewer({
     <dialog
       ref={ref}
       className="viewer-dialog media-dialog"
-      aria-label="Просмотр файла"
+      aria-label={copy.filePreview}
       onCancel={(e) => {
         e.preventDefault();
         onClose();
@@ -45,18 +47,13 @@ export default function MediaViewer({
                 (index === undefined ? "" : "/files/" + index) +
                 "/download"
             }
-            aria-label="Скачать файл"
+            aria-label={copy.downloadFile}
           >
             <Icon name="download" />
           </a>
-          <button
-            type="button"
-            className="icon-button"
-            aria-label="Закрыть просмотр"
-            onClick={onClose}
-          >
+          <IconButton aria-label={copy.closePreview} onClick={onClose}>
             <Icon name="cancel" />
-          </button>
+          </IconButton>
         </div>
       </header>
       <div className="media-body">

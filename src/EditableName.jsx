@@ -1,3 +1,5 @@
+import { IconButton } from "./components/IconButton.jsx";
+import { copy } from "../shared/copy.js";
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Icon } from "./Icons.jsx";
 export default function EditableName({
@@ -141,13 +143,12 @@ export default function EditableName({
     >
       {field}
       {editing && (
-        <button
-          type="button"
+        <IconButton
           className={
             "icon-button name-generator" + (failed ? " edit-error" : "")
           }
-          aria-label="Сгенерировать название"
-          title="Сгенерировать название"
+          aria-label={copy.generateName}
+          title={copy.generateName}
           aria-busy={generating}
           disabled={busy || disabled}
           onPointerDown={(event) => event.preventDefault()}
@@ -185,7 +186,7 @@ export default function EditableName({
           }}
         >
           <Icon name={failed ? "cancel" : "reload"} />
-        </button>
+        </IconButton>
       )}
     </span>
   );

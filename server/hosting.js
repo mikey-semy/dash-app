@@ -1,3 +1,5 @@
+import { statusPage, statusIcons } from "./status-page.js";
+import { copy } from "../shared/copy.js";
 import { domainToASCII } from "node:url";
 import { Resolver } from "node:dns/promises";
 import { isIP } from "node:net";
@@ -5,15 +7,15 @@ import https from "node:https";
 import { createHmac, timingSafeEqual, randomBytes } from "node:crypto";
 import { writeFile, rename, readFile } from "node:fs/promises";
 import express from "express";
-import { siteEntry, siteAlive, sitePublished } from "./site-policy.js";
+import { siteEntry, siteAlive } from "./site-policy.js";
 import { verify } from "./core.js";
 
 export function normalizeDomain(value, canonical = "") {
   if (typeof value !== "string")
-    throw Object.assign(Error("Неверный домен"), { status: 400 });
+    throw Object.assign(Error(copy.invalidDomain), { status: 400 });
   if (!value.trim()) return null;
   if (/[\s\/:\\@?#]/.test(value.trim()))
-    throw Object.assign(Error("Введите только домен"), { status: 400 });
+    throw Object.assign(Error(copy.enterADomainOnly), { status: 400 });
   const domain = domainToASCII(value.trim().toLowerCase().replace(/\.$/, ""));
   if (
     !domain ||
@@ -26,7 +28,7 @@ export function normalizeDomain(value, canonical = "") {
       .some((part) => !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(part)) ||
     /^\d+$/.test(domain.split(".").pop())
   )
-    throw Object.assign(Error("Введите домен без протокола, порта и пути"), {
+    throw Object.assign(Error(copy.domainFormatHint), {
       status: 400,
     });
   return domain;
@@ -190,8 +192,7 @@ export function hosting(service, env, options = {}) {
                 !ips.length ||
                 ips.some((ip) => !target.includes(ip))
               )
-                next.error =
-                  "DNS домена должен указывать только на адреса сервера DU";
+                next.error = copy.domainDnsMustPointOnlyToTheDuServer;
               else {
                 accepted.push(t.site_domain);
                 let blocked = false;
@@ -207,7 +208,7 @@ export function hosting(service, env, options = {}) {
                   next = {
                     ...next,
                     state: "error",
-                    error: "Домен уже используется другим приложением сервера",
+                    error: copy.domainReserved,
                   };
                 else
                   next = {
@@ -268,14 +269,26 @@ export function hosting(service, env, options = {}) {
         `default-src 'none'; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'`,
       )
       .type("html");
-    const cross =
-      '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="m6 6 12 12M18 6 6 18"/></svg>';
-    const eye =
-      '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/><path id="slash" d="m3 3 18 18" visibility="hidden"/></svg>';
+    const { cross, eye, enter } = statusIcons;
+    const close = `<a class="close" aria-label="${copy.backToUpload}" href="${canonical.origin}/">${cross}</a>`;
+    const body = password
+      ? `<form method="post" action="/.du/unlock"><input type="hidden" name="next" value="${escape(req.originalUrl || "/")}"><input name="password" id="password" aria-label="${copy.password}" type="password" maxlength="256" inputmode="numeric" autocomplete="current-password" autofocus><span id="error" role="img" aria-label="${copy.incorrectPassword}" ${error ? "" : "hidden"}>${cross}</span><button type="button" id="reveal" aria-label="${copy.showPassword}">${eye}</button><button type="submit" aria-label="${copy.signIn}">${enter}</button></form>`
+      : `<a class="unavailable" aria-label="${copy.backToUpload}" href="${canonical.origin}/">${cross}</a>`;
+    const script = password
+      ? `const p=document.getElementById('password');p.addEventListener('input',()=>document.getElementById('error').hidden=true);document.getElementById('reveal').onclick=()=>{p.type=p.type==='password'?'text':'password';document.getElementById('slash').setAttribute('visibility',p.type==='text'?'visible':'hidden')};${error ? "console.error(" + JSON.stringify("[DU] " + copy.incorrectSitePassword) + ");" : ""}`
+      : "console.error(" +
+        JSON.stringify("[DU] " + copy.siteUnavailable) +
+        ");";
     res.send(
-      `<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${password ? "Пароль" : "Сайт недоступен"}</title><style nonce="${nonce}">*{box-sizing:border-box}body{margin:0;display:grid;place-items:center;height:100dvh;background:white;color:#111;font:16px system-ui}a,button{color:inherit}a{display:flex}button{border:0;background:none;padding:7px;display:flex;cursor:pointer}.close{position:fixed;right:24px;top:24px}.unavailable{color:#d33434}form{display:flex;align-items:center;border:1px solid #ccc;padding:9px;width:min(280px,calc(100vw - 48px));height:44px}input{font:inherit;font-size:16px;min-width:0;width:100%;padding:0;border:0;outline:0}#error{display:${error ? "flex" : "none"};color:#d33434}#error svg{width:18px;height:18px}button:focus-visible,a:focus-visible{outline:1px solid #111;outline-offset:3px}</style><a class="close" aria-label="Вернуться к загрузке" href="${canonical.origin}/">${cross}</a>${password ? `<form method="post" action="/.du/unlock"><input type="hidden" name="next" value="${escape(req.originalUrl || "/")}"><input name="password" id="password" aria-label="Пароль" type="password" maxlength="256" inputmode="numeric" autocomplete="current-password" autofocus><span id="error" role="img" aria-label="Неверный пароль">${cross}</span><button type="button" id="reveal" aria-label="Показать пароль">${eye}</button><button type="submit" aria-label="Войти"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button></form><script nonce="${nonce}">const p=document.getElementById('password');p.addEventListener('input',()=>document.getElementById('error').style.display='none');document.getElementById('reveal').onclick=()=>{p.type=p.type==='password'?'text':'password';document.getElementById('slash').setAttribute('visibility',p.type==='text'?'visible':'hidden')};${error ? "console.error('[DU] Неверный пароль сайта');" : ""}</script>` : `<a class="unavailable" aria-label="Вернуться к загрузке" href="${canonical.origin}/">${cross}</a><script nonce="${nonce}">console.error('[DU] Сайт недоступен')</script>`}</html>`,
+      statusPage({
+        nonce,
+        title: password ? copy.password : copy.siteUnavailable,
+        body: close + body,
+        script,
+      }),
     );
   }
+
   function middleware(render, limited) {
     const form = express.urlencoded({ extended: false, limit: "2kb" });
     return (req, res, next) => {
@@ -331,7 +344,7 @@ export function hosting(service, env, options = {}) {
       if (!authorized(req, t))
         return /text\/html/.test(req.headers.accept || "")
           ? page(req, res, { status: 401, password: true })
-          : res.status(401).type("text/plain").send("Нужен пароль");
+          : res.status(401).type("text/plain").send(copy.passwordRequired);
       let path;
       try {
         path = decodeURIComponent(req.path).replace(/^\//, "");

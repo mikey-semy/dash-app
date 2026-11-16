@@ -1,3 +1,4 @@
+import { copy } from "../shared/copy.js";
 const key = "du.upload.v1";
 function database() {
   return new Promise((resolve, reject) => {
@@ -101,7 +102,7 @@ export async function forgetUpload(id) {
 }
 export async function matchUpload(upload, files) {
   if (files.length !== upload.manifest.length)
-    throw new Error("Выберите все исходные файлы загрузки");
+    throw new Error(copy.selectAllOriginalUploadFiles);
   const remaining = Array.from(files),
     ordered = [];
   for (const expected of upload.manifest) {
@@ -118,9 +119,7 @@ export async function matchUpload(upload, files) {
       }
     }
     if (index < 0)
-      throw new Error(
-        "Содержимое или набор файлов изменился: " + expected.name,
-      );
+      throw new Error(copy.sourceFilesChangedPrefix + expected.name);
     const file = remaining.splice(index, 1)[0];
     ordered.push(file);
   }

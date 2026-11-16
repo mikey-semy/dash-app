@@ -28,13 +28,13 @@ test("real JSON 404s and mutations are never replayed; network failures have a b
     const api = createApi({
       fetch: async () => {
         requests++;
-        return json(404, { error: "Передача удалена" });
+        return json(404, { error: "Transfer deleted" });
       },
       sleep: async () => assert.fail("must not retry"),
     });
     await assert.rejects(
       () => api("/public/deleted"),
-      (error) => error.status === 404 && error.message === "Передача удалена",
+      (error) => error.status === 404 && error.message === "Transfer deleted",
     );
     assert.equal(requests, 1);
     requests = 0;
@@ -58,7 +58,7 @@ test("real JSON 404s and mutations are never replayed; network failures have a b
       },
       sleep: async () => {},
     });
-    await assert.rejects(() => offline("/api/session"), /Не удалось связаться/);
+    await assert.rejects(() => offline("/api/session"), /Could not connect/);
     assert.equal(requests, 5);
   } finally {
     console.error = original;

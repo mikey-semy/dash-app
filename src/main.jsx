@@ -1,3 +1,11 @@
+import {
+  DEFAULT_RETENTION,
+  RETENTION_SECONDS,
+  MAX_FILES,
+  LIMIT,
+  PIN_DIGITS,
+} from "../shared/config.js";
+import { copy } from "../shared/copy.js";
 import api from "./api.js";
 import { ErrorPage, ErrorBoundary, connectionError } from "./Errors.jsx";
 import {
@@ -9,9 +17,9 @@ import {
 import { PasswordInput } from "./PasswordInput.jsx";
 import React, { useState, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
-import { OwnerView } from "./View.jsx";
+import { OwnerView } from "./features/upload/OwnerView.jsx";
 import { Recipient } from "./Recipient.jsx";
-import "./style.css";
+import "./styles/index.css";
 document.addEventListener(
   "keydown",
   (event) => {
@@ -36,12 +44,12 @@ function App() {
     [ttl, setTtl] = useState(() => {
       try {
         const stored = localStorage.getItem("du.ttl");
-        const value = stored === null ? 86400 : Number(stored);
-        return [-1, 0, 3600, 21600, 86400, 259200, 604800].includes(value)
+        const value = stored === null ? DEFAULT_RETENTION : Number(stored);
+        return [-1, ...RETENTION_SECONDS].includes(value)
           ? value
-          : 86400;
+          : DEFAULT_RETENTION;
       } catch {
-        return 86400;
+        return DEFAULT_RETENTION;
       }
     }),
     [secret, setSecret] = useState(""),
@@ -60,7 +68,7 @@ function App() {
     choosing = useRef(false),
     recoveryChecked = useRef(false);
   useEffect(() => {
-    document.title = logged ? "Загрузка" : "Вход";
+    document.title = logged ? copy.upload : copy.signIn;
   }, [logged]);
   useEffect(() => {
     try {
@@ -101,7 +109,7 @@ function App() {
             state.files.length !== value.files.length ||
             state.files.some((file, i) => file.size !== value.files[i].size)
           )
-            throw Object.assign(new Error("Состав загрузки изменился"), {
+            throw Object.assign(new Error(copy.uploadContentsChanged), {
               status: 409,
             });
           setUpload(value);
@@ -124,9 +132,7 @@ function App() {
           setPaused(true);
           control.current = { paused: true, cancel: false, xhr: null };
           start.current = Date.now();
-          setError(
-            "Не удалось проверить загрузку. Можно повторить продолжение.",
-          );
+          setError(copy.uploadVerificationFailed);
         }
       })
       .finally(() => {
@@ -173,14 +179,14 @@ function App() {
   async function waitForChange(id, current) {
     for (let attempt = 0; current?.appendState && attempt < 240; attempt++) {
       if (current.appendState === "failed")
-        throw new Error(current.appendError || "Не удалось изменить передачу");
+        throw new Error(current.appendError || copy.couldNotUpdateTheTransfer);
       await new Promise((resolve) => setTimeout(resolve, 500));
       const list = await api("/api/transfers");
       setHistory(list);
       current = list.find((t) => t.id === id);
-      if (!current) throw new Error("Передача удалена");
+      if (!current) throw new Error(copy.transferDeleted);
     }
-    if (current?.appendState) throw new Error("Изменение ещё выполняется");
+    if (current?.appendState) throw new Error(copy.updateIsStillInProgress);
   }
   async function choose(list, parentId = null, replacement = null) {
     if (active.current || choosing.current) return false;
@@ -199,8 +205,11 @@ function App() {
     if (upload) return false;
     const files = Array.from(list);
     if (!files.length) return false;
-    if (files.length > 100 || files.reduce((n, f) => n + f.size, 0) > 2e9) {
-      setError("Максимум 100 файлов и 2 ГБ суммарно");
+    if (
+      files.length > MAX_FILES ||
+      files.reduce((n, f) => n + f.size, 0) > LIMIT
+    ) {
+      setError(copy.upTo100FilesAnd2GbInTotal);
       return false;
     }
     setError("");
@@ -266,14 +275,14 @@ function App() {
       control.current.xhr = xhr;
       xhr.open("PUT", url);
       xhr.timeout = 120000;
-      xhr.ontimeout = () => reject(new Error("Превышено время загрузки части"));
+      xhr.ontimeout = () => reject(new Error(copy.partUploadTimedOut));
       xhr.upload.onprogress = (e) => setProgress(offset + e.loaded);
       xhr.onload = () =>
         xhr.status >= 200 && xhr.status < 300
           ? resolve()
-          : reject(new Error("S3: не удалось загрузить часть"));
-      xhr.onerror = () => reject(new Error("Соединение с S3 прервано"));
-      xhr.onabort = () => reject(new Error("Пауза"));
+          : reject(new Error(copy.s3CouldNotUploadThePart));
+      xhr.onerror = () => reject(new Error(copy.s3ConnectionInterrupted));
+      xhr.onabort = () => reject(new Error(copy.pause));
       xhr.send(blob);
     });
   }
@@ -298,7 +307,7 @@ function App() {
         const parts = new Map(init.parts.map((p) => [p.PartNumber, p.Size]));
         for (let part = 1; part <= Math.ceil(f.size / init.partSize); part++) {
           if (control.current.paused || control.current.cancel)
-            throw new Error("Пауза");
+            throw new Error(copy.pause);
           const from = (part - 1) * init.partSize,
             blob = f.slice(from, from + init.partSize);
           if (parts.get(part) === blob.size) {
@@ -310,7 +319,7 @@ function App() {
             try {
               const { url } = await api(path + "/parts/" + part, {});
               if (control.current.paused || control.current.cancel)
-                throw new Error("Пауза");
+                throw new Error(copy.pause);
               await put(url, blob, done);
               done += blob.size;
               break;
@@ -342,7 +351,7 @@ function App() {
           setError(e.message);
           return;
         }
-        setError(e.message + " — можно продолжить");
+        setError(e.message + copy.canBeResumedSuffix);
         control.current.paused = true;
         setPaused(true);
       }
@@ -397,9 +406,9 @@ function App() {
                 setError("");
               }}
               required
-              maxLength={6}
-              minLength={6}
-              pattern="[0-9]{6}"
+              maxLength={PIN_DIGITS}
+              minLength={PIN_DIGITS}
+              pattern={`[0-9]{${PIN_DIGITS}}`}
               inputMode="numeric"
             />
           </form>
@@ -442,7 +451,7 @@ function App() {
         );
         if (!response.ok) {
           const error = await response.json();
-          throw new Error(error.error || "Не удалось открыть текст");
+          throw new Error(error.error || copy.couldNotOpenTheText);
         }
         return new TextDecoder("utf-8", {
           fatal: true,

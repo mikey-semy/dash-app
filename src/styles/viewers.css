@@ -1,0 +1,374 @@
+.viewer-dialog[open] {
+  position: fixed;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  max-height: 100dvh;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+}
+.viewer-dialog::backdrop {
+  background: var(--color-surface);
+}
+.viewer-dialog .text-preview {
+  height: 100%;
+}
+.viewer-dialog .text-preview-header {
+  padding: max(var(--size-12), env(safe-area-inset-top, var(--size-0)))
+    var(--size-12) var(--size-12);
+  flex-shrink: 0;
+}
+.file-preview-link {
+  padding: 0;
+  text-align: left;
+  font-size: inherit;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.viewer-footer {
+  display: flex;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  padding: var(--size-4) var(--size-12)
+    max(var(--size-4), env(safe-area-inset-bottom, var(--size-0)));
+}
+.viewer-footer .expiry-corner {
+  position: static;
+}
+.text-dialog[open] {
+  position: fixed;
+  inset: 0;
+  margin: 0;
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  max-height: 100dvh;
+  border: 0;
+  border-radius: var(--radius-none);
+}
+.editor-context {
+  display: flex;
+  align-items: center;
+  gap: var(--size-12);
+  min-width: 0;
+}
+.editor-context .language-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.owner .content > .files {
+  width: 100vw;
+  margin-left: calc((100% - 100vw) / 2);
+  margin-right: calc((100% - 100vw) / 2);
+  padding-left: max(var(--size-24), calc((100vw - var(--size-560)) / 2));
+  padding-right: max(var(--size-24), calc((100vw - var(--size-560)) / 2));
+}
+.recipient .transfer-details,
+.owner .owner-details {
+  width: 100%;
+  left: 0;
+  transform: none;
+}
+.recipient .transfer-information,
+.owner .owner-details .transfer-information {
+  padding-left: max(var(--size-24), calc((100vw - var(--size-480)) / 2));
+  padding-right: max(var(--size-24), calc((100vw - var(--size-480)) / 2));
+  scrollbar-width: thin;
+}
+.owner .owner-details .transfer-information {
+  max-height: calc(50dvh - var(--size-95));
+}
+.qr-popover.qr-dropdown {
+  position: fixed;
+  right: auto;
+  z-index: var(--layer-100);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--size-12);
+  background: var(--color-surface);
+  border: var(--size-1) solid var(--color-border-soft);
+  box-shadow: 0 var(--size-4) var(--size-16) var(--color-shadow);
+}
+.qr-popover.qr-dropdown img {
+  width: 100% !important;
+  height: auto !important;
+  display: block;
+}
+@media (--mobile), (--touch) {
+  .text-preview-header {
+    gap: var(--size-8);
+  }
+  .text-preview-header .text-actions {
+    gap: var(--size-6);
+    flex-shrink: 0;
+  }
+  .text-preview-header .language-label {
+    min-width: 0;
+    max-width: var(--size-120);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+[hidden] {
+  display: none !important;
+}
+.password-field {
+  position: relative;
+}
+.password-error {
+  display: flex;
+  color: var(--color-danger-strong);
+  align-items: center;
+  justify-content: center;
+  width: var(--size-28);
+  flex-shrink: 0;
+}
+.transfer-settings-dialog[open] {
+  height: min(var(--size-560), 80dvh);
+  max-height: min(var(--size-560), 80dvh);
+}
+.transfer-settings-dialog .dialog-body {
+  overflow-y: auto;
+  padding-top: var(--size-16);
+  padding-bottom: var(--size-24);
+}
+.transfer-settings-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--size-20);
+  margin-bottom: var(--size-20);
+}
+.transfer-password,
+.domain-field {
+  padding: 0 var(--size-8);
+}
+.transfer-password input {
+  font-size: var(--font-size-body);
+  width: var(--size-80);
+}
+.transfer-password .icon-button,
+.domain-field .icon-button {
+  padding: var(--size-6);
+}
+.folder-files {
+  list-style: none;
+  padding: 0;
+  font-size: var(--font-size-caption);
+}
+.folder-files li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--size-12);
+  overflow-wrap: anywhere;
+  padding: var(--size-6) 0;
+}
+.folder-dialog summary {
+  cursor: pointer;
+  font-size: var(--font-size-caption);
+  padding: var(--size-12) 0;
+}
+@media (--mobile), (--touch) {
+  .folder-dialog[open],
+  .transfer-settings-dialog[open] {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    max-height: 100dvh;
+    margin: 0;
+    border: 0;
+  }
+  .history-row .share-controls {
+    gap: 0;
+  }
+  .history-row .share-controls .icon-button {
+    padding: var(--size-5);
+  }
+}
+/* Interface controls never select text during clicks, taps or dragging. */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+}
+input,
+textarea,
+[contenteditable="true"],
+.cm-content,
+.cm-content *,
+.markdown-document,
+.markdown-document * {
+  -webkit-user-select: text;
+  user-select: text;
+}
+button,
+button *,
+summary,
+summary * {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none;
+}
+.history-search {
+  display: flex;
+  align-items: center;
+  gap: var(--size-8);
+  padding: var(--size-8) var(--size-24);
+  border-bottom: var(--size-1) solid var(--color-divider);
+  flex-shrink: 0;
+}
+.history-search input {
+  font-size: var(--font-size-body);
+  border: 0;
+  min-width: 0;
+}
+.history-search button[aria-pressed="true"],
+.transfer-settings-controls button[aria-pressed="true"] {
+  box-shadow: inset 0 var(--size-minus-1) var(--color-text);
+}
+.media-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  scrollbar-width: thin;
+}
+.media-body img,
+.media-body video {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.media-body iframe {
+  border: 0;
+  width: 100%;
+  height: 100%;
+}
+.media-body audio {
+  width: min(var(--size-600), 100%);
+}
+.media-name {
+  font-size: var(--font-size-caption);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.media-dialog .text-preview-header {
+  justify-content: space-between;
+}
+.file-choice {
+  min-width: 0;
+  flex: 1;
+}
+.files .icon-button {
+  padding: var(--size-5);
+}
+@media (--mobile) {
+  .history-search {
+    padding: var(--size-8) var(--size-16);
+    gap: var(--size-4);
+  }
+  .transfer-settings-controls {
+    gap: var(--size-12);
+    flex-wrap: wrap;
+  }
+}
+.demo-view {
+  position: relative;
+  height: 100dvh;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: var(--color-surface);
+}
+.demo-view > .text-preview {
+  width: 100%;
+  height: 100%;
+}
+.demo-view .markdown-document {
+  max-width: none;
+  padding: var(--size-24);
+}
+.demo-image,
+.demo-video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.demo-pdf {
+  border: 0;
+  width: 100%;
+  height: 100%;
+}
+.demo-view audio {
+  width: min(var(--size-600), calc(100% - var(--size-32)));
+}
+.demo-previous,
+.demo-next {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-44);
+  height: var(--size-44);
+  background: var(--color-overlay);
+  color: var(--color-text);
+  opacity: 0;
+  transition: opacity var(--duration-200);
+}
+.demo-previous {
+  left: var(--size-12);
+}
+.demo-next {
+  right: var(--size-12);
+}
+.demo-view:hover .demo-previous,
+.demo-view:hover .demo-next,
+.demo-view:focus-within .demo-previous,
+.demo-view:focus-within .demo-next {
+  opacity: 1;
+}
+.demo-collection {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--size-180), 1fr));
+  align-content: start;
+  gap: var(--size-24);
+  padding: var(--size-24);
+  overflow: auto;
+}
+.demo-file {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-12);
+  color: inherit;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+.demo-file img {
+  width: 100%;
+  height: var(--size-180);
+  object-fit: contain;
+}
+@media (--no-hover) {
+  .demo-previous,
+  .demo-next {
+    opacity: var(--opacity-0-7);
+  }
+}

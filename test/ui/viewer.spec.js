@@ -27,18 +27,14 @@ test("mobile full-screen viewer defaults to Markdown, closes without reopening a
     r.fulfill({ contentType: "text/plain;charset=utf-8", body: source }),
   );
   await page.goto("/View12");
-  await page
-    .getByRole("button", { name: "Открыть просмотр", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Open preview", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Документ", exact: true }),
   ).toBeVisible();
   const dialog = page.locator(".viewer-dialog"),
     box = await dialog.boundingBox();
   expect(box).toMatchObject({ x: 0, y: 0, width: 390, height: 844 });
-  await page
-    .getByRole("button", { name: "Показать исходник", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Show source", exact: true }).click();
   await expect(page.locator(".code-editor")).toHaveAttribute(
     "data-language",
     "Markdown",
@@ -48,11 +44,11 @@ test("mobile full-screen viewer defaults to Markdown, closes without reopening a
     await page.locator(".cm-content").evaluate((el) => el.isContentEditable),
   ).toBe(false);
   await page
-    .getByRole("button", { name: "Закрыть просмотр", exact: true })
+    .getByRole("button", { name: "Close preview", exact: true })
     .click();
   await expect(dialog).toHaveCount(0);
   await expect(
-    page.getByRole("button", { name: "Открыть просмотр", exact: true }),
+    page.getByRole("button", { name: "Open preview", exact: true }),
   ).toBeVisible();
   const refreshed = page.waitForResponse(
     (r) => new URL(r.url()).pathname === "/public/View12",
@@ -60,12 +56,10 @@ test("mobile full-screen viewer defaults to Markdown, closes without reopening a
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await refreshed;
   await expect(dialog).toHaveCount(0);
-  await page
-    .getByRole("button", { name: "Открыть просмотр", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Open preview", exact: true }).click();
   await expect(dialog).toBeVisible();
   await page
-    .getByRole("button", { name: "Закрыть просмотр", exact: true })
+    .getByRole("button", { name: "Close preview", exact: true })
     .click();
   archive = true;
   await page.reload();
@@ -80,7 +74,7 @@ test("mobile full-screen viewer defaults to Markdown, closes without reopening a
     dialog.getByRole("link", { name: "Raw", exact: true }),
   ).toHaveAttribute("href", "/raw/View12/1");
   await page
-    .getByRole("button", { name: "Закрыть просмотр", exact: true })
+    .getByRole("button", { name: "Close preview", exact: true })
     .click();
   await expect(dialog).toHaveCount(0);
 });
@@ -111,7 +105,7 @@ for (const width of [390, 1280]) {
     );
     await page.goto("/Qr1234");
     await page
-      .getByRole("button", { name: "Открыть просмотр", exact: true })
+      .getByRole("button", { name: "Open preview", exact: true })
       .click();
     const dialog = page.locator(".viewer-dialog");
     await expect(dialog.locator(".cm-scroller")).toBeVisible();
@@ -122,7 +116,7 @@ for (const width of [390, 1280]) {
       right: el.getBoundingClientRect().right,
     }));
     expect(Math.abs(before.right - width)).toBeLessThan(1);
-    await dialog.getByRole("button", { name: "QR-код", exact: true }).click();
+    await dialog.getByRole("button", { name: "QR code", exact: true }).click();
     const qr = page.locator(".qr-dropdown");
     await expect(qr.getByRole("img")).toBeVisible();
     expect(await qr.evaluate((el) => el.parentElement.tagName)).toBe("DIALOG");
@@ -141,7 +135,7 @@ for (const width of [390, 1280]) {
     await expect(qr).toHaveCount(0);
     await expect(dialog).toBeVisible();
     await dialog
-      .getByRole("button", { name: "Закрыть просмотр", exact: true })
+      .getByRole("button", { name: "Close preview", exact: true })
       .click();
     await page.locator(".transfer-details > button").click();
     const details = page.locator(".transfer-information");
@@ -152,7 +146,7 @@ for (const width of [390, 1280]) {
     const height = await details.evaluate((el) => el.scrollHeight);
     await page
       .locator(".recipient-share-actions")
-      .getByRole("button", { name: "QR-код", exact: true })
+      .getByRole("button", { name: "QR code", exact: true })
       .click();
     await expect(qr.getByRole("img")).toBeVisible();
     expect(await qr.evaluate((el) => el.parentElement.tagName)).toBe("BODY");

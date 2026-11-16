@@ -1,0 +1,63 @@
+.content > *,
+.settings[open] .settings-panel,
+dialog[open],
+.transfer-details[open] .transfer-information {
+  animation: appear var(--duration-220) var(--ease-out) both;
+}
+.primary-action,
+.settings summary,
+.upload-link {
+  transition:
+    opacity var(--duration-180),
+    transform var(--duration-180);
+}
+.primary-action:hover {
+  opacity: var(--opacity-0-6);
+}
+@keyframes appear {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (--mobile) {
+  .expiry-corner {
+    right: var(--size-16);
+    bottom: var(--size-16);
+  }
+}
+
+.share-ready {
+  position: relative;
+  width: max-content;
+  min-height: 0;
+  margin: auto;
+  display: block;
+}
+.share-ready .share-controls {
+  position: absolute;
+  left: calc(100% + var(--size-22));
+  top: 50%;
+  transform: translateY(-50%);
+}
+@media (--mobile) {
+  .share-ready .share-controls {
+    left: calc(100% + var(--size-12));
+    gap: var(--size-12);
+  }
+  .share-ready img {
+    width: var(--size-48);
+    height: var(--size-48);
+  }
+}
+
+.login-field input {
+  padding: var(--size-11) var(--size-10);
+  font-size: var(--font-size-body);
+}
+.login .login-field button {
+  margin: 0;
+  padding: var(--size-8);
+}

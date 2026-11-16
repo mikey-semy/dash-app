@@ -1,3 +1,5 @@
+import { TIMING } from "../shared/config.js";
+import { copy } from "../shared/copy.js";
 import React, { useEffect, useRef, useState } from "react";
 import { EditorState, Compartment } from "@codemirror/state";
 import {
@@ -12,16 +14,19 @@ import { syntaxHighlighting, HighlightStyle } from "@codemirror/language";
 import { languages } from "@codemirror/language-data";
 import { tags } from "@lezer/highlight";
 const colors = HighlightStyle.define([
-  { tag: [tags.keyword, tags.operator], color: "#cf222e" },
-  { tag: [tags.string, tags.regexp], color: "#0a3069" },
-  { tag: [tags.number, tags.bool, tags.null, tags.atom], color: "#0550ae" },
-  { tag: [tags.comment, tags.meta], color: "#6e7781" },
+  { tag: [tags.keyword, tags.operator], color: "var(--color-syntax-keyword)" },
+  { tag: [tags.string, tags.regexp], color: "var(--color-syntax-string)" },
+  {
+    tag: [tags.number, tags.bool, tags.null, tags.atom],
+    color: "var(--color-syntax-number)",
+  },
+  { tag: [tags.comment, tags.meta], color: "var(--color-syntax-comment)" },
   {
     tag: [tags.function(tags.variableName), tags.definition(tags.variableName)],
-    color: "#8250df",
+    color: "var(--color-syntax-function)",
   },
-  { tag: [tags.typeName, tags.className], color: "#953800" },
-  { tag: [tags.tagName, tags.attributeName], color: "#116329" },
+  { tag: [tags.typeName, tags.className], color: "var(--color-syntax-type)" },
+  { tag: [tags.tagName, tags.attributeName], color: "var(--color-syntax-tag)" },
 ]);
 function useDetection(text, filename) {
   const [result, setResult] = useState({ name: null, label: "?" });
@@ -43,7 +48,7 @@ function useDetection(text, filename) {
         if (active) setResult({ name: null, label: "?" });
         worker.terminate();
       };
-      deadline = setTimeout(fallback, 15000);
+      deadline = setTimeout(fallback, TIMING.workerStartup);
       worker.onerror = (event) => {
         event.preventDefault();
         fallback();
@@ -53,13 +58,13 @@ function useDetection(text, filename) {
         clearTimeout(deadline);
         if (data.ready) {
           worker.postMessage({ text, filename });
-          deadline = setTimeout(fallback, 2000);
+          deadline = setTimeout(fallback, TIMING.detectionTimeout);
         } else {
           setResult(data);
           worker.terminate();
         }
       };
-    }, 300);
+    }, TIMING.detectionDebounce);
     return () => {
       active = false;
       clearTimeout(timer);
@@ -99,7 +104,7 @@ export default function CodeEditor({
           EditorState.readOnly.of(readOnly),
           EditorView.editable.of(!readOnly),
           EditorView.contentAttributes.of({
-            "aria-label": readOnly ? "Текст передачи" : "Текст или код",
+            "aria-label": readOnly ? copy.transferText : copy.textOrCode,
             ...(readOnly ? { tabindex: "0" } : {}),
           }),
           lineNumbers(),

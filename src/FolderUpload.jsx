@@ -1,3 +1,5 @@
+import { IconButton } from "./components/IconButton.jsx";
+import { copy } from "../shared/copy.js";
 import { ErrorNotice } from "./Errors.jsx";
 import React, { useEffect, useRef, useState } from "react";
 import { Icon } from "./Icons.jsx";
@@ -32,9 +34,9 @@ export default function FolderUpload({ source, onClose, onSend }) {
     try {
       const files = folderFiles(plan);
       if (!alive.current) return;
-      if (!files.length) throw new Error("Нет файлов для загрузки");
+      if (!files.length) throw new Error(copy.noFilesToUpload);
       if ((await onSend(files)) !== false) onClose();
-      else setError("Не удалось начать загрузку. Проверьте лимит и повторите.");
+      else setError(copy.uploadStartFailed);
     } catch (e) {
       if (alive.current) setError(e.message);
     } finally {
@@ -45,7 +47,7 @@ export default function FolderUpload({ source, onClose, onSend }) {
     <dialog
       ref={ref}
       className="history-dialog folder-dialog"
-      aria-label="Папки"
+      aria-label={copy.folders}
       onCancel={(e) => {
         e.preventDefault();
         onClose();
@@ -54,28 +56,21 @@ export default function FolderUpload({ source, onClose, onSend }) {
       <header className="dialog-header">
         <Icon name="archive" />
         <div className="text-actions">
-          <button
-            type="button"
-            className="icon-button"
-            aria-label="Загрузить папки"
+          <IconButton
+            aria-label={copy.uploadFolders}
             disabled={busy || !plan}
             onClick={send}
           >
             <Icon name="upload" />
-          </button>
-          <button
-            type="button"
-            className="icon-button"
-            aria-label="Закрыть папки"
-            onClick={onClose}
-          >
+          </IconButton>
+          <IconButton aria-label={copy.closeFolders} onClick={onClose}>
             <Icon name="cancel" />
-          </button>
+          </IconButton>
         </div>
       </header>
       <div className="dialog-body">
         {busy && (
-          <p role="status" aria-label="Подготовка папок">
+          <p role="status" aria-label={copy.preparingFolders}>
             <Icon name="archive" />
           </p>
         )}
@@ -85,7 +80,7 @@ export default function FolderUpload({ source, onClose, onSend }) {
             <p className="muted">
               {plan.files.filter((item) => !item.directory).length +
                 plan.loose.length}{" "}
-              файлов
+              {copy.filesUnit}
             </p>
             <ul className="folder-files">
               {[
@@ -97,7 +92,10 @@ export default function FolderUpload({ source, onClose, onSend }) {
             </ul>
             {plan.excluded.length > 0 && (
               <details>
-                <summary>Исключено: {plan.excluded.length}</summary>
+                <summary>
+                  {copy.excludedPrefix}
+                  {plan.excluded.length}
+                </summary>
                 <ul className="folder-files">
                   {plan.excluded.map((item) => (
                     <li key={item.path}>
@@ -105,10 +103,8 @@ export default function FolderUpload({ source, onClose, onSend }) {
                         {item.path}
                         {item.entry.isDirectory ? "/" : ""}
                       </span>
-                      <button
-                        type="button"
-                        className="icon-button"
-                        aria-label={"Вернуть " + item.path}
+                      <IconButton
+                        aria-label={copy.restorePrefix + item.path}
                         disabled={busy}
                         onClick={async () => {
                           setBusy(true);
@@ -124,7 +120,7 @@ export default function FolderUpload({ source, onClose, onSend }) {
                         }}
                       >
                         <Icon name="add" />
-                      </button>
+                      </IconButton>
                     </li>
                   ))}
                 </ul>

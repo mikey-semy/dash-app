@@ -2,8 +2,8 @@ import { test, expect } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 async function login(page) {
   await page.goto("/");
-  await page.getByLabel("Пароль", { exact: true }).fill("123456");
-  await page.getByRole("button", { name: "Войти", exact: true }).click();
+  await page.getByLabel("Password", { exact: true }).fill("123456");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.locator(".owner")).toBeVisible();
 }
 async function current(page) {
@@ -12,8 +12,8 @@ async function current(page) {
   );
 }
 async function history(page) {
-  await page.getByLabel("Настройки", { exact: true }).click();
-  await page.getByRole("button", { name: "История", exact: true }).click();
+  await page.getByLabel("Settings", { exact: true }).click();
+  await page.getByRole("button", { name: "History", exact: true }).click();
 }
 test("closed-tab upload restores original bytes and never resends an already accepted part", async ({
   page,
@@ -42,16 +42,14 @@ test("closed-tab upload restores original bytes and never resends an already acc
     buffer: data,
   });
   await expect.poll(() => second).toBeGreaterThan(0);
-  await page.getByRole("button", { name: "Пауза", exact: true }).click();
+  await page.getByRole("button", { name: "Pause", exact: true }).click();
   await page.close();
   const restored = await context.newPage();
   await restored.goto("/");
   await expect(
-    restored.getByRole("button", { name: "Продолжить", exact: true }),
+    restored.getByRole("button", { name: "Resume", exact: true }),
   ).toBeVisible();
-  await restored
-    .getByRole("button", { name: "Продолжить", exact: true })
-    .click();
+  await restored.getByRole("button", { name: "Resume", exact: true }).click();
   await expect(restored.locator(".share-ready")).toBeVisible();
   expect(firstParts).toBe(1);
   const record = await current(restored),
@@ -104,19 +102,21 @@ test("history searches and filters filenames and reopens a saved transfer as cur
   await page.goto("/");
   await history(page);
   await page
-    .getByRole("button", { name: "Поиск в истории", exact: true })
+    .getByRole("button", { name: "Search history", exact: true })
     .click();
-  await page.getByLabel("Поиск по имени файла или передачи").fill(".py");
+  await page.getByLabel("Search filenames or transfers").fill(".py");
   await expect(page.locator(".history-item")).toHaveCount(2);
-  await page.getByRole("button", { name: "С паролем", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Password protected", exact: true })
+    .click();
   await expect(page.locator(".history-item")).toHaveCount(1);
   await page.locator(".history-toggle").click();
   await page
-    .getByRole("button", { name: "Открыть передачу", exact: true })
+    .getByRole("button", { name: "Open transfer", exact: true })
     .click();
   await expect(page.locator(".history-dialog")).toHaveCount(0);
   await expect(page.locator(".share-ready")).toBeVisible();
-  await page.getByLabel("Подробности передачи", { exact: true }).click();
+  await page.getByLabel("Transfer details", { exact: true }).click();
   await expect(page.getByText("main.py", { exact: true })).toBeVisible();
 });
 test("rename keeps the same URL and a one-time individual download closes the public link", async ({
@@ -130,7 +130,7 @@ test("rename keeps the same URL and a one-time individual download closes the pu
   ]);
   await expect(page.locator(".share-ready")).toBeVisible();
   const before = await current(page);
-  await page.getByLabel("Подробности передачи", { exact: true }).click();
+  await page.getByLabel("Transfer details", { exact: true }).click();
   const details = page.locator(".owner-details");
   const rename = async (label, value) => {
     const field = details.getByRole("textbox", { name: label, exact: true });
@@ -140,43 +140,41 @@ test("rename keeps the same URL and a one-time individual download closes the pu
     await field.press("Enter");
     await expect(field).toHaveAttribute("aria-readonly", "true");
   };
-  await rename("Название передачи", "Документы");
-  await rename("Имя файла 1", "first.py");
-  await rename("Имя файла 2", "second.md");
+  await rename("Transfer name", "Документы");
+  await rename("Filename 1", "first.py");
+  await rename("Filename 2", "second.md");
   await expect
     .poll(async () => (await current(page)).files[0].name)
     .toBe("first.py");
   await page
     .locator(".share-ready")
-    .getByRole("button", { name: "Параметры передачи", exact: true })
+    .getByRole("button", { name: "Transfer settings", exact: true })
     .click();
   const dialog = page.getByRole("dialog", {
-    name: "Параметры передачи",
+    name: "Transfer settings",
     exact: true,
   });
   await expect(
-    dialog.getByRole("textbox", { name: "Название передачи", exact: true }),
+    dialog.getByRole("textbox", { name: "Transfer name", exact: true }),
   ).toHaveCount(0);
   for (let step = 0; step < 4; step++)
-    await dialog
-      .getByRole("button", { name: /^Срок текущей передачи:/ })
-      .click();
+    await dialog.getByRole("button", { name: /^Current retention:/ }).click();
   await expect(
     dialog.getByRole("button", {
-      name: "Срок текущей передачи: Одноразовая",
+      name: "Current retention: One-time",
       exact: true,
     }),
   ).toBeVisible();
   await dialog
-    .getByRole("button", { name: "Закрыть параметры", exact: true })
+    .getByRole("button", { name: "Close settings", exact: true })
     .click();
   expect((await current(page)).url).toBe(before.url);
   const receiver = await context.newPage();
   await receiver.goto(before.url);
-  await receiver.getByLabel("Подробности передачи", { exact: true }).click();
+  await receiver.getByLabel("Transfer details", { exact: true }).click();
   const event = receiver.waitForEvent("download");
   await receiver
-    .getByRole("link", { name: "Скачать first.py", exact: true })
+    .getByRole("link", { name: "Download first.py", exact: true })
     .click();
   const download = await event;
   expect(download.suggestedFilename()).toBe("first.py");
@@ -190,7 +188,7 @@ test("rename keeps the same URL and a one-time individual download closes the pu
     .toBe(404);
   await receiver.bringToFront();
   await expect(
-    receiver.getByRole("img", { name: "Передача недоступна", exact: true }),
+    receiver.getByRole("img", { name: "Transfer unavailable", exact: true }),
   ).toBeVisible({ timeout: 10000 });
   await receiver.close();
 });
@@ -253,7 +251,7 @@ test("media preview opens images and valid PDF, audio and video with native cont
   await expect(page.locator(".share-ready")).toBeVisible();
   const record = await current(page);
   await page.goto(record.url);
-  await page.getByLabel("Подробности передачи", { exact: true }).click();
+  await page.getByLabel("Transfer details", { exact: true }).click();
   await page.getByRole("button", { name: "pixel.gif", exact: true }).click();
   await expect(page.locator(".media-body img")).toBeVisible();
   await expect
@@ -262,14 +260,14 @@ test("media preview opens images and valid PDF, audio and video with native cont
     )
     .toBe(1);
   await page
-    .getByRole("button", { name: "Закрыть просмотр", exact: true })
+    .getByRole("button", { name: "Close preview", exact: true })
     .click();
   await page.getByRole("button", { name: "document.pdf", exact: true }).click();
   await expect(page.locator(".media-body iframe")).toBeVisible();
   await page.waitForTimeout(1200);
   await page.screenshot({ path: "work/pdf-preview.png" });
   await page
-    .getByRole("button", { name: "Закрыть просмотр", exact: true })
+    .getByRole("button", { name: "Close preview", exact: true })
     .click();
   await page.getByRole("button", { name: "sound.wav", exact: true }).click();
   await expect
@@ -278,7 +276,7 @@ test("media preview opens images and valid PDF, audio and video with native cont
     )
     .toBeGreaterThanOrEqual(1);
   await page
-    .getByRole("button", { name: "Закрыть просмотр", exact: true })
+    .getByRole("button", { name: "Close preview", exact: true })
     .click();
   await page.getByRole("button", { name: "movie.webm", exact: true }).click();
   const videoBytes = await (
@@ -314,7 +312,7 @@ test("lost local file cache asks for the same files and refuses changed bytes be
     buffer: data,
   });
   await expect.poll(() => partTwo).toBeGreaterThan(0);
-  await page.getByRole("button", { name: "Пауза", exact: true }).click();
+  await page.getByRole("button", { name: "Pause", exact: true }).click();
   await page.evaluate(
     () =>
       new Promise((resolve, reject) => {
@@ -334,7 +332,7 @@ test("lost local file cache asks for the same files and refuses changed bytes be
   await page.unroute("**/fake/**");
   await page.reload();
   await expect(
-    page.getByRole("button", { name: "Продолжить", exact: true }),
+    page.getByRole("button", { name: "Resume", exact: true }),
   ).toBeVisible();
   await page.locator("input[type=file]").setInputFiles({
     name: "reselect.bin",
@@ -342,7 +340,7 @@ test("lost local file cache asks for the same files and refuses changed bytes be
     buffer: Buffer.alloc(data.length, 99),
   });
   await expect(
-    page.getByRole("img", { name: "Ошибка", exact: true }),
+    page.getByRole("img", { name: "Error", exact: true }),
   ).toBeVisible();
   await page.locator("input[type=file]").setInputFiles({
     name: "reselect.bin",
@@ -365,12 +363,12 @@ test("browser selection form downloads only checked files without leaving the tr
   await expect(page.locator(".share-ready")).toBeVisible();
   const record = await current(page);
   await page.goto(record.url);
-  await page.getByLabel("Подробности передачи", { exact: true }).click();
+  await page.getByLabel("Transfer details", { exact: true }).click();
   await page
-    .getByRole("checkbox", { name: "Выбрать a.txt", exact: true })
+    .getByRole("checkbox", { name: "Select a.txt", exact: true })
     .check();
   await page
-    .getByRole("checkbox", { name: "Выбрать c.txt", exact: true })
+    .getByRole("checkbox", { name: "Select c.txt", exact: true })
     .check();
   await expect(page.locator(".transfer-name")).toHaveText(
     record.title || record.name,
@@ -379,7 +377,7 @@ test("browser selection form downloads only checked files without leaving the tr
     await page.setViewportSize({ width, height: 844 });
     const name = await page.locator(".transfer-name").boundingBox(),
       action = await page
-        .getByRole("button", { name: "Скачать выбранные файлы", exact: true })
+        .getByRole("button", { name: "Download selected files", exact: true })
         .boundingBox();
     expect(action.x).toBeGreaterThan(name.x + name.width);
     await expect
@@ -398,7 +396,7 @@ test("browser selection form downloads only checked files without leaving the tr
   }
   const event = page.waitForEvent("download");
   await page
-    .getByRole("button", { name: "Скачать выбранные файлы", exact: true })
+    .getByRole("button", { name: "Download selected files", exact: true })
     .click();
   const download = await event;
   const { unzipSync } = await import("fflate");

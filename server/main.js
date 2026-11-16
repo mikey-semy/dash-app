@@ -1,3 +1,4 @@
+import { PIN_PATTERN } from "../shared/config.js";
 import { mkdirSync } from "node:fs";
 import { openDB } from "./core.js";
 import { Store } from "./s3.js";
@@ -12,7 +13,7 @@ for (const key of [
   "S3_SECRET_KEY",
 ])
   if (!process.env[key]) throw new Error("Missing " + key);
-if (!/^\d{6}$/.test(process.env.ADMIN_PASSWORD))
+if (!PIN_PATTERN.test(process.env.ADMIN_PASSWORD))
   throw new Error("ADMIN_PASSWORD must contain exactly six digits");
 mkdirSync("data", { recursive: true });
 const service = new Service(openDB("data/flash.db"), new Store(process.env));

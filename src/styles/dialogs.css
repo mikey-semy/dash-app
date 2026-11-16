@@ -1,0 +1,306 @@
+.history-dialog[open] {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-height: 80dvh;
+}
+.dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--size-20);
+  padding: var(--size-20) var(--size-24);
+  border-bottom: var(--size-1) solid var(--color-divider);
+  flex-shrink: 0;
+}
+.dialog-header h2 {
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-medium);
+  margin: 0;
+}
+.dialog-header h2:focus {
+  outline: none;
+}
+.dialog-body {
+  padding: 0 var(--size-24);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-scrollbar) transparent;
+  min-height: 0;
+}
+.dialog-body.is-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  scrollbar-gutter: auto;
+}
+.history-empty {
+  display: flex;
+  color: var(--color-text);
+}
+.dialog-body::-webkit-scrollbar {
+  width: var(--size-4);
+}
+.dialog-body::-webkit-scrollbar-thumb {
+  background: var(--color-scrollbar);
+  border-radius: var(--radius-small);
+}
+.history-item {
+  padding: var(--size-12) 0;
+  border-bottom: var(--size-1) solid var(--color-divider);
+}
+.history-item:last-child {
+  border: 0;
+}
+.history-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--size-12);
+}
+.history-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--size-10);
+  min-width: 0;
+  width: 100%;
+  font-size: var(--font-size-caption);
+  padding: var(--size-8) 0;
+}
+.history-toggle > span:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-5);
+  min-width: 0;
+}
+.history-toggle small {
+  font-size: var(--font-size-small);
+  color: var(--color-muted);
+}
+.chevron {
+  display: flex;
+  transition: transform var(--duration-180);
+}
+.chevron.expanded {
+  transform: rotate(180deg);
+}
+.history-information {
+  padding-top: var(--size-16);
+  animation: appear var(--duration-200) var(--ease-out) both;
+}
+.history-information .files {
+  margin-bottom: var(--size-12);
+}
+.history-row .share {
+  min-height: 0;
+}
+.history-row .share-controls {
+  gap: var(--size-4);
+  position: relative;
+}
+.qr-popover {
+  position: absolute;
+  top: calc(100% + var(--size-10));
+  right: 0;
+  background: var(--color-surface);
+  border: var(--size-1) solid var(--color-border-soft);
+  padding: var(--size-12);
+  z-index: var(--layer-5);
+  animation: appear var(--duration-180) var(--ease-out) both;
+}
+.qr-popover img {
+  display: block;
+  width: var(--size-128) !important;
+  height: var(--size-128) !important;
+}
+@media (--mobile) {
+  .dialog-header {
+    padding: var(--size-16);
+  }
+  .dialog-body {
+    padding: 0 var(--size-16);
+  }
+  .history-row {
+    gap: var(--size-8);
+  }
+}
+
+@media (--mobile) {
+  .share-ready .share-controls {
+    left: calc(100% + var(--size-8));
+    gap: 0;
+  }
+}
+
+/* Keep modal geometry and scrollbar space stable while content expands. */
+.history-dialog[open] {
+  height: min(var(--size-560), 80dvh);
+  max-height: min(var(--size-560), 80dvh);
+}
+.dialog-body {
+  flex: 1;
+  overflow-y: scroll;
+  overflow-anchor: none;
+  scrollbar-gutter: stable;
+}
+.dialog-body::-webkit-scrollbar-track {
+  background: var(--color-code-surface);
+}
+.history-item {
+  transition: padding-bottom var(--duration-240) var(--ease);
+  overflow-anchor: none;
+}
+.disclosure {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    grid-template-rows var(--duration-240) var(--easing-disclosure),
+    opacity var(--duration-180) var(--ease),
+    visibility var(--duration-0) linear var(--duration-240);
+}
+.disclosure[data-open="true"] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+  transition:
+    grid-template-rows var(--duration-240) var(--easing-disclosure),
+    opacity var(--duration-180) var(--ease),
+    visibility var(--duration-0);
+}
+.disclosure-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+.history-information {
+  animation: none;
+}
+.settings .details-toggle {
+  padding: var(--size-7);
+  display: flex;
+}
+.settings > .details-body {
+  position: absolute;
+  right: 0;
+  top: var(--size-46);
+  width: var(--size-250);
+}
+.settings-panel {
+  position: static;
+  width: var(--size-250);
+}
+.transfer-details .details-toggle {
+  display: flex;
+  justify-content: center;
+  width: var(--size-40);
+  margin: auto;
+  padding: var(--size-8);
+}
+.transfer-details .details-toggle svg {
+  transition: transform var(--duration-240) var(--ease);
+}
+.transfer-details[data-open="true"] .details-toggle svg {
+  transform: rotate(180deg);
+}
+.qr-popover {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  animation: none;
+  transition:
+    opacity var(--duration-180) var(--ease),
+    visibility var(--duration-0) var(--duration-180);
+}
+.qr-popover.is-open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  animation: appear var(--duration-180) var(--ease-out);
+  transition:
+    opacity var(--duration-180) var(--ease),
+    visibility var(--duration-0);
+}
+.history-dialog[data-closing="true"] {
+  animation: disappear var(--duration-180) var(--ease-in) both;
+}
+.history-dialog[data-closing="true"]::backdrop {
+  animation: disappear var(--duration-180) var(--ease-in) both;
+}
+.history-dialog::backdrop {
+  animation: appear var(--duration-200) var(--ease-out);
+}
+button,
+a,
+select,
+input,
+.password-field {
+  transition:
+    opacity var(--duration-180) var(--ease),
+    transform var(--duration-180) var(--ease),
+    border-color var(--duration-180) var(--ease),
+    background-color var(--duration-180) var(--ease);
+}
+button:not(:disabled):active,
+a:active {
+  scale: 0.96;
+}
+button:disabled {
+  cursor: default;
+}
+.icon-button:disabled:hover {
+  transform: none;
+  opacity: var(--opacity-0-4);
+}
+.icon-button svg {
+  animation: icon-feedback var(--duration-180) var(--ease-out);
+}
+.history-toggle small,
+.login p[role="alert"] {
+  animation: appear var(--duration-200) var(--ease-out);
+}
+progress::-webkit-progress-value {
+  transition: width var(--duration-180) linear;
+}
+main,
+.login {
+  animation: appear var(--duration-220) var(--ease-out);
+}
+@keyframes disappear {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes icon-feedback {
+  from {
+    opacity: var(--opacity-0-35);
+    scale: 0.85;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+/* Animate measured pixels; grid fractions can snap at intrinsic content limits. */
+.disclosure,
+.disclosure[data-open="true"] {
+  display: block;
+  height: 0;
+  overflow: hidden;
+  opacity: 1;
+  visibility: hidden;
+  transition: none;
+}
+.disclosure-inner {
+  display: flow-root;
+  overflow: visible;
+}
+/* Keep the clicked history header still even while pressing it. */

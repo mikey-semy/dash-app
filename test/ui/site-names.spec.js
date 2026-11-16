@@ -5,15 +5,13 @@ test("sites get generated titles; title generator is an editable draft in curren
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  await page.getByLabel("Пароль", { exact: true }).fill("123456");
-  await page.getByRole("button", { name: "Войти", exact: true }).click();
-  await page
-    .locator("input[type=file]")
-    .setInputFiles({
-      name: "index.html",
-      mimeType: "text/html",
-      buffer: Buffer.from("<h1>Site</h1>"),
-    });
+  await page.getByLabel("Password", { exact: true }).fill("123456");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await page.locator("input[type=file]").setInputFiles({
+    name: "index.html",
+    mimeType: "text/html",
+    buffer: Buffer.from("<h1>Site</h1>"),
+  });
   await expect(page.locator(".share-ready")).toBeVisible();
   const initial = await page.evaluate(
     async () => (await (await fetch("/api/transfers")).json())[0],
@@ -26,13 +24,13 @@ test("sites get generated titles; title generator is an editable draft in curren
       initial.id,
     );
   await page
-    .getByRole("button", { name: "Подробности передачи", exact: true })
+    .getByRole("button", { name: "Transfer details", exact: true })
     .click();
   const title = page
       .locator(".owner-details")
-      .getByRole("textbox", { name: "Название передачи", exact: true }),
+      .getByRole("textbox", { name: "Transfer name", exact: true }),
     generator = page.getByRole("button", {
-      name: "Сгенерировать название",
+      name: "Generate name",
       exact: true,
     });
   await expect(generator).toHaveCount(0);
@@ -51,12 +49,12 @@ test("sites get generated titles; title generator is an editable draft in curren
   await expect.poll(async () => (await record()).title).toBe(next);
   expect((await record()).files[0].name).toBe("index.html");
   expect((await record()).url).toBe(initial.url);
-  await page.getByLabel("Настройки", { exact: true }).click();
-  await page.getByRole("button", { name: "История", exact: true }).click();
+  await page.getByLabel("Settings", { exact: true }).click();
+  await page.getByRole("button", { name: "History", exact: true }).click();
   const field = page
     .locator(".history-item")
     .first()
-    .getByRole("textbox", { name: "Название передачи", exact: true });
+    .getByRole("textbox", { name: "Transfer name", exact: true });
   await expect(generator).toHaveCount(0);
   await field.click();
   await expect(generator).toBeVisible();
@@ -70,25 +68,23 @@ test("sites get generated titles; title generator is an editable draft in curren
   await field.press("Enter");
   await expect.poll(async () => (await record()).title).toBe("My own website");
   await page
-    .getByRole("button", { name: "Закрыть историю", exact: true })
+    .getByRole("button", { name: "Close history", exact: true })
     .click();
   await page
-    .getByRole("button", { name: "Закрыть текущую передачу", exact: true })
+    .getByRole("button", { name: "Close current transfer", exact: true })
     .click();
-  await page
-    .locator("input[type=file]")
-    .setInputFiles({
-      name: "note.txt",
-      mimeType: "text/plain",
-      buffer: Buffer.from("Text"),
-    });
+  await page.locator("input[type=file]").setInputFiles({
+    name: "note.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("Text"),
+  });
   await expect(page.locator(".share-ready")).toBeVisible();
   await page
-    .getByRole("button", { name: "Подробности передачи", exact: true })
+    .getByRole("button", { name: "Transfer details", exact: true })
     .click();
   await page
     .locator(".owner-details")
-    .getByRole("textbox", { name: "Название передачи", exact: true })
+    .getByRole("textbox", { name: "Transfer name", exact: true })
     .click();
   await expect(generator).toHaveCount(0);
   expect(

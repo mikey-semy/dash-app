@@ -3,10 +3,10 @@ test("editable drafts block file uploads; read-only preview closes and appends t
   page,
 }) => {
   await page.goto("/");
-  await page.getByLabel("Пароль", { exact: true }).fill("123456");
-  await page.getByRole("button", { name: "Войти", exact: true }).click();
+  await page.getByLabel("Password", { exact: true }).fill("123456");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "ЗАГРУЗИТЬ", exact: true }),
+    page.getByRole("button", { name: "UPLOAD", exact: true }),
   ).toBeVisible();
   await page.locator("input[type=file]").setInputFiles({
     name: "original.txt",
@@ -49,11 +49,9 @@ test("editable drafts block file uploads; read-only preview closes and appends t
       },
       { selector, drop },
     );
-  await page
-    .getByRole("button", { name: "Редактировать текст", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Edit text", exact: true }).click();
   const editor = page.getByRole("dialog", {
-    name: "Редактирование текста",
+    name: "Edit text",
     exact: true,
   });
   await editor.locator(".cm-content").fill("unsaved draft");
@@ -63,16 +61,16 @@ test("editable drafts block file uploads; read-only preview closes and appends t
   expect((await current()).files.length).toBe(1);
   expect(writes).toBe(0);
   await editor
-    .getByRole("button", { name: "Закрыть редактор", exact: true })
+    .getByRole("button", { name: "Close editor", exact: true })
     .click();
   await page
-    .getByRole("button", { name: "Подробности передачи", exact: true })
+    .getByRole("button", { name: "Transfer details", exact: true })
     .click();
   await page
-    .getByRole("button", { name: "Просмотреть original.txt", exact: true })
+    .getByRole("button", { name: "Preview original.txt", exact: true })
     .click();
   const viewer = page.getByRole("dialog", {
-    name: "Просмотр текста",
+    name: "Text preview",
     exact: true,
   });
   await expect(viewer.locator(".cm-content")).toHaveText("original");

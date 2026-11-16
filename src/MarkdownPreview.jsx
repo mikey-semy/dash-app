@@ -1,3 +1,4 @@
+import { copy } from "../shared/copy.js";
 import React, { lazy, Suspense } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -34,7 +35,7 @@ export default function MarkdownPreview({
     }
   };
   return (
-    <div className="markdown-preview" aria-label="Превью Markdown">
+    <div className="markdown-preview" aria-label={copy.markdownPreview}>
       <article className="markdown-document">
         <Markdown
           remarkPlugins={[remarkGfm]}

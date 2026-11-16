@@ -1,3 +1,5 @@
+import { IconButton } from "./components/IconButton.jsx";
+import { copy } from "../shared/copy.js";
 import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import QRButton from "./QRButton.jsx";
 import { CopyButton, Icon } from "./Icons.jsx";
@@ -87,33 +89,31 @@ export default function TextPreview({
     return (
       <a
         className="primary-action"
-        aria-label="СКАЧАТЬ"
-        title="Скачать"
+        aria-label={copy.downloadAction}
+        title={copy.download}
         href={downloadPath}
       >
         <Icon name="download" />
       </a>
     );
   return (
-    <section className="text-preview" aria-label="Текст передачи">
+    <section className="text-preview" aria-label={copy.transferText}>
       {!bare && (
         <header className="text-preview-header">
           <span className="language-label">{language}</span>
           <div className="text-actions">
-            <CopyButton value={source} label="Копировать текст" />
+            <CopyButton value={source} label={copy.copyText} />
             <QRButton
               url={shareUrl || new URL(location.pathname, location.origin).href}
             />
             {onEdit && (
-              <button
-                type="button"
-                className="icon-button"
-                aria-label="Редактировать текст"
-                title="Редактировать текст"
+              <IconButton
+                aria-label={copy.editText}
+                title={copy.editText}
                 onClick={onEdit}
               >
                 <Icon name="edit" />
-              </button>
+              </IconButton>
             )}
             <a
               className="raw-link"
@@ -121,14 +121,12 @@ export default function TextPreview({
               target="_blank"
               rel="noopener noreferrer"
             >
-              Raw
+              {copy.raw}
             </a>
             {markdown && (
-              <button
-                type="button"
-                className="icon-button"
-                aria-label={preview ? "Показать исходник" : "Показать превью"}
-                title={preview ? "Исходник" : "Превью"}
+              <IconButton
+                aria-label={preview ? copy.showSource : copy.showPreview}
+                title={preview ? copy.source : copy.preview}
                 aria-pressed={preview}
                 onClick={() => {
                   automatic.current = false;
@@ -136,26 +134,24 @@ export default function TextPreview({
                 }}
               >
                 <Icon name={preview ? "code" : "eye"} />
-              </button>
+              </IconButton>
             )}
             <a
               className="icon-button"
-              aria-label="СКАЧАТЬ"
-              title="Скачать"
+              aria-label={copy.downloadAction}
+              title={copy.download}
               href={downloadPath}
             >
               <Icon name="download" />
             </a>
             {onClose && (
-              <button
-                type="button"
-                className="icon-button"
-                aria-label="Закрыть просмотр"
-                title="Закрыть"
+              <IconButton
+                aria-label={copy.closePreview}
+                title={copy.close}
                 onClick={onClose}
               >
                 <Icon name="cancel" />
-              </button>
+              </IconButton>
             )}
           </div>
         </header>
@@ -165,7 +161,7 @@ export default function TextPreview({
           <div
             className="archive-status"
             role="status"
-            aria-label="Загрузка текста"
+            aria-label={copy.loadingText}
           >
             <Icon name="code" />
           </div>

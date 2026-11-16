@@ -4,10 +4,10 @@ test("folder tree supports Markdown navigation and an isolated static site with 
   context,
 }) => {
   await page.goto("/");
-  await page.getByLabel("Пароль", { exact: true }).fill("123456");
-  await page.getByRole("button", { name: "Войти", exact: true }).click();
+  await page.getByLabel("Password", { exact: true }).fill("123456");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "ЗАГРУЗИТЬ", exact: true }),
+    page.getByRole("button", { name: "UPLOAD", exact: true }),
   ).toBeVisible();
   await page.evaluate(() => {
     const f = (name, text) => ({
@@ -67,7 +67,7 @@ test("folder tree supports Markdown navigation and an isolated static site with 
     document.querySelector("main").dispatchEvent(event);
   });
   await page
-    .getByRole("button", { name: "Загрузить папки", exact: true })
+    .getByRole("button", { name: "Upload folders", exact: true })
     .click();
   await expect(page.locator(".share-ready")).toBeVisible();
   const record = await page.evaluate(
@@ -106,15 +106,15 @@ test("folder tree supports Markdown navigation and an isolated static site with 
     reader.getByRole("heading", { name: "Project", exact: true }),
   ).toBeVisible();
   await page
-    .getByRole("button", { name: "Параметры передачи", exact: true })
+    .getByRole("button", { name: "Transfer settings", exact: true })
     .click();
   await expect(
     page
-      .getByRole("dialog", { name: "Параметры передачи", exact: true })
-      .getByRole("button", { name: "Остановить публикацию", exact: true }),
+      .getByRole("dialog", { name: "Transfer settings", exact: true })
+      .getByRole("button", { name: "Unpublish site", exact: true }),
   ).toBeVisible();
   await page
-    .getByRole("button", { name: "Закрыть параметры", exact: true })
+    .getByRole("button", { name: "Close settings", exact: true })
     .click();
   await reader.goto(new URL(record.url).pathname);
   const frame = reader.frameLocator(".site-frame");
@@ -168,10 +168,8 @@ test("failed media preview error is centered in the viewport", async ({
     r.fulfill({ body: "bad", contentType: "image/png" }),
   );
   await page.goto("/Error1");
-  await page
-    .getByRole("button", { name: "Открыть просмотр", exact: true })
-    .click();
-  const icon = page.getByRole("img", { name: "Ошибка", exact: true });
+  await page.getByRole("button", { name: "Open preview", exact: true }).click();
+  const icon = page.getByRole("img", { name: "Error", exact: true });
   await expect(icon).toBeVisible();
   const box = await icon.boundingBox(),
     size = page.viewportSize();
@@ -183,10 +181,10 @@ test("unreadable virtual archive folders show a centered error without creating 
   page,
 }) => {
   await page.goto("/");
-  await page.getByLabel("Пароль", { exact: true }).fill("123456");
-  await page.getByRole("button", { name: "Войти", exact: true }).click();
+  await page.getByLabel("Password", { exact: true }).fill("123456");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "ЗАГРУЗИТЬ", exact: true }),
+    page.getByRole("button", { name: "UPLOAD", exact: true }),
   ).toBeVisible();
   let creates = 0;
   page.on("request", (r) => {
@@ -216,7 +214,7 @@ test("unreadable virtual archive folders show a centered error without creating 
     });
     document.querySelector("main").dispatchEvent(e);
   });
-  const icon = page.getByRole("img", { name: "Ошибка", exact: true });
+  const icon = page.getByRole("img", { name: "Error", exact: true });
   await expect(icon).toBeVisible();
   const box = await icon.boundingBox(),
     size = page.viewportSize();
@@ -224,6 +222,6 @@ test("unreadable virtual archive folders show a centered error without creating 
   expect(Math.abs(box.y + box.height / 2 - size.height / 2)).toBeLessThan(2);
   expect(creates).toBe(0);
   await page
-    .getByRole("button", { name: "Закрыть папки", exact: true })
+    .getByRole("button", { name: "Close folders", exact: true })
     .click();
 });

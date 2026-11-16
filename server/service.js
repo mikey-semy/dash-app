@@ -1,3 +1,4 @@
+import { copy } from "../shared/copy.js";
 import { ZipArchive } from "archiver";
 import { Parse } from "unzipper";
 import { Readable, PassThrough } from "node:stream";
@@ -42,7 +43,7 @@ export class Service {
       !["ready", "empty"].includes(parent.state) ||
       (parent.expires !== null && parent.expires <= Date.now())
     )
-      throw Object.assign(new Error("Передача недоступна для добавления"), {
+      throw Object.assign(new Error(copy.transferUnavailableForAppending), {
         status: 409,
       });
     const pending = this.db
@@ -53,17 +54,16 @@ export class Service {
     if (pending) {
       if (pending.state === "failed") {
         this.delete(pending.id);
-        throw Object.assign(
-          new Error("Неудачное добавление очищается; повторите через минуту"),
-          { status: 409 },
-        );
+        throw Object.assign(new Error(copy.appendCleanupPending), {
+          status: 409,
+        });
       }
-      throw Object.assign(new Error("Добавление уже выполняется"), {
+      throw Object.assign(new Error(copy.appendAlreadyInProgress), {
         status: 409,
       });
     }
     if (!Array.isArray(files) || !files.length)
-      throw Object.assign(new Error("Выберите файлы"), { status: 400 });
+      throw Object.assign(new Error(copy.selectFiles), { status: 400 });
     const next = insertTransfer(
       this.db,
       [
@@ -88,21 +88,20 @@ export class Service {
       !textCandidate(parent) ||
       (parent.expires !== null && parent.expires <= Date.now())
     )
-      throw Object.assign(new Error("Редактирование недоступно"), {
+      throw Object.assign(new Error(copy.editingUnavailable), {
         status: 409,
       });
     if (expectedRevision !== revision(parent))
-      throw Object.assign(
-        new Error("Передача изменилась. Откройте редактор заново."),
-        { status: 409 },
-      );
+      throw Object.assign(new Error(copy.transferChangedReopenTheEditor), {
+        status: 409,
+      });
     if (
       !file ||
       !Number.isSafeInteger(file.size) ||
       file.size < 0 ||
       file.size > TEXT_LIMIT
     )
-      throw Object.assign(new Error("Максимум 5 МиБ текста"), { status: 400 });
+      throw Object.assign(new Error(copy.textIsLimitedTo5Mib), { status: 400 });
     const pending = this.db
       .prepare(
         "SELECT id,state FROM transfers WHERE parent=? AND state NOT IN ('deleted','merged')",
@@ -110,10 +109,9 @@ export class Service {
       .get(id);
     if (pending) {
       if (pending.state === "failed") this.delete(pending.id);
-      throw Object.assign(
-        new Error("Дождитесь завершения изменения передачи"),
-        { status: 409 },
-      );
+      throw Object.assign(new Error(copy.waitForTheTransferUpdateToFinish), {
+        status: 409,
+      });
     }
     const next = insertTransfer(
       this.db,
@@ -132,12 +130,11 @@ export class Service {
       parent.state !== "ready" ||
       (parent.expires !== null && parent.expires <= Date.now())
     )
-      throw Object.assign(new Error("Передача недоступна"), { status: 404 });
+      throw Object.assign(new Error(copy.transferUnavailable), { status: 404 });
     if (expectedRevision !== revision(parent))
-      throw Object.assign(
-        new Error("Передача изменилась. Откройте параметры заново."),
-        { status: 409 },
-      );
+      throw Object.assign(new Error(copy.transferChangedReopenSettings), {
+        status: 409,
+      });
     if (
       !Array.isArray(names) ||
       names.length !== parent.files.length ||
@@ -145,7 +142,7 @@ export class Service {
         (name) => typeof name !== "string" || !name.trim() || name.length > 256,
       )
     )
-      throw Object.assign(new Error("Неверные имена"), { status: 400 });
+      throw Object.assign(new Error(copy.invalidFilenames), { status: 400 });
     if (
       this.db
         .prepare(
@@ -153,10 +150,9 @@ export class Service {
         )
         .get(id)
     )
-      throw Object.assign(
-        new Error("Дождитесь завершения изменения передачи"),
-        { status: 409 },
-      );
+      throw Object.assign(new Error(copy.waitForTheTransferUpdateToFinish), {
+        status: 409,
+      });
     const next = safeNames(
       parent.files.map((file, i) => ({ ...file, name: names[i] })),
     );
@@ -188,12 +184,9 @@ export class Service {
       !["ready", "empty"].includes(parent.state) ||
       (parent.expires !== null && parent.expires <= Date.now())
     )
-      throw Object.assign(new Error("Передача недоступна"), { status: 409 });
+      throw Object.assign(new Error(copy.transferUnavailable), { status: 409 });
     if (expectedRevision !== undefined && expectedRevision !== revision(parent))
-      throw Object.assign(
-        new Error("Состав передачи изменился; выберите файлы заново"),
-        { status: 409 },
-      );
+      throw Object.assign(new Error(copy.fileSelectionStale), { status: 409 });
     if (
       !Array.isArray(indices) ||
       !indices.length ||
@@ -202,7 +195,9 @@ export class Service {
       ) ||
       new Set(indices).size !== indices.length
     )
-      throw Object.assign(new Error("Неверный выбор файлов"), { status: 400 });
+      throw Object.assign(new Error(copy.invalidFileSelection), {
+        status: 400,
+      });
     if (
       this.db
         .prepare(
@@ -210,10 +205,9 @@ export class Service {
         )
         .get(id)
     )
-      throw Object.assign(
-        new Error("Дождитесь завершения изменения передачи"),
-        { status: 409 },
-      );
+      throw Object.assign(new Error(copy.waitForTheTransferUpdateToFinish), {
+        status: 409,
+      });
     const kept = parent.files.filter((f, i) => !indices.includes(i));
     if (!kept.length) {
       const output = {
@@ -388,7 +382,7 @@ export class Service {
     const t = this.get(id);
     this.uploadable(t);
     const f = t.files[index];
-    if (!f) throw Object.assign(new Error("Файл не найден"), { status: 404 });
+    if (!f) throw Object.assign(new Error(copy.fileNotFound), { status: 404 });
     if (!f.upload && !f.done) {
       if (!f.size) {
         await this.store.empty(f.key);
@@ -410,12 +404,12 @@ export class Service {
         !["ready", "empty"].includes(parent.state) ||
         (parent.expires !== null && parent.expires <= Date.now())
       )
-        throw Object.assign(new Error("Исходная передача недоступна"), {
+        throw Object.assign(new Error(copy.originalTransferUnavailable), {
           status: 409,
         });
     }
     if (!t || t.state !== "uploading" || Date.now() - t.created >= 86400000)
-      throw Object.assign(new Error("Загрузка недоступна"), { status: 409 });
+      throw Object.assign(new Error(copy.uploadUnavailable), { status: 409 });
   }
   async sign(id, index, part) {
     const t = this.get(id);
@@ -427,7 +421,7 @@ export class Service {
       part < 1 ||
       part > Math.ceil(f.size / PART)
     )
-      throw Object.assign(new Error("Неверная часть"), { status: 400 });
+      throw Object.assign(new Error(copy.invalidPart), { status: 400 });
     return {
       url: await this.store.sign(
         f.key,
@@ -441,7 +435,7 @@ export class Service {
     const t = this.get(id);
     this.uploadable(t);
     const f = t.files[index];
-    if (!f) throw Object.assign(new Error("Файл не найден"), { status: 404 });
+    if (!f) throw Object.assign(new Error(copy.fileNotFound), { status: 404 });
     if (f.done) return;
     let head;
     try {
@@ -451,7 +445,7 @@ export class Service {
     }
     if (!head) {
       if (!f.upload)
-        throw Object.assign(new Error("Сначала начните загрузку"), {
+        throw Object.assign(new Error(copy.initializeTheUploadFirst), {
           status: 409,
         });
       const parts = await this.store.parts(f.key, f.upload);
@@ -464,15 +458,14 @@ export class Service {
             p.Size !== Math.min(PART, f.size - i * PART),
         )
       )
-        throw Object.assign(
-          new Error("Загружены не все части или размер неверен"),
-          { status: 409 },
-        );
+        throw Object.assign(new Error(copy.missingPartsOrIncorrectUploadSize), {
+          status: 409,
+        });
       await this.store.complete(f.key, f.upload, parts);
       head = await this.store.head(f.key);
     }
     if (head.ContentLength !== f.size)
-      throw Object.assign(new Error("Фактический размер не совпадает"), {
+      throw Object.assign(new Error(copy.actualSizeDoesNotMatch), {
         status: 409,
       });
     f.done = true;
@@ -483,7 +476,9 @@ export class Service {
     if (t && ["queued", "archiving", "ready"].includes(t.state)) return;
     this.uploadable(t);
     if (t.files.some((f) => !f.done))
-      throw Object.assign(new Error("Не все файлы готовы"), { status: 409 });
+      throw Object.assign(new Error(copy.someFilesAreNotReady), {
+        status: 409,
+      });
     if (t.parent) {
       this.db
         .prepare("UPDATE transfers SET state='queued' WHERE id=?")
@@ -493,7 +488,7 @@ export class Service {
     if (t.files.length === 1 && !t.files[0].directory) {
       const f = t.files[0],
         h = await this.store.head(f.key);
-      if (h.ContentLength !== f.size) throw new Error("Размер изменён");
+      if (h.ContentLength !== f.size) throw new Error(copy.sizeChanged);
       await this.ready(t, {
         key: f.key,
         name: f.name,
@@ -676,9 +671,10 @@ export class Service {
         t.reserved -
           t.files.filter((f) => !f.reused).reduce((n, f) => n + f.size, 0)
       )
-        throw new Error("Архив превысил резерв");
+        throw new Error(copy.archiveExceededItsReservation);
       const h = await this.store.head(key);
-      if (h.ContentLength !== size) throw new Error("Архив не подтверждён");
+      if (h.ContentLength !== size)
+        throw new Error(copy.archiveHasNotBeenVerified);
       await this.ready(t, {
         key,
         name: archiveName(t.created),
@@ -717,9 +713,9 @@ export class Service {
       if (!this.archiving)
         this.db
           .prepare(
-            "UPDATE transfers SET state='failed',error='Исчерпаны попытки сборки ZIP' WHERE state='archiving' AND attempts>=3",
+            "UPDATE transfers SET state='failed',error=? WHERE state='archiving' AND attempts>=3",
           )
-          .run();
+          .run(copy.zipCreationRetriesExhausted);
       for (const r of this.db
         .prepare(
           "SELECT id FROM transfers WHERE state='deleting' OR (state IN ('ready','empty') AND (reserved>0 OR output LIKE '%garbage%'))",
@@ -769,7 +765,7 @@ export class Service {
         } catch {
           this.db
             .prepare("UPDATE transfers SET error=? WHERE id=?")
-            .run("Ошибка очистки S3; повтор через минуту", t.id);
+            .run(copy.s3CleanupFailedRetryingInAMinute, t.id);
         }
       }
       if (this.archiving) return null;
@@ -796,9 +792,9 @@ export class Service {
     } catch {
       this.db
         .prepare(
-          "UPDATE transfers SET state=CASE WHEN attempts>=3 THEN 'failed' ELSE 'queued' END,error='Не удалось собрать ZIP' WHERE id=? AND state='archiving'",
+          "UPDATE transfers SET state=CASE WHEN attempts>=3 THEN 'failed' ELSE 'queued' END,error=? WHERE id=? AND state='archiving'",
         )
-        .run(job.id);
+        .run(copy.couldNotCreateZip, job.id);
     } finally {
       this.archiving = null;
       this.activeZip = null;

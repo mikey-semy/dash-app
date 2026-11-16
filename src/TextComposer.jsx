@@ -1,9 +1,12 @@
+import { IconButton } from "./components/IconButton.jsx";
+import { copy } from "../shared/copy.js";
 import { ErrorNotice } from "./Errors.jsx";
 import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Icon } from "./Icons.jsx";
 import languages from "./text-languages.json";
 const CodeEditor = lazy(() => import("./CodeEditor.jsx"));
-export const TEXT_LIMIT = 5 * 1024 * 1024;
+import { TEXT_LIMIT } from "../shared/config.js";
+export { TEXT_LIMIT };
 export default function TextComposer({
   initial = "",
   filename,
@@ -18,7 +21,7 @@ export default function TextComposer({
     [sending, setSending] = useState(false);
   useEffect(() => {
     const previous = document.title;
-    document.title = "Текст";
+    document.title = copy.text;
     ref.current.showModal();
     return () => {
       ref.current?.close();
@@ -30,7 +33,7 @@ export default function TextComposer({
       type: "text/plain;charset=utf-8",
     });
     if (file.size > TEXT_LIMIT) {
-      setError("Максимум 5 МиБ текста");
+      setError(copy.textIsLimitedTo5Mib);
       return;
     }
     setSending(true);
@@ -40,12 +43,10 @@ export default function TextComposer({
       if (sent !== false) onClose();
       else
         setError(
-          editing
-            ? "Не удалось сохранить. Повторите."
-            : "Не удалось отправить. Повторите.",
+          editing ? copy.couldNotSaveTryAgain : copy.couldNotSendTryAgain,
         );
     } catch (error) {
-      setError(error.message || "Не удалось отправить. Повторите.");
+      setError(error.message || copy.couldNotSendTryAgain);
     } finally {
       setSending(false);
     }
@@ -54,7 +55,7 @@ export default function TextComposer({
     <dialog
       ref={ref}
       className="text-dialog"
-      aria-label={editing ? "Редактирование текста" : "Текстовая передача"}
+      aria-label={editing ? copy.editText : copy.textTransfer}
       onCancel={(e) => {
         e.preventDefault();
         if (!sending) onClose();
@@ -74,26 +75,22 @@ export default function TextComposer({
         </span>
         <div className="text-actions">
           <span className="language-label">{language}</span>
-          <button
-            className="icon-button"
-            type="button"
-            aria-label={editing ? "Сохранить текст" : "Отправить текст"}
-            title={editing ? "Сохранить" : "Отправить"}
+          <IconButton
+            aria-label={editing ? copy.saveText : copy.sendText}
+            title={editing ? copy.save : copy.send}
             disabled={sending || (!editing && !text.length)}
             onClick={send}
           >
             <Icon name={editing ? "save" : "upload"} />
-          </button>
-          <button
-            className="icon-button"
-            type="button"
-            aria-label="Закрыть редактор"
-            title="Закрыть"
+          </IconButton>
+          <IconButton
+            aria-label={copy.closeEditor}
+            title={copy.close}
             disabled={sending}
             onClick={onClose}
           >
             <Icon name="cancel" />
-          </button>
+          </IconButton>
         </div>
       </header>
       <div className="text-dialog-body">
@@ -102,7 +99,7 @@ export default function TextComposer({
             <div
               className="archive-status"
               role="status"
-              aria-label="Загрузка редактора"
+              aria-label={copy.loadingEditor}
             >
               <Icon name="code" />
             </div>

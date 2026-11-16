@@ -1,3 +1,6 @@
+import { TEXT_LIMIT } from "../shared/config.js";
+import { statusPage, statusIcons } from "./status-page.js";
+import { copy } from "../shared/copy.js";
 import { siteEntry, sitePublished } from "./site-policy.js";
 import { resourceType } from "./resource-type.js";
 import { createHmac, createHash, randomBytes } from "node:crypto";
@@ -42,9 +45,11 @@ export function siteRoutes(app, service, env, transfer) {
       const direct = !!context;
       const t = context?.transfer || transfer(req);
       if (!sitePublished(t))
-        throw Object.assign(new Error("Сайт не опубликован"), { status: 404 });
+        throw Object.assign(new Error(copy.siteIsUnpublished), { status: 404 });
       if (!direct && req.params.key !== signature(t))
-        throw Object.assign(new Error("Просмотр недоступен"), { status: 404 });
+        throw Object.assign(new Error(copy.previewUnavailable), {
+          status: 404,
+        });
       const entry = siteEntry(t),
         directory = entry.name.slice(0, entry.name.lastIndexOf("/") + 1);
       let name = direct
@@ -57,7 +62,7 @@ export function siteRoutes(app, service, env, transfer) {
         name.split("/").some((part) => part === ".." || part === ".") ||
         name.includes("\\")
       )
-        throw Object.assign(new Error("Неверный путь"), { status: 404 });
+        throw Object.assign(new Error(copy.invalidPath), { status: 404 });
       if (!name || name.endsWith("/")) name += "index.html";
       let index = t.files.findIndex(
         (file) => file.name === name && !file.directory,
@@ -89,7 +94,7 @@ export function siteRoutes(app, service, env, transfer) {
         }
       }
       if (index < 0)
-        throw Object.assign(new Error("Файл не найден"), { status: 404 });
+        throw Object.assign(new Error(copy.fileNotFound), { status: 404 });
       const file = t.files[index];
       const { extension, type } = resourceType(
         name,
@@ -175,7 +180,7 @@ export function siteRoutes(app, service, env, transfer) {
       };
       if (!stillPublished()) {
         object.Body.destroy();
-        throw Object.assign(Error("Публикация изменилась"), { status: 404 });
+        throw Object.assign(Error(copy.publicationChanged), { status: 404 });
       }
       if (errorStatus) {
         res.locals.errorPage = true;
@@ -193,7 +198,7 @@ export function siteRoutes(app, service, env, transfer) {
       const textType =
         (!direct || fallback) &&
         ["html", "htm", "css", "js", "mjs"].includes(extension) &&
-        file.size <= 5 * 1024 * 1024;
+        file.size <= TEXT_LIMIT;
       if (textType) {
         const chunks = [];
         let size = 0;
@@ -205,7 +210,7 @@ export function siteRoutes(app, service, env, transfer) {
         if (size !== file.size) throw Error("Incomplete object");
         const buffer = Buffer.concat(chunks);
         if (!stillPublished())
-          throw Object.assign(new Error("Передача обновилась"), {
+          throw Object.assign(new Error(copy.transferUpdated), {
             status: 412,
           });
         let body = new TextDecoder("utf-8", { fatal: true }).decode(buffer);
@@ -317,7 +322,7 @@ export function siteRoutes(app, service, env, transfer) {
               });
         if (!stillPublished()) {
           part.Body.destroy();
-          throw Object.assign(Error("Публикация изменилась"), { status: 404 });
+          throw Object.assign(Error(copy.publicationChanged), { status: 404 });
         }
         return await pipeline(part.Body, res);
       }
@@ -341,7 +346,12 @@ export function siteRoutes(app, service, env, transfer) {
         })
         .type("html")
         .send(
-          `<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><style nonce="${nonce}">body{margin:0;display:grid;place-items:center;height:100dvh}a{color:#d33434;display:flex}</style><a href="${context ? origin + "/" : "/"}" target="_top" aria-label="Вернуться к загрузке"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6 6 18 18M18 6 6 18"/></svg></a><script nonce="${nonce}">console.error('[DU] Static preview HTTP ${error.status || 503}')</script>`,
+          statusPage({
+            nonce,
+            title: copy.siteUnavailable,
+            body: `<a class="unavailable" href="${context ? origin + "/" : "/"}" target="_top" aria-label="${copy.backToUpload}">${statusIcons.cross}</a>`,
+            script: `console.error('[DU] Static preview HTTP ${error.status || 503}')`,
+          }),
         );
     }
   }

@@ -1,4 +1,5 @@
-const unavailable = "Не удалось связаться с сервером. Повторите.";
+import { copy, formatCopy } from "../shared/copy.js";
+const unavailable = copy.couldNotConnectToTheServerTryAgain;
 export function createApi({
   fetch: send = (...args) => globalThis.fetch(...args),
   sleep = (delay) => new Promise((resolve) => setTimeout(resolve, delay)),
@@ -25,12 +26,12 @@ export function createApi({
             status: response.status,
             proxy: true,
             cause: new Error(
-              `HTTP ${response.status}: ответ сервера не является JSON`,
+              formatCopy(copy.invalidJsonResponse, response.status),
             ),
           });
         }
         if (!response.ok)
-          throw Object.assign(new Error(value.error || "Ошибка запроса"), {
+          throw Object.assign(new Error(value.error || copy.requestFailed), {
             status: response.status,
             http: true,
           });

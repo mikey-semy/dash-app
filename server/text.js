@@ -1,9 +1,11 @@
+import { copy } from "../shared/copy.js";
 import { resourceName } from "../src/resource-name.js";
 import languages from "../src/text-languages.json" with { type: "json" };
 import { mediaType } from "./media.js";
 import { archiveTextObject } from "./archive-text.js";
 import { TextDecoder } from "node:util";
-export const TEXT_LIMIT = 5 * 1024 * 1024;
+import { TEXT_LIMIT } from "../shared/config.js";
+export { TEXT_LIMIT };
 const extensions = new Set([
   ...languages.flatMap((language) =>
     language.extensions.map((extension) => extension.toLowerCase()),
@@ -86,7 +88,7 @@ export function textReader(store) {
           for await (const chunk of object.Body) {
             size += chunk.length;
             if (size > TEXT_LIMIT)
-              throw Object.assign(new Error("Текст слишком большой"), {
+              throw Object.assign(new Error(copy.textIsTooLarge), {
                 status: 415,
               });
             chunks.push(Buffer.from(chunk));
@@ -100,7 +102,7 @@ export function textReader(store) {
           throw new Error("Object size mismatch");
         const buffer = Buffer.concat(chunks);
         if (!validText(buffer))
-          throw Object.assign(new Error("Неподдерживаемый текст"), {
+          throw Object.assign(new Error(copy.unsupportedText), {
             status: 415,
           });
         while (cache.size && bytes + size > 20 * 1024 * 1024) {

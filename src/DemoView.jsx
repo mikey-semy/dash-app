@@ -1,3 +1,4 @@
+import { copy } from "../shared/copy.js";
 import { ErrorNotice, ErrorPage } from "./Errors.jsx";
 import React, {
   lazy,
@@ -104,7 +105,7 @@ export default function DemoView({ token, info, onUnavailable }) {
           className="site-frame"
           src={info.site}
           sandbox="allow-scripts allow-forms allow-downloads"
-          title={info.title || "Статический сайт"}
+          title={info.title || copy.staticSite}
         />
       </main>
     );
@@ -144,7 +145,7 @@ export default function DemoView({ token, info, onUnavailable }) {
             <div className="demo-slide" key={i}>
               {badImages.has(i) ? (
                 <ErrorNotice
-                  error={"Не удалось загрузить изображение"}
+                  error={copy.couldNotLoadTheImage}
                   context={"/preview/" + token + "/" + i}
                 />
               ) : (
@@ -174,7 +175,7 @@ export default function DemoView({ token, info, onUnavailable }) {
             <button
               type="button"
               className="demo-previous"
-              aria-label="Предыдущее изображение"
+              aria-label={copy.previousImage}
               onClick={() => move(-1)}
             >
               <Icon name="left" />
@@ -182,7 +183,7 @@ export default function DemoView({ token, info, onUnavailable }) {
             <button
               type="button"
               className="demo-next"
-              aria-label="Следующее изображение"
+              aria-label={copy.nextImage}
               onClick={() => move(1)}
             >
               <Icon name="enter" />
@@ -198,7 +199,7 @@ export default function DemoView({ token, info, onUnavailable }) {
           className="demo-image"
           src={source}
           alt={file.name}
-          onError={() => setFailed("Не удалось загрузить изображение")}
+          onError={() => setFailed(copy.couldNotLoadTheImage)}
         />
       ) : file.media === "pdf" ? (
         <iframe className="demo-pdf" src={source} title={file.name} />
@@ -206,7 +207,7 @@ export default function DemoView({ token, info, onUnavailable }) {
         <video
           onError={(event) =>
             setFailed(
-              event.currentTarget.error?.message || "Не удалось открыть видео",
+              event.currentTarget.error?.message || copy.couldNotOpenTheVideo,
             )
           }
           className="demo-video"
@@ -222,7 +223,7 @@ export default function DemoView({ token, info, onUnavailable }) {
           preload="metadata"
           onError={(event) =>
             setFailed(
-              event.currentTarget.error?.message || "Не удалось открыть аудио",
+              event.currentTarget.error?.message || copy.couldNotOpenTheAudio,
             )
           }
         />
@@ -243,7 +244,7 @@ export default function DemoView({ token, info, onUnavailable }) {
           <button
             type="button"
             className="demo-previous"
-            aria-label="Предыдущее изображение"
+            aria-label={copy.previousImage}
             onClick={() => move(-1)}
           >
             <Icon name="left" />
@@ -251,7 +252,7 @@ export default function DemoView({ token, info, onUnavailable }) {
           <button
             type="button"
             className="demo-next"
-            aria-label="Следующее изображение"
+            aria-label={copy.nextImage}
             onClick={() => move(1)}
           >
             <Icon name="enter" />

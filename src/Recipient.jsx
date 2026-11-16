@@ -1,3 +1,5 @@
+import { IconButton } from "./components/IconButton.jsx";
+import { copy } from "../shared/copy.js";
 import { ErrorNotice, ErrorPage } from "./Errors.jsx";
 import { AnimatedDetails } from "./Disclosure.jsx";
 import { Icon } from "./Icons.jsx";
@@ -12,7 +14,8 @@ import React, {
 } from "react";
 import { Expiry } from "./Icons.jsx";
 import { RecipientShare } from "./RecipientShare.jsx";
-import { FileList, bytes, date } from "./View.jsx";
+import { FileList } from "./components/FileList.jsx";
+import { bytes, date } from "./lib/format.js";
 const DemoView = lazy(() => import("./DemoView.jsx"));
 const MediaViewer = lazy(() => import("./MediaViewer.jsx"));
 const TextViewer = lazy(() => import("./TextViewer.jsx"));
@@ -35,18 +38,18 @@ export function Recipient({ token, api }) {
     document.title =
       info?.demo && !info.locked
         ? info.title ||
-          (info.files.length === 1 ? info.files[0].name : "Демонстрация")
+          (info.files.length === 1 ? info.files[0].name : copy.presentation)
         : info?.locked
-          ? "Пароль передачи"
+          ? copy.transferPassword
           : error
-            ? "Передача недоступна"
+            ? copy.transferUnavailable
             : viewer && info
               ? viewer.index === undefined
                 ? info.name
                 : info.files[viewer.index]?.name || info.name
               : info?.preview && !textUnavailable
                 ? info.name
-                : "Скачивание";
+                : copy.download;
   }, [info, error, textUnavailable, viewer]);
   const load = useCallback(
     async (background = false) => {
@@ -108,7 +111,7 @@ export function Recipient({ token, api }) {
         (info.files[requestedIndex].preview || info.files[requestedIndex].media)
       )
         setViewer({ index: requestedIndex, version: composition });
-      else setError("Файл не найден");
+      else setError(copy.fileNotFound);
     }
     setViewer((previous) => {
       if (!previous) return previous;
@@ -145,8 +148,8 @@ export function Recipient({ token, api }) {
       <a
         className="upload-link"
         href="/"
-        aria-label="Закрыть передачу"
-        title="Закрыть передачу"
+        aria-label={copy.closeTransfer}
+        title={copy.closeTransfer}
       >
         <Icon name="cancel" />
       </a>
@@ -159,10 +162,10 @@ export function Recipient({ token, api }) {
             <a
               href="/"
               className="unavailable"
-              aria-label="Вернуться к загрузке"
-              title="Вернуться к загрузке"
+              aria-label={copy.backToUpload}
+              title={copy.backToUpload}
             >
-              <span role="img" aria-label="Передача недоступна">
+              <span role="img" aria-label={copy.transferUnavailable}>
                 <Icon name="cancel" />
               </span>
             </a>
@@ -184,8 +187,8 @@ export function Recipient({ token, api }) {
           >
             <PasswordInput
               error={error}
-              label="Пароль передачи"
-              submitLabel="Открыть"
+              label={copy.transferPassword}
+              submitLabel={copy.open}
               autoFocus
               value={password}
               onChange={(e) => {
@@ -203,8 +206,8 @@ export function Recipient({ token, api }) {
                 <button
                   type="button"
                   className="primary-action"
-                  aria-label="Открыть просмотр"
-                  title="Просмотреть"
+                  aria-label={copy.openPreview}
+                  title={copy.preview}
                   onClick={() => openFile(undefined)}
                 >
                   <Icon name="eye" />
@@ -214,8 +217,8 @@ export function Recipient({ token, api }) {
                   {" "}
                   <a
                     className="primary-action"
-                    aria-label="СКАЧАТЬ"
-                    title="Скачать"
+                    aria-label={copy.downloadAction}
+                    title={copy.download}
                     href={"/public/" + token + "/download"}
                   >
                     <Icon name="download" />
@@ -225,15 +228,15 @@ export function Recipient({ token, api }) {
                 <button
                   className="primary-action"
                   disabled
-                  aria-label="СКАЧАТЬ"
-                  title="В передаче пока нет файлов"
+                  aria-label={copy.downloadAction}
+                  title={copy.thisTransferHasNoFilesYet}
                 >
                   <Icon name="download" />
                 </button>
               )}
               <AnimatedDetails
                 className="transfer-details"
-                label="Подробности передачи"
+                label={copy.transferDetails}
                 summary={<Icon name="chevron" />}
               >
                 <div className="transfer-information">
@@ -252,15 +255,15 @@ export function Recipient({ token, api }) {
                             name="indices"
                             value={JSON.stringify([...fileSelection])}
                           />
-                          <button
+                          <IconButton
                             type="submit"
-                            className="icon-button"
+
                             disabled={!fileSelection.size}
-                            aria-label="Скачать выбранные файлы"
-                            title="Скачать выбранное"
+                            aria-label={copy.downloadSelectedFiles}
+                            title={copy.downloadSelection}
                           >
                             <Icon name="download" />
-                          </button>
+                          </IconButton>
                         </form>
                       )}
                     </div>

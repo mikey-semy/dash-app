@@ -1,7 +1,8 @@
+import { Modal } from "../../../shared/ui/Modal.jsx";
 import { IconButton } from "../../../shared/ui/IconButton.jsx";
 import { copy } from "../../../../shared/copy.js";
 import { ErrorNotice } from "../../../shared/ui/Errors.jsx";
-import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
+import React, { lazy, Suspense, useState } from "react";
 import { Icon } from "../../../shared/ui/Icons.jsx";
 import languages from "../../../../shared/text-languages.json";
 const CodeEditor = lazy(
@@ -16,20 +17,10 @@ export default function TextComposer({
   onClose,
   onSend,
 }) {
-  const ref = useRef(),
-    [text, setText] = useState(initial),
+  const [text, setText] = useState(initial),
     [language, setLanguage] = useState("?"),
     [error, setError] = useState(""),
     [sending, setSending] = useState(false);
-  useEffect(() => {
-    const previous = document.title;
-    document.title = copy.text;
-    ref.current.showModal();
-    return () => {
-      ref.current?.close();
-      document.title = previous;
-    };
-  }, []);
   const send = async () => {
     const file = new File([text], filename || textName(language), {
       type: "text/plain;charset=utf-8",
@@ -54,14 +45,12 @@ export default function TextComposer({
     }
   };
   return (
-    <dialog
-      ref={ref}
+    <Modal
       className="text-dialog"
       aria-label={editing ? copy.editText : copy.textTransfer}
-      onCancel={(e) => {
-        e.preventDefault();
-        if (!sending) onClose();
-      }}
+      onClose={onClose}
+      closeDisabled={sending}
+      title={copy.text}
       onKeyDownCapture={(e) => {
         if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
           e.preventDefault();
@@ -70,52 +59,56 @@ export default function TextComposer({
         }
       }}
     >
-      <header className="dialog-header">
-        <span className="editor-context">
-          <Icon name={editing ? "edit" : "code"} />
-          {editing && <span className="language-label">{filename}</span>}
-        </span>
-        <div className="text-actions">
-          <span className="language-label">{language}</span>
-          <IconButton
-            aria-label={editing ? copy.saveText : copy.sendText}
-            title={editing ? copy.save : copy.send}
-            disabled={sending || (!editing && !text.length)}
-            onClick={send}
-          >
-            <Icon name={editing ? "save" : "upload"} />
-          </IconButton>
-          <IconButton
-            aria-label={copy.closeEditor}
-            title={copy.close}
-            disabled={sending}
-            onClick={onClose}
-          >
-            <Icon name="cancel" />
-          </IconButton>
-        </div>
-      </header>
-      <div className="text-dialog-body">
-        <Suspense
-          fallback={
-            <div
-              className="archive-status"
-              role="status"
-              aria-label={copy.loadingEditor}
-            >
-              <Icon name="code" />
+      {({ close }) => (
+        <>
+          <header className="dialog-header">
+            <span className="editor-context">
+              <Icon name={editing ? "edit" : "code"} />
+              {editing && <span className="language-label">{filename}</span>}
+            </span>
+            <div className="text-actions">
+              <span className="language-label">{language}</span>
+              <IconButton
+                aria-label={editing ? copy.saveText : copy.sendText}
+                title={editing ? copy.save : copy.send}
+                disabled={sending || (!editing && !text.length)}
+                onClick={send}
+              >
+                <Icon name={editing ? "save" : "upload"} />
+              </IconButton>
+              <IconButton
+                aria-label={copy.closeEditor}
+                title={copy.close}
+                disabled={sending}
+                onClick={close}
+              >
+                <Icon name="cancel" />
+              </IconButton>
             </div>
-          }
-        >
-          <CodeEditor
-            value={text}
-            onChange={setText}
-            onLanguage={setLanguage}
-          />
-        </Suspense>
-      </div>
-      {error && <ErrorNotice error={error} />}
-    </dialog>
+          </header>
+          <div className="text-dialog-body">
+            <Suspense
+              fallback={
+                <div
+                  className="archive-status"
+                  role="status"
+                  aria-label={copy.loadingEditor}
+                >
+                  <Icon name="code" />
+                </div>
+              }
+            >
+              <CodeEditor
+                value={text}
+                onChange={setText}
+                onLanguage={setLanguage}
+              />
+            </Suspense>
+          </div>
+          {error && <ErrorNotice error={error} />}
+        </>
+      )}
+    </Modal>
   );
 }
 function textName(language) {

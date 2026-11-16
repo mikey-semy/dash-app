@@ -34,6 +34,18 @@ for (const directory of ["src", "server", "shared"]) {
     const source = await readFile(file, "utf8");
     const ast = parse(source, { sourceType: "module", plugins: ["jsx"] });
     walk(ast, (node) => {
+      if (
+        file !== path.join("src", "shared", "ui", "Modal.jsx") &&
+        ((node.type === "JSXOpeningElement" && node.name?.name === "dialog") ||
+          (node.type === "CallExpression" &&
+            node.callee.type === "MemberExpression" &&
+            node.callee.property.name === "showModal"))
+      )
+        fail(
+          file,
+          node,
+          "Use shared Modal for native dialog lifecycle and focus.",
+        );
       const dependency = [
         "ImportDeclaration",
         "ExportNamedDeclaration",

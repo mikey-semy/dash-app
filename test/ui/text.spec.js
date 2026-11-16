@@ -62,6 +62,7 @@ test("pasted code keeps original bytes, highlights immediately and supports prot
     page.getByRole("dialog", { name: "Text transfer" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Close editor", exact: true }).click();
+  await expect(page.locator(".text-dialog")).toHaveCount(0);
   const source =
     '{\r\n\t"message": "Привет 🌍",\r\n\r\n\t"html": "<script>window.injected = true</script>",\r\n\t"long": "' +
     "x".repeat(500) +

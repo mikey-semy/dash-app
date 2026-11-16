@@ -1,4 +1,4 @@
-import { TIMING } from "../../../../shared/config.js";
+import { Modal } from "../../../shared/ui/Modal.jsx";
 import { IconButton } from "../../../shared/ui/IconButton.jsx";
 import React, { useEffect, useRef, useState } from "react";
 import { copy } from "../../../../shared/copy.js";
@@ -261,8 +261,7 @@ export default function History({
   renaming,
   suspended,
 }) {
-  const searchInput = useRef(),
-    savedScroll = useRef(0);
+  const searchInput = useRef();
   const [query, setQuery] = useState(""),
     [filter, setFilter] = useState("all"),
     [searchOpen, setSearchOpen] = useState(false);
@@ -298,214 +297,182 @@ export default function History({
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
-  const ref = useRef(),
-    timer = useRef(),
-    [closing, setClosing] = useState(false);
-  const close = () => {
-    if (closing) return;
-    setClosing(true);
-    timer.current = setTimeout(onClose, TIMING.dialogClose);
-  };
-  useEffect(() => {
-    ref.current.showModal();
-    ref.current.querySelector("h2").focus({ preventScroll: true });
-    document.title = copy.history;
-    return () => {
-      clearTimeout(timer.current);
-      ref.current?.close();
-      document.title = copy.upload;
-    };
-  }, []);
-  useEffect(() => {
-    if (!ref.current) return;
-    const body = ref.current.querySelector(".dialog-body");
-    if (suspended) {
-      savedScroll.current = body?.scrollTop || 0;
-      ref.current.close();
-    } else if (!ref.current.open) {
-      ref.current.showModal();
-      requestAnimationFrame(() => {
-        if (body) body.scrollTop = savedScroll.current;
-      });
-    }
-  }, [suspended]);
   return (
-    <dialog
-      ref={ref}
+    <Modal
       className="history-dialog"
-      data-closing={closing}
-      onCancel={(e) => {
-        e.preventDefault();
-        close();
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) close();
-      }}
       aria-label={copy.history}
+      onClose={onClose}
+      suspended={suspended}
+      initialFocus="h2"
+      title={copy.history}
+      closeOnBackdrop
     >
-      <header className="dialog-header">
-        <div className="dialog-header-start">
-          <h2 aria-label={copy.history} tabIndex={-1}>
-            <Icon name="history" />
-          </h2>
-          <IconButton
-            aria-label={copy.searchHistory}
-            aria-expanded={searchOpen}
-            onClick={() => {
-              setSearchOpen(!searchOpen);
-              setQuery("");
-              setFilter("all");
-            }}
-          >
-            <Icon name="search" />
-          </IconButton>
-          <div className="dialog-header-actions history-bulk-actions">
-            <input
-              className="history-select"
-              type="checkbox"
-              aria-label={copy.selectAllTransfers}
-              checked={allSelected}
-              disabled={!visibleItems.length || removing}
-              ref={(el) => {
-                if (el)
-                  el.indeterminate = selectedItems.length > 0 && !allSelected;
-              }}
-              onChange={() =>
-                setSelection(
-                  allSelected
-                    ? new Set()
-                    : new Set(visibleItems.map((t) => t.id)),
-                )
-              }
-            />
-            <DeleteButton
-              label={copy.deleteSelectedTransfers}
-              confirmationKey={selectedItems.map((t) => t.id).join(",")}
-              disabled={!selectedItems.length || removing}
-              onDelete={async () => {
-                setRemoving(true);
-                setError("");
-                try {
-                  await onRemoveHistory(selectedItems.map((t) => t.id));
-                  setSelection(new Set());
-                } catch (e) {
-                  setError(e.message);
-                } finally {
-                  setRemoving(false);
-                }
-              }}
-            />
-          </div>
-        </div>
-        <IconButton
-          onClick={close}
-          aria-label={copy.closeHistory}
-          title={copy.closeHistory}
-        >
-          <Icon name="cancel" />
-        </IconButton>
-      </header>
-      {searchOpen && (
-        <div className="history-search">
-          <div className="history-search-field">
-            <input
-              ref={searchInput}
-              aria-label={copy.searchFilenamesOrTransfers}
-              placeholder={copy.search}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            {query && (
+      {({ close, dismiss }) => (
+        <>
+          <header className="dialog-header">
+            <div className="dialog-header-start">
+              <h2 aria-label={copy.history} tabIndex={-1}>
+                <Icon name="history" />
+              </h2>
               <IconButton
-                className="icon-button search-clear"
-                aria-label={copy.clearSearch}
-                title={copy.clear}
+                aria-label={copy.searchHistory}
+                aria-expanded={searchOpen}
                 onClick={() => {
+                  setSearchOpen(!searchOpen);
                   setQuery("");
-                  searchInput.current.focus();
+                  setFilter("all");
                 }}
               >
-                <Icon name="cancel" />
+                <Icon name="search" />
               </IconButton>
-            )}
-          </div>
-          {[
-            ["password", "lock", copy.passwordProtected],
-            ["infinite", null, copy.noExpiry],
-            ["expiring", "clock", copy.expiringWithin24Hours],
-          ].map(([value, icon, label]) => (
+              <div className="dialog-header-actions history-bulk-actions">
+                <input
+                  className="history-select"
+                  type="checkbox"
+                  aria-label={copy.selectAllTransfers}
+                  checked={allSelected}
+                  disabled={!visibleItems.length || removing}
+                  ref={(el) => {
+                    if (el)
+                      el.indeterminate =
+                        selectedItems.length > 0 && !allSelected;
+                  }}
+                  onChange={() =>
+                    setSelection(
+                      allSelected
+                        ? new Set()
+                        : new Set(visibleItems.map((t) => t.id)),
+                    )
+                  }
+                />
+                <DeleteButton
+                  label={copy.deleteSelectedTransfers}
+                  confirmationKey={selectedItems.map((t) => t.id).join(",")}
+                  disabled={!selectedItems.length || removing}
+                  onDelete={async () => {
+                    setRemoving(true);
+                    setError("");
+                    try {
+                      await onRemoveHistory(selectedItems.map((t) => t.id));
+                      setSelection(new Set());
+                    } catch (e) {
+                      setError(e.message);
+                    } finally {
+                      setRemoving(false);
+                    }
+                  }}
+                />
+              </div>
+            </div>
             <IconButton
-              key={value}
-
-              aria-label={label}
-              title={label}
-              aria-pressed={filter === value}
-              onClick={() => setFilter(filter === value ? "all" : value)}
+              onClick={close}
+              aria-label={copy.closeHistory}
+              title={copy.closeHistory}
             >
-              {icon ? <Icon name={icon} /> : "∞"}
+              <Icon name="cancel" />
             </IconButton>
-          ))}
-        </div>
-      )}
-      <div
-        className={visibleItems.length ? "dialog-body" : "dialog-body is-empty"}
-      >
-        {error && <ErrorNotice error={error} />}
-        {!visibleItems.length && (
-          <span
-            className="history-empty"
-            role="img"
-            aria-label={copy.noTransfers}
+          </header>
+          {searchOpen && (
+            <div className="history-search">
+              <div className="history-search-field">
+                <input
+                  ref={searchInput}
+                  aria-label={copy.searchFilenamesOrTransfers}
+                  placeholder={copy.search}
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+                {query && (
+                  <IconButton
+                    className="icon-button search-clear"
+                    aria-label={copy.clearSearch}
+                    title={copy.clear}
+                    onClick={() => {
+                      setQuery("");
+                      searchInput.current.focus();
+                    }}
+                  >
+                    <Icon name="cancel" />
+                  </IconButton>
+                )}
+              </div>
+              {[
+                ["password", "lock", copy.passwordProtected],
+                ["infinite", null, copy.noExpiry],
+                ["expiring", "clock", copy.expiringWithin24Hours],
+              ].map(([value, icon, label]) => (
+                <IconButton
+                  key={value}
+
+                  aria-label={label}
+                  title={label}
+                  aria-pressed={filter === value}
+                  onClick={() => setFilter(filter === value ? "all" : value)}
+                >
+                  {icon ? <Icon name={icon} /> : "∞"}
+                </IconButton>
+              ))}
+            </div>
+          )}
+          <div
+            className={
+              visibleItems.length ? "dialog-body" : "dialog-body is-empty"
+            }
           >
-            <Icon name="cancel" />
-          </span>
-        )}
-        {visibleItems.map((t) => (
-          <HistoryItem
-            key={t.id}
-            transfer={t}
-            onSettings={onSettings}
-            onPublish={onPublish}
-            onRenameFile={onRenameFile}
-            onRenameTitle={onRenameTitle}
-            onGenerateTitle={onGenerateTitle}
-            renaming={renaming}
-            onView={(record, index) => {
-              ref.current.close();
-              onClose();
-              onView(record, index);
-            }}
-            onOpen={
-              uploading
-                ? undefined
-                : (item) => {
-                    ref.current.close();
-                    onClose();
-                    onOpen(item);
-                  }
-            }
-            onEdit={(item) => {
-              ref.current.close();
-              onClose();
-              onEdit(item);
-            }}
-            selected={selection.has(t.id)}
-            onSelect={() => toggle(t.id)}
-            selectionDisabled={removing}
-            onDelete={onDelete}
-            onRemoveFiles={onRemoveFiles}
-            onAdd={
-              uploading
-                ? undefined
-                : (id) => {
-                    ref.current.close();
-                    onClose();
-                    onAdd(id);
-                  }
-            }
-          />
-        ))}
-      </div>
-    </dialog>
+            {error && <ErrorNotice error={error} />}
+            {!visibleItems.length && (
+              <span
+                className="history-empty"
+                role="img"
+                aria-label={copy.noTransfers}
+              >
+                <Icon name="cancel" />
+              </span>
+            )}
+            {visibleItems.map((t) => (
+              <HistoryItem
+                key={t.id}
+                transfer={t}
+                onSettings={onSettings}
+                onPublish={onPublish}
+                onRenameFile={onRenameFile}
+                onRenameTitle={onRenameTitle}
+                onGenerateTitle={onGenerateTitle}
+                renaming={renaming}
+                onView={(record, index) => {
+                  dismiss();
+                  onView(record, index);
+                }}
+                onOpen={
+                  uploading
+                    ? undefined
+                    : (item) => {
+                        dismiss();
+                        onOpen(item);
+                      }
+                }
+                onEdit={(item) => {
+                  dismiss();
+                  onEdit(item);
+                }}
+                selected={selection.has(t.id)}
+                onSelect={() => toggle(t.id)}
+                selectionDisabled={removing}
+                onDelete={onDelete}
+                onRemoveFiles={onRemoveFiles}
+                onAdd={
+                  uploading
+                    ? undefined
+                    : (id) => {
+                        dismiss();
+                        onAdd(id);
+                      }
+                }
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </Modal>
   );
 }

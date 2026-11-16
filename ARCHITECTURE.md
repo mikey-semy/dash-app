@@ -42,6 +42,8 @@ Transfer ID and share token identify the transfer. Its editable title identifies
 
 Use `IconButton` for icon controls; keep focus, disabled state and accessible names explicit. Keep component state and computed geometry local rather than adding them to global configuration.
 
+`src/shared/ui/Modal.jsx` owns the native dialog lifecycle, animated close, Escape, optional backdrop dismissal, focus return and temporary suspension. History keeps its DOM and scroll positions while settings are open. Consumers supply their existing header/body/footer and layout classes; successful submissions and transitions can dismiss immediately. User-initiated closing is blocked while the text composer is sending. Global page scrolling is locked only while a shared modal is open. Feature effects still own request cancellation and draft state.
+
 ## Verification
 
 - `npm run lint`: copy, component, dependency and token guardrails.

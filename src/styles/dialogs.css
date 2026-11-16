@@ -1,3 +1,9 @@
+:root:has(.modal[open]) {
+  overflow: hidden;
+}
+.modal:focus {
+  outline: none;
+}
 .history-dialog[open] {
   display: flex;
   flex-direction: column;
@@ -225,13 +231,13 @@
     opacity var(--duration-180) var(--ease),
     visibility var(--duration-0);
 }
-.history-dialog[data-closing="true"] {
+.modal[data-closing="true"] {
   animation: disappear var(--duration-180) var(--ease-in) both;
 }
-.history-dialog[data-closing="true"]::backdrop {
+.modal[data-closing="true"]::backdrop {
   animation: disappear var(--duration-180) var(--ease-in) both;
 }
-.history-dialog::backdrop {
+.modal::backdrop {
   animation: appear var(--duration-200) var(--ease-out);
 }
 button,

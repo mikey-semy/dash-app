@@ -77,6 +77,10 @@ test("folder tree supports Markdown navigation and an isolated static site with 
     true,
   );
   expect(record.files.some((f) => f.name === "project.zip")).toBe(false);
+  await page.request.patch("/api/transfers/" + record.id + "/settings", {
+    headers: { Origin: "http://127.0.0.1:3001" },
+    data: { published: true },
+  });
   const reader = await context.newPage();
   await reader.goto(
     new URL(record.url).pathname +
@@ -104,10 +108,11 @@ test("folder tree supports Markdown navigation and an isolated static site with 
   await page
     .getByRole("button", { name: "Параметры передачи", exact: true })
     .click();
-  await page
-    .getByRole("dialog", { name: "Параметры передачи", exact: true })
-    .getByRole("button", { name: "Опубликовать сайт", exact: true })
-    .click();
+  await expect(
+    page
+      .getByRole("dialog", { name: "Параметры передачи", exact: true })
+      .getByRole("button", { name: "Остановить публикацию", exact: true }),
+  ).toBeVisible();
   await page
     .getByRole("button", { name: "Закрыть параметры", exact: true })
     .click();
@@ -163,6 +168,9 @@ test("failed media preview error is centered in the viewport", async ({
     r.fulfill({ body: "bad", contentType: "image/png" }),
   );
   await page.goto("/Error1");
+  await page
+    .getByRole("button", { name: "Открыть просмотр", exact: true })
+    .click();
   const icon = page.getByRole("img", { name: "Ошибка", exact: true });
   await expect(icon).toBeVisible();
   const box = await icon.boundingBox(),

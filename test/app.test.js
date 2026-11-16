@@ -1531,6 +1531,11 @@ test("folder paths remain addressable and sandboxed static sites preserve origin
     Object.keys(unzipSync(store.objects.get(t.output.key))),
     t.files.map((file) => file.name),
   );
+  await agent
+    .patch("/api/transfers/" + id + "/settings")
+    .set("Origin", env.PUBLIC_URL)
+    .send({ published: true })
+    .expect(200);
   assert.equal((await request(app).get(url)).body.locked, true);
   await post(agent, url + "/unlock", { password: "123456" }).expect(200);
   await agent
@@ -1601,7 +1606,7 @@ test("folder paths remain addressable and sandboxed static sites preserve origin
   await request(app).get(updatedSite).expect(404);
 });
 
-test("publication pauses only the site, revokes old capabilities and hides deleted or expired history", async () => {
+test("publication blocks public access, revokes old capabilities and hides deleted or expired history", async () => {
   const { app, service, store, agent, db } = await setup();
   const id = await upload(service, store, [
     ["index.html", Buffer.from("<h1>Site</h1>")],
@@ -1612,7 +1617,9 @@ test("publication pauses only the site, revokes old capabilities and hides delet
       .patch("/api/transfers/" + id + "/settings")
       .set("Origin", env.PUBLIC_URL)
       .send(body);
-  assert.equal((await request(app).get("/public/" + token)).body.site, null);
+  await request(app)
+    .get("/public/" + token)
+    .expect(404);
   await settings({ published: true }).expect(200);
   const site = (await request(app).get("/public/" + token)).body.site;
   await request(app).get(site).expect(200);
@@ -1620,7 +1627,7 @@ test("publication pauses only the site, revokes old capabilities and hides delet
   await request(app).get(site).expect(404);
   await request(app)
     .get("/public/" + token + "/download")
-    .expect(200);
+    .expect(404);
   await settings({ published: true }).expect(200);
   const resumed = (await request(app).get("/public/" + token)).body.site;
   assert.notEqual(site, resumed);
@@ -1715,7 +1722,7 @@ test("custom domains isolate DU APIs, preserve website bytes and MIME, enforce p
     .set("Host", "unknown.example.com")
     .expect(404);
   await settings({ published: false }).expect(200);
-  await get("/").set("Cookie", cookie).expect(503);
+  await get("/").set("Cookie", cookie).expect(404);
   await settings({ published: true }).expect(200);
   await get("/").set("Cookie", cookie).expect(401);
   const other = await upload(service, store, [
@@ -1726,6 +1733,60 @@ test("custom domains isolate DU APIs, preserve website bytes and MIME, enforce p
     .set("Origin", env.PUBLIC_URL)
     .send({ domain: "site.example.com" })
     .expect(409);
+});
+
+test("static 404.html keeps its status and assets; paused sites never serve a custom error page", async () => {
+  const { app, service, store, agent } = await setup();
+  const id = await upload(service, store, [
+    ["project/index.html", Buffer.from("<h1>Home</h1>")],
+    [
+      "project/404.html",
+      Buffer.from(
+        '<h1>Not found</h1><link rel="stylesheet" href="/error.css">',
+      ),
+    ],
+    ["project/error.css", Buffer.from("h1{color:black}")],
+  ]);
+  await service.tick();
+  const patch = (body) =>
+    agent
+      .patch("/api/transfers/" + id + "/settings")
+      .set("Origin", env.PUBLIC_URL)
+      .send(body);
+  await patch({ published: true, domain: "site.example.com" }).expect(200);
+  const meta = (await request(app).get("/public/" + service.get(id).token))
+    .body;
+  const root = meta.site.slice(0, -"index.html".length);
+  const preview = await request(app)
+    .get(root + "missing")
+    .set("Accept", "text/html")
+    .expect(404);
+  assert.match(preview.text, /<h1>Not found<\/h1>/);
+  assert.ok(preview.text.includes(root + "error.css"));
+  assert.ok(preview.text.includes('<base href="' + root + '">'));
+  const direct = await request(app)
+    .get("/nested/missing")
+    .set("Host", "site.example.com")
+    .set("Accept", "text/html")
+    .expect(404);
+  assert.match(direct.text, /<h1>Not found<\/h1>/);
+  assert.match(direct.text, /<base href="\/">/);
+  const asset = await request(app)
+    .get("/missing.js")
+    .set("Host", "site.example.com")
+    .expect(404);
+  assert.ok(!asset.text.includes("<h1>Not found"));
+  await patch({ published: false }).expect(200);
+  const paused = await request(app)
+    .get("/")
+    .set("Host", "site.example.com")
+    .set("Accept", "text/html")
+    .expect(404);
+  assert.ok(!paused.text.includes("<h1>Not found"));
+  assert.match(paused.text, /class="unavailable"/);
+  await request(app)
+    .get("/public/" + service.get(id).token + "/download")
+    .expect(404);
 });
 
 test("an empty folder remains a directory through append, rename and file removal", async () => {

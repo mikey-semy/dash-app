@@ -257,7 +257,7 @@ export function hosting(service, env, options = {}) {
   function page(
     req,
     res,
-    { status = 404, paused = false, password = false, error = false } = {},
+    { status = 404, password = false, error = false } = {},
   ) {
     res.locals.errorPage = true;
     const nonce = randomBytes(18).toString("base64");
@@ -270,12 +270,10 @@ export function hosting(service, env, options = {}) {
       .type("html");
     const cross =
       '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="m6 6 12 12M18 6 6 18"/></svg>';
-    const pause =
-      '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 5v14M16 5v14"/></svg>';
     const eye =
       '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/><path id="slash" d="m3 3 18 18" visibility="hidden"/></svg>';
     res.send(
-      `<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${password ? "Пароль" : "Сайт недоступен"}</title><style nonce="${nonce}">*{box-sizing:border-box}body{margin:0;display:grid;place-items:center;height:100dvh;background:white;color:#111;font:16px system-ui}a,button{color:inherit}a{display:flex}button{border:0;background:none;padding:7px;display:flex;cursor:pointer}.close{position:fixed;right:24px;top:24px}.unavailable{color:${paused ? "#111" : "#d33434"}}form{display:flex;align-items:center;border:1px solid #ccc;padding:9px;width:min(280px,calc(100vw - 48px));height:44px}input{font:inherit;font-size:16px;min-width:0;width:100%;padding:0;border:0;outline:0}#error{display:${error ? "flex" : "none"};color:#d33434}#error svg{width:18px;height:18px}button:focus-visible,a:focus-visible{outline:1px solid #111;outline-offset:3px}</style><a class="close" aria-label="Вернуться к загрузке" href="${canonical.origin}/">${cross}</a>${password ? `<form method="post" action="/.du/unlock"><input type="hidden" name="next" value="${escape(req.originalUrl || "/")}"><input name="password" id="password" aria-label="Пароль" type="password" maxlength="256" inputmode="numeric" autocomplete="current-password" autofocus><span id="error" role="img" aria-label="Неверный пароль">${cross}</span><button type="button" id="reveal" aria-label="Показать пароль">${eye}</button><button type="submit" aria-label="Войти"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button></form><script nonce="${nonce}">const p=document.getElementById('password');p.addEventListener('input',()=>document.getElementById('error').style.display='none');document.getElementById('reveal').onclick=()=>{p.type=p.type==='password'?'text':'password';document.getElementById('slash').setAttribute('visibility',p.type==='text'?'visible':'hidden')};${error ? "console.error('[DU] Неверный пароль сайта');" : ""}</script>` : `<a class="unavailable" aria-label="${paused ? "Публикация остановлена" : "Вернуться к загрузке"}" href="${canonical.origin}/">${paused ? pause : cross}</a><script nonce="${nonce}">console.${paused ? "info" : "error"}('[DU] ${paused ? "Публикация остановлена" : "Сайт недоступен"}')</script>`}</html>`,
+      `<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${password ? "Пароль" : "Сайт недоступен"}</title><style nonce="${nonce}">*{box-sizing:border-box}body{margin:0;display:grid;place-items:center;height:100dvh;background:white;color:#111;font:16px system-ui}a,button{color:inherit}a{display:flex}button{border:0;background:none;padding:7px;display:flex;cursor:pointer}.close{position:fixed;right:24px;top:24px}.unavailable{color:#d33434}form{display:flex;align-items:center;border:1px solid #ccc;padding:9px;width:min(280px,calc(100vw - 48px));height:44px}input{font:inherit;font-size:16px;min-width:0;width:100%;padding:0;border:0;outline:0}#error{display:${error ? "flex" : "none"};color:#d33434}#error svg{width:18px;height:18px}button:focus-visible,a:focus-visible{outline:1px solid #111;outline-offset:3px}</style><a class="close" aria-label="Вернуться к загрузке" href="${canonical.origin}/">${cross}</a>${password ? `<form method="post" action="/.du/unlock"><input type="hidden" name="next" value="${escape(req.originalUrl || "/")}"><input name="password" id="password" aria-label="Пароль" type="password" maxlength="256" inputmode="numeric" autocomplete="current-password" autofocus><span id="error" role="img" aria-label="Неверный пароль">${cross}</span><button type="button" id="reveal" aria-label="Показать пароль">${eye}</button><button type="submit" aria-label="Войти"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button></form><script nonce="${nonce}">const p=document.getElementById('password');p.addEventListener('input',()=>document.getElementById('error').style.display='none');document.getElementById('reveal').onclick=()=>{p.type=p.type==='password'?'text':'password';document.getElementById('slash').setAttribute('visibility',p.type==='text'?'visible':'hidden')};${error ? "console.error('[DU] Неверный пароль сайта');" : ""}</script>` : `<a class="unavailable" aria-label="Вернуться к загрузке" href="${canonical.origin}/">${cross}</a><script nonce="${nonce}">console.error('[DU] Сайт недоступен')</script>`}</html>`,
     );
   }
   function middleware(render, limited) {
@@ -290,8 +288,7 @@ export function hosting(service, env, options = {}) {
       )
         return res.json({ proof: proof(t) });
       if (!siteAlive(t) || !siteEntry(t)) return page(req, res);
-      if (!t.site_published)
-        return page(req, res, { status: 503, paused: true });
+      if (!t.site_published) return page(req, res);
       if (req.method === "POST" && req.path === "/.du/unlock")
         return limited(req, res, () =>
           form(req, res, () => {

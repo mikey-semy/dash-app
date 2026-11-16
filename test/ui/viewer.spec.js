@@ -27,6 +27,9 @@ test("mobile full-screen viewer defaults to Markdown, closes without reopening a
     r.fulfill({ contentType: "text/plain;charset=utf-8", body: source }),
   );
   await page.goto("/View12");
+  await page
+    .getByRole("button", { name: "Открыть просмотр", exact: true })
+    .click();
   await expect(
     page.getByRole("heading", { name: "Документ", exact: true }),
   ).toBeVisible();
@@ -107,6 +110,9 @@ for (const width of [390, 1280]) {
       }),
     );
     await page.goto("/Qr1234");
+    await page
+      .getByRole("button", { name: "Открыть просмотр", exact: true })
+      .click();
     const dialog = page.locator(".viewer-dialog");
     await expect(dialog.locator(".cm-scroller")).toBeVisible();
     const scroller = dialog.locator(".cm-scroller");

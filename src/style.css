@@ -1551,14 +1551,16 @@ body:has(.owner) {
   gap: 20px;
   margin-bottom: 20px;
 }
-.transfer-password {
+.transfer-password,
+.domain-field {
   padding: 0 8px;
 }
 .transfer-password input {
   font-size: 16px;
   width: 80px;
 }
-.transfer-password .icon-button {
+.transfer-password .icon-button,
+.domain-field .icon-button {
   padding: 6px;
 }
 .folder-files {
@@ -2121,4 +2123,7 @@ button.unavailable {
 }
 .domain-field input {
   font-size: 16px;
+}
+.domain-verified {
+  color: #25864a;
 }

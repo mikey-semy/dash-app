@@ -22,15 +22,13 @@ test("archive preparation and text loading indicators remain centered on desktop
     await route.continue();
   });
   try {
-    await page
-      .locator("input[type=file]")
-      .setInputFiles(
-        ["a.txt", "b.txt"].map((name) => ({
-          name,
-          mimeType: "text/plain",
-          buffer: Buffer.from(name),
-        })),
-      );
+    await page.locator("input[type=file]").setInputFiles(
+      ["a.txt", "b.txt"].map((name) => ({
+        name,
+        mimeType: "text/plain",
+        buffer: Buffer.from(name),
+      })),
+    );
     for (const width of [1280, 390]) {
       await page.setViewportSize({ width, height: 844 });
       await centered(
@@ -64,6 +62,9 @@ test("archive preparation and text loading indicators remain centered on desktop
   });
   try {
     await page.goto("/Load01");
+    await page
+      .getByRole("button", { name: "Открыть просмотр", exact: true })
+      .click();
     for (const width of [1280, 390]) {
       await page.setViewportSize({ width, height: 844 });
       await centered(

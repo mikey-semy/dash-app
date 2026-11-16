@@ -93,6 +93,9 @@ export default function TransferSettings({ transfer, api, onClose }) {
     }
   };
   const currentMode = transfer.oneTime ? -1 : transfer.ttl;
+  const verifiedDomain =
+    domain.trim() === (transfer.domain || "") &&
+    transfer.domainState?.state === "ready";
   const duration =
     durations.find((item) => item[0] === currentMode) || durations[2];
   return (
@@ -130,9 +133,9 @@ export default function TransferSettings({ transfer, api, onClose }) {
               <button
                 type="button"
                 className="icon-button"
-                aria-label="Режим SPA"
+                aria-label="Маршруты React/Vue"
                 aria-pressed={!!transfer.spa}
-                title="Открывать index.html для маршрутов приложения"
+                title="Маршруты React/Vue: адреса вроде /profile открывает приложение из index.html"
                 disabled={busy}
                 onClick={() => update({ spa: !transfer.spa })}
               >
@@ -286,7 +289,11 @@ export default function TransferSettings({ transfer, api, onClose }) {
               type="button"
               className={
                 "icon-button " +
-                (transfer.domainState?.state === "error" ? "edit-error" : "")
+                (verifiedDomain
+                  ? "domain-verified"
+                  : transfer.domainState?.state === "error"
+                    ? "edit-error"
+                    : "")
               }
               disabled={busy}
               aria-label={
@@ -294,7 +301,9 @@ export default function TransferSettings({ transfer, api, onClose }) {
                   ? "Подключить домен"
                   : "Проверить домен"
               }
-              title="Проверить DNS и HTTPS"
+              title={
+                verifiedDomain ? "Успешно проверено" : "Проверить DNS и HTTPS"
+              }
               onPointerDown={(event) => event.preventDefault()}
               onClick={() => saveDomain()}
             >

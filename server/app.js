@@ -581,6 +581,15 @@ export function createApp(
     if (
       !t ||
       (t.one_time && t.consumed) ||
+      (siteEntry(t) &&
+        !t.site_published &&
+        !(
+          req.path.startsWith("/preview/") &&
+          req.cookies.owner &&
+          db
+            .prepare("SELECT 1 FROM sessions WHERE id=? AND expires>?")
+            .get(req.cookies.owner, Date.now())
+        )) ||
       !["ready", "empty"].includes(t.state) ||
       (t.expires !== null && t.expires <= Date.now())
     )

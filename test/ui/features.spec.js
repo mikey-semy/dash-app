@@ -382,9 +382,19 @@ test("browser selection form downloads only checked files without leaving the tr
         .getByRole("button", { name: "Скачать выбранные файлы", exact: true })
         .boundingBox();
     expect(action.x).toBeGreaterThan(name.x + name.width);
-    expect(
-      Math.abs(action.y + action.height / 2 - name.y - name.height / 2),
-    ).toBeLessThan(2);
+    await expect
+      .poll(() =>
+        page.locator(".transfer-heading").evaluate((el) => {
+          const name = el
+              .querySelector(".transfer-name")
+              .getBoundingClientRect(),
+            action = el.querySelector("button").getBoundingClientRect();
+          return Math.abs(
+            action.y + action.height / 2 - name.y - name.height / 2,
+          );
+        }),
+      )
+      .toBeLessThan(2);
   }
   const event = page.waitForEvent("download");
   await page

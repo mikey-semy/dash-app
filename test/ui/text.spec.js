@@ -104,6 +104,9 @@ test("pasted code keeps original bytes, highlights immediately and supports prot
   expect((await context.request.get("/raw/" + token)).status()).toBe(401);
   await receiver.getByLabel("Пароль передачи", { exact: true }).fill(pin);
   await receiver.getByRole("button", { name: "Открыть", exact: true }).click();
+  await receiver
+    .getByRole("button", { name: "Открыть просмотр", exact: true })
+    .click();
   await expect(receiver.locator(".code-editor")).toHaveAttribute(
     "data-language",
     "JSON",
@@ -248,6 +251,9 @@ test("single source files preview, binary text falls back, and appending switche
   const url = await shareURL(page);
   const receiver = await context.newPage();
   await receiver.goto(url);
+  await receiver
+    .getByRole("button", { name: "Открыть просмотр", exact: true })
+    .click();
   await expect(receiver.locator(".code-editor")).toHaveAttribute(
     "data-language",
     "Python",
@@ -315,6 +321,9 @@ test("single source files preview, binary text falls back, and appending switche
   });
   const binaryURL = await shareURL(page);
   await receiver.goto(binaryURL);
+  await receiver
+    .getByRole("button", { name: "Открыть просмотр", exact: true })
+    .click();
   await expect(
     receiver.getByRole("link", { name: "СКАЧАТЬ", exact: true }),
   ).toBeVisible();
@@ -384,6 +393,9 @@ test("Markdown opens formatted with safe GFM rendering and switches between prev
   const url = await shareURL(page),
     token = url.split("/").pop();
   await page.goto(url);
+  await page
+    .getByRole("button", { name: "Открыть просмотр", exact: true })
+    .click();
   await expect(
     page.getByRole("heading", { name: "Заметки", exact: true }),
   ).toBeVisible();
@@ -507,6 +519,9 @@ test("owner reopens uploaded text full screen, cancels or saves to the same link
     .click();
   const recipient = await context.newPage();
   await recipient.goto(url);
+  await recipient
+    .getByRole("button", { name: "Открыть просмотр", exact: true })
+    .click();
   await expect(recipient.locator(".viewer-dialog .cm-content")).toHaveText(
     "print('new')",
   );

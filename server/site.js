@@ -50,7 +50,8 @@ export function siteRoutes(app, service, env, transfer) {
       let name = direct
         ? directory + context.path
         : (req.params.path || []).join("/");
-      let fallback = false;
+      let fallback = false,
+        errorStatus = 0;
       if (
         name.split("/").some((part) => part === ".." || part === ".") ||
         name.includes("\\")
@@ -74,6 +75,17 @@ export function siteRoutes(app, service, env, transfer) {
         name = entry.name;
         index = t.files.findIndex((file) => file.name === name);
         fallback = true;
+      }
+      if (index < 0 && /text\/html/.test(req.headers.accept || "")) {
+        const errorIndex = t.files.findIndex(
+          (file) => file.name === directory + "404.html" && !file.directory,
+        );
+        if (errorIndex >= 0) {
+          index = errorIndex;
+          name = t.files[index].name;
+          errorStatus = 404;
+          fallback = true;
+        }
       }
       if (index < 0)
         throw Object.assign(new Error("Файл не найден"), { status: 404 });
@@ -164,6 +176,10 @@ export function siteRoutes(app, service, env, transfer) {
         object.Body.destroy();
         throw Object.assign(Error("Публикация изменилась"), { status: 404 });
       }
+      if (errorStatus) {
+        res.locals.errorPage = true;
+        res.status(errorStatus);
+      }
       res.set({
         "Access-Control-Allow-Origin": "*",
         "Cross-Origin-Resource-Policy": "cross-origin",
@@ -200,20 +216,6 @@ export function siteRoutes(app, service, env, transfer) {
           "'";
         if (extension === "html" || extension === "htm") {
           const tree = htmlParse(body);
-          if (fallback) {
-            const head = tree.childNodes
-              .find((n) => n.tagName === "html")
-              ?.childNodes.find((n) => n.tagName === "head");
-            if (head && !head.childNodes.some((n) => n.tagName === "base"))
-              head.childNodes.unshift({
-                nodeName: "base",
-                tagName: "base",
-                attrs: [{ name: "href", value: root }],
-                namespaceURI: "http://www.w3.org/1999/xhtml",
-                childNodes: [],
-                parentNode: head,
-              });
-          }
           const visit = (node) => {
             for (const attr of node.attrs || []) {
               if (
@@ -257,6 +259,20 @@ export function siteRoutes(app, service, env, transfer) {
             for (const child of node.childNodes || []) visit(child);
           };
           if (!direct) visit(tree);
+          if (fallback) {
+            const head = tree.childNodes
+              .find((n) => n.tagName === "html")
+              ?.childNodes.find((n) => n.tagName === "head");
+            if (head && !head.childNodes.some((n) => n.tagName === "base"))
+              head.childNodes.unshift({
+                nodeName: "base",
+                tagName: "base",
+                attrs: [{ name: "href", value: root }],
+                namespaceURI: "http://www.w3.org/1999/xhtml",
+                childNodes: [],
+                parentNode: head,
+              });
+          }
           body = serialize(tree);
         } else body = extension === "css" ? css(body) : javascript(body);
         if (direct)

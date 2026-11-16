@@ -88,6 +88,10 @@ export function Recipient({ token, api }) {
     setFileSelection(new Set());
   }, [composition]);
   useEffect(() => {
+    setViewer(null);
+    automatic.current = false;
+  }, [info?.demo]);
+  useEffect(() => {
     if (!info || info.locked) {
       automatic.current = false;
       setViewer(null);
@@ -105,13 +109,6 @@ export function Recipient({ token, api }) {
       )
         setViewer({ index: requestedIndex, version: composition });
       else setError("Файл не найден");
-    }
-    if (
-      (info.media || (info.preview && !textUnavailable)) &&
-      !automatic.current
-    ) {
-      automatic.current = true;
-      setViewer({ index: undefined, version: composition });
     }
     setViewer((previous) => {
       if (!previous) return previous;

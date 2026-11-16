@@ -1,3 +1,4 @@
+import { resourceName } from "../src/resource-name.js";
 const types = {
   svg: ["image", "image/svg+xml"],
   png: ["image", "image/png"],
@@ -19,4 +20,9 @@ const types = {
   flac: ["audio", "audio/flac"],
 };
 export const mediaType = (file) =>
-  types[file?.name?.split(".").pop()?.toLowerCase()] || null;
+  types[
+    resourceName(file?.name || "")
+      .split(".")
+      .pop()
+      ?.toLowerCase()
+  ] || null;

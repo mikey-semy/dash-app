@@ -2081,3 +2081,44 @@ button.unavailable {
 .file-selection-actions .select-all {
   margin: 0;
 }
+
+.publication-status {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  padding: 7px;
+}
+.publication-status > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.18s;
+}
+.publication-action {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+.publication-status:not(:disabled):is(:hover, :focus-visible)
+  .publication-current {
+  opacity: 0;
+}
+.publication-status:not(:disabled):is(:hover, :focus-visible)
+  .publication-action {
+  opacity: 1;
+}
+.history-row .publication-status {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+}
+.history-row .publication-status svg {
+  width: 16px;
+  height: 16px;
+}
+.domain-field {
+  margin-top: 24px;
+}
+.domain-field input {
+  font-size: 16px;
+}

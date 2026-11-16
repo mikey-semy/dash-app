@@ -2,6 +2,7 @@ import { ErrorNotice, connectionError } from "./Errors.jsx";
 import { Disclosure, AnimatedDetails } from "./Disclosure.jsx";
 import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import EditableName from "./EditableName.jsx";
+import PublicationButton from "./PublicationButton.jsx";
 import QRButton from "./QRButton.jsx";
 import { captureFiles } from "./folders.js";
 const FolderUpload = lazy(() => import("./FolderUpload.jsx"));
@@ -124,6 +125,7 @@ export function Share({
   onDelete,
   onEdit,
   onSettings,
+  publication,
   onOpen,
   editFailed,
   editBusy,
@@ -144,6 +146,7 @@ export function Share({
         </button>
       )}
       <div className="share-controls">
+        {publication && <PublicationButton {...publication} />}
         {(onOpen || compact) && (
           <button
             type="button"
@@ -234,6 +237,7 @@ function HistoryItem({
   onRemoveFiles,
   onEdit,
   onSettings,
+  onPublish,
   onOpen,
   onRenameFile,
   onRenameTitle,
@@ -265,45 +269,54 @@ function HistoryItem({
           disabled={selectionDisabled}
           onChange={onSelect}
         />
-        <span
-          className={
-            ["queued", "archiving"].includes(t.state)
-              ? "history-state archive-status"
-              : "history-state"
-          }
-          role="img"
-          aria-label={
-            t.consumed
-              ? "Получено"
-              : typeof states[t.state] === "string"
-                ? states[t.state]
-                : "Сборка ZIP"
-          }
-          title={
-            t.consumed
-              ? "Получено"
-              : typeof states[t.state] === "string"
-                ? states[t.state]
-                : "Сборка ZIP"
-          }
-        >
-          <Icon
-            name={
-              t.consumed
-                ? "cancel"
-                : {
-                    ready: "check",
-                    empty: "archive",
-                    deleted: "cancel",
-                    deleting: "cancel",
-                    failed: "warning",
-                    archiving: "archive",
-                    queued: "archive",
-                    uploading: "upload",
-                  }[t.state] || "warning"
-            }
+        {t.hasSite && !t.consumed && t.state === "ready" ? (
+          <PublicationButton
+            className="history-state"
+            published={t.published}
+            disabled={!!busy || !t.url}
+            onToggle={(value) => onPublish(t, value)}
           />
-        </span>
+        ) : (
+          <span
+            className={
+              ["queued", "archiving"].includes(t.state)
+                ? "history-state archive-status"
+                : "history-state"
+            }
+            role="img"
+            aria-label={
+              t.consumed
+                ? "Получено"
+                : typeof states[t.state] === "string"
+                  ? states[t.state]
+                  : "Сборка ZIP"
+            }
+            title={
+              t.consumed
+                ? "Получено"
+                : typeof states[t.state] === "string"
+                  ? states[t.state]
+                  : "Сборка ZIP"
+            }
+          >
+            <Icon
+              name={
+                t.consumed
+                  ? "cancel"
+                  : {
+                      ready: "check",
+                      empty: "archive",
+                      deleted: "cancel",
+                      deleting: "cancel",
+                      failed: "warning",
+                      archiving: "archive",
+                      queued: "archive",
+                      uploading: "upload",
+                    }[t.state] || "warning"
+              }
+            />
+          </span>
+        )}
         <div className="history-middle">
           {t.url ? (
             <EditableName
@@ -445,6 +458,7 @@ function History({
   onRemoveHistory,
   onEdit,
   onSettings,
+  onPublish,
   onOpen,
   uploading,
   onRenameFile,
@@ -460,6 +474,10 @@ function History({
     [searchOpen, setSearchOpen] = useState(false);
   const visibleItems = items.filter(
     (t) =>
+      !["deleted", "deleting"].includes(t.state) &&
+      (t.expires === undefined ||
+        t.expires === null ||
+        t.expires > Date.now()) &&
       (!query ||
         [t.title || "", ...t.files.map((file) => file.name)].some((value) =>
           value.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
@@ -655,6 +673,7 @@ function History({
             key={t.id}
             transfer={t}
             onSettings={onSettings}
+            onPublish={onPublish}
             onRenameFile={onRenameFile}
             onRenameTitle={onRenameTitle}
             renaming={renaming}
@@ -1251,6 +1270,19 @@ export function OwnerView(p) {
             <>
               <Share
                 url={latest.url}
+                publication={
+                  latest.hasSite
+                    ? {
+                        published: latest.published,
+                        onToggle: (published) =>
+                          p.settingsApi(
+                            "/api/transfers/" + latest.id + "/settings",
+                            { published },
+                            "PATCH",
+                          ),
+                      }
+                    : undefined
+                }
                 onAdd={() => {
                   appendTarget.current = latest.id;
                   input.current.click();
@@ -1423,6 +1455,13 @@ export function OwnerView(p) {
           uploading={!!p.upload || p.preparingUpload}
           onOpen={(item) => p.setSelected(item.id)}
           onSettings={(item) => setConfig(item.id)}
+          onPublish={(item, published) =>
+            p.settingsApi(
+              "/api/transfers/" + item.id + "/settings",
+              { published },
+              "PATCH",
+            )
+          }
           onAdd={(id) => {
             appendTarget.current = id;
             input.current.click();

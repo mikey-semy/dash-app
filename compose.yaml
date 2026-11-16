@@ -7,8 +7,11 @@ services:
     env_file: .env
     environment:
       TRUST_PROXY_HOPS: 1
+      SITE_DOMAINS_EXPORT: /app/sites-export/domains.json
+      SITE_DOMAINS_STATUS: /app/sites-export/status.json
     volumes:
       - flash-data:/app/data
+      - ./sites-export:/app/sites-export
     networks:
       - proxy
     cpus: 1

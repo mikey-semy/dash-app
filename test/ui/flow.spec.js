@@ -318,7 +318,7 @@ test("password reveal and submit are inside the input; history header stays fixe
     route.fulfill({
       json: Array.from({ length: 35 }, (_, i) => ({
         id: "scroll-" + i,
-        state: "deleted",
+        state: "ready",
         created: Date.now() - i * 1000,
         expires: Date.now() + 3600000,
         ttl: 3600,
@@ -362,7 +362,7 @@ test("history expansion preserves modal and clicked header positions throughout 
     route.fulfill({
       json: Array.from({ length: 3 }, (_, i) => ({
         id: "stable-" + i,
-        state: "deleted",
+        state: "ready",
         created: Date.now() - i * 1000,
         expires: Date.now() + 3600000,
         ttl: 3600,
@@ -826,7 +826,7 @@ test("history selection deletes multiple records without expanding and supports 
   page,
 }) => {
   const now = Date.now();
-  let items = ["ready", "deleted", "ready"].map((state, i) => ({
+  let items = ["ready", "ready", "ready"].map((state, i) => ({
     id: "row" + i,
     state,
     created: now + i * 1000,

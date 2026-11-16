@@ -105,7 +105,8 @@ test("folder tree supports Markdown navigation and an isolated static site with 
     .getByRole("button", { name: "Параметры передачи", exact: true })
     .click();
   await page
-    .getByRole("button", { name: "Демонстрация без интерфейса", exact: true })
+    .getByRole("dialog", { name: "Параметры передачи", exact: true })
+    .getByRole("button", { name: "Опубликовать сайт", exact: true })
     .click();
   await page
     .getByRole("button", { name: "Закрыть параметры", exact: true })

@@ -2,6 +2,7 @@ import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
 import hljs from "./highlight.js";
+import { resourceName } from "./resource-name.js";
 import languages from "./text-languages.json" with { type: "json" };
 const subset = [...new Set(languages.map((l) => l.id))];
 const parser = unified().use(remarkParse).use(remarkGfm);
@@ -26,7 +27,7 @@ function markdownEvidence(text) {
   );
 }
 export function detect(text, filename = "") {
-  const base = filename.split(/[\\/]/).pop();
+  const base = resourceName(filename).split(/[\\/]/).pop();
   let language = languages.find(
     (l) =>
       l.extensions.some((ext) =>

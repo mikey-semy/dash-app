@@ -1533,6 +1533,11 @@ test("folder paths remain addressable and sandboxed static sites preserve origin
   );
   assert.equal((await request(app).get(url)).body.locked, true);
   await post(agent, url + "/unlock", { password: "123456" }).expect(200);
+  await agent
+    .patch("/api/transfers/" + id + "/settings")
+    .set("Origin", env.PUBLIC_URL)
+    .send({ published: true })
+    .expect(200);
   const meta = (await agent.get(url).expect(200)).body;
   assert.ok(meta.site);
   const page = await request(app).get(meta.site).expect(200);
@@ -1594,6 +1599,133 @@ test("folder paths remain addressable and sandboxed static sites preserve origin
     "UPDATE transfers SET expires=NULL,state='deleted' WHERE id=?",
   ).run(id);
   await request(app).get(updatedSite).expect(404);
+});
+
+test("publication pauses only the site, revokes old capabilities and hides deleted or expired history", async () => {
+  const { app, service, store, agent, db } = await setup();
+  const id = await upload(service, store, [
+    ["index.html", Buffer.from("<h1>Site</h1>")],
+  ]);
+  const token = service.get(id).token;
+  const settings = (body) =>
+    agent
+      .patch("/api/transfers/" + id + "/settings")
+      .set("Origin", env.PUBLIC_URL)
+      .send(body);
+  assert.equal((await request(app).get("/public/" + token)).body.site, null);
+  await settings({ published: true }).expect(200);
+  const site = (await request(app).get("/public/" + token)).body.site;
+  await request(app).get(site).expect(200);
+  await settings({ published: false }).expect(200);
+  await request(app).get(site).expect(404);
+  await request(app)
+    .get("/public/" + token + "/download")
+    .expect(200);
+  await settings({ published: true }).expect(200);
+  const resumed = (await request(app).get("/public/" + token)).body.site;
+  assert.notEqual(site, resumed);
+  await request(app).get(site).expect(404);
+  await request(app).get(resumed).expect(200);
+  assert.ok((await agent.get("/api/transfers")).body.some((t) => t.id === id));
+  db.prepare("UPDATE transfers SET expires=? WHERE id=?").run(
+    Date.now() - 1,
+    id,
+  );
+  assert.ok(!(await agent.get("/api/transfers")).body.some((t) => t.id === id));
+  db.prepare(
+    "UPDATE transfers SET expires=NULL,state='deleted' WHERE id=?",
+  ).run(id);
+  assert.ok(!(await agent.get("/api/transfers")).body.some((t) => t.id === id));
+  await request(app).get(resumed).expect(404);
+});
+
+test("custom domains isolate DU APIs, preserve website bytes and MIME, enforce password and SPA routing", async () => {
+  const { app, service, store, agent } = await setup();
+  const html = '<!doctype html><h1>Site</h1><script src="/app.js"></script>';
+  const id = await upload(
+    service,
+    store,
+    [
+      ["project/index.html", Buffer.from(html)],
+      ["project/app.js.Без названия", Buffer.from("window.test=1;")],
+      ["project/ScriptResource.axd", Buffer.from("window.axd=1;")],
+    ],
+    "123456",
+  );
+  await service.tick();
+  const settings = (body) =>
+    agent
+      .patch("/api/transfers/" + id + "/settings")
+      .set("Origin", env.PUBLIC_URL)
+      .send(body);
+  await settings({ domain: "https://site.example.com" }).expect(400);
+  await settings({
+    published: true,
+    domain: "site.example.com",
+    spa: true,
+  }).expect(200);
+  const get = (path) => request(app).get(path).set("Host", "site.example.com");
+  await get("/").set("Accept", "text/html").expect(401);
+  await get("/api/transfers").expect(401);
+  await request(app)
+    .post("/.du/unlock")
+    .set("Host", "site.example.com")
+    .set("Origin", "http://evil.example.com")
+    .type("form")
+    .send({ password: "123456" })
+    .expect(403);
+  const unlock = await request(app)
+    .post("/.du/unlock")
+    .set("Host", "site.example.com")
+    .set("Origin", "http://site.example.com")
+    .type("form")
+    .send({ password: "123456", next: "//evil.example.com" })
+    .expect(303);
+  assert.equal(unlock.headers.location, "/");
+  const cookie = unlock.headers["set-cookie"]
+    .map((v) => v.split(";")[0])
+    .join("; ");
+  const page = await get("/").set("Cookie", cookie).expect(200);
+  assert.equal(page.text, html);
+  assert.ok(!page.headers["content-security-policy"].includes("sandbox"));
+  const js = await get(
+    "/app.js.%D0%91%D0%B5%D0%B7%20%D0%BD%D0%B0%D0%B7%D0%B2%D0%B0%D0%BD%D0%B8%D1%8F",
+  )
+    .set("Cookie", cookie)
+    .expect(200);
+  assert.match(js.headers["content-type"], /javascript/);
+  assert.equal(js.text, "window.test=1;");
+  assert.match(
+    (await get("/ScriptResource.axd").set("Cookie", cookie).expect(200))
+      .headers["content-type"],
+    /javascript/,
+  );
+  const fallback = await get("/nested/route")
+    .set("Cookie", cookie)
+    .set("Accept", "text/html")
+    .expect(200);
+  assert.match(fallback.text, /<base href="\/">/);
+  await get("/missing.js")
+    .set("Cookie", cookie)
+    .set("Accept", "text/html")
+    .expect(404);
+  await get("/api/transfers").set("Cookie", cookie).expect(404);
+  await request(app)
+    .get("/api/transfers")
+    .set("Host", "unknown.example.com")
+    .expect(404);
+  await settings({ published: false }).expect(200);
+  await get("/").set("Cookie", cookie).expect(503);
+  await settings({ published: true }).expect(200);
+  await get("/").set("Cookie", cookie).expect(401);
+  const other = await upload(service, store, [
+    ["index.html", Buffer.from("Other")],
+  ]);
+  await agent
+    .patch("/api/transfers/" + other + "/settings")
+    .set("Origin", env.PUBLIC_URL)
+    .send({ domain: "site.example.com" })
+    .expect(409);
 });
 
 test("an empty folder remains a directory through append, rename and file removal", async () => {

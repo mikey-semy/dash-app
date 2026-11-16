@@ -1,5 +1,7 @@
 import { mediaType } from "./media.js";
 import { siteRoutes } from "./site.js";
+import { hosting as createHosting } from "./hosting.js";
+import { siteEntry, sitePublished } from "./site-policy.js";
 import { archiveTextObject } from "./archive-text.js";
 import { ZipArchive } from "archiver";
 import { passwordVault } from "./password-vault.js";
@@ -32,13 +34,19 @@ import {
   revision,
   safeNames,
 } from "./core.js";
-export function createApp(service, env, { authLimit = 15, indexHTML } = {}) {
+export function createApp(
+  service,
+  env,
+  { authLimit = 15, indexHTML, hostingOptions } = {},
+) {
   const app = express(),
     db = service.db,
     origin = new URL(env.PUBLIC_URL).origin,
     adminHash = hash(env.ADMIN_PASSWORD),
     secure = origin.startsWith("https:");
   const vault = passwordVault(env);
+  const hosting = createHosting(service, env, hostingOptions);
+  app.locals.hosting = hosting;
   app.disable("x-powered-by");
   app.set("trust proxy", Number(env.TRUST_PROXY_HOPS || 0));
   app.use(express.json({ limit: "64kb" }), cookieParser());
@@ -103,7 +111,8 @@ export function createApp(service, env, { authLimit = 15, indexHTML } = {}) {
     if (secure) res.set("Strict-Transport-Security", "max-age=31536000");
     if (
       !["GET", "HEAD", "OPTIONS"].includes(req.method) &&
-      req.headers.origin !== origin
+      req.headers.origin !== origin &&
+      !hosting.isCustom(req)
     )
       return res.status(403).json({ error: "Недопустимый Origin" });
     next();
@@ -115,6 +124,12 @@ export function createApp(service, env, { authLimit = 15, indexHTML } = {}) {
     legacyHeaders: false,
     message: { error: "Слишком много попыток. Подождите 15 минут." },
   });
+  app.use(
+    hosting.middleware(
+      (req, res, context) => site.render(req, res, context),
+      limited,
+    ),
+  );
   const options = {
     httpOnly: true,
     secure,
@@ -176,6 +191,11 @@ export function createApp(service, env, { authLimit = 15, indexHTML } = {}) {
       title: t.title || "",
       name: t.output?.name || "",
       demo: !!t.demo,
+      hasSite: !!siteEntry(t),
+      published: sitePublished(t),
+      spa: !!t.site_spa,
+      domain: t.site_domain || "",
+      domainState: hosting.status(t),
       oneTime: !!t.one_time,
       consumed: !!t.consumed,
       files: t.files.map(({ name, size }) => ({
@@ -197,9 +217,9 @@ export function createApp(service, env, { authLimit = 15, indexHTML } = {}) {
     res.json(
       db
         .prepare(
-          "SELECT id FROM transfers WHERE parent IS NULL AND hidden=0 ORDER BY created DESC",
+          "SELECT id FROM transfers WHERE parent IS NULL AND hidden=0 AND state NOT IN ('deleted','deleting') AND (expires IS NULL OR expires>?) ORDER BY created DESC",
         )
-        .all()
+        .all(Date.now())
         .map((r) => publicOwner(service.get(r.id))),
     ),
   );
@@ -290,6 +310,9 @@ export function createApp(service, env, { authLimit = 15, indexHTML } = {}) {
       revision: expectedRevision,
       oneTime,
       demo,
+      published,
+      domain,
+      spa,
     } = req.body;
     if (
       (ttl === undefined &&
@@ -297,7 +320,10 @@ export function createApp(service, env, { authLimit = 15, indexHTML } = {}) {
         title === undefined &&
         names === undefined &&
         oneTime === undefined &&
-        demo === undefined) ||
+        demo === undefined &&
+        published === undefined &&
+        domain === undefined &&
+        spa === undefined) ||
       (ttl !== undefined &&
         ![0, 3600, 21600, 86400, 259200, 604800].includes(ttl)) ||
       (password !== undefined &&
@@ -306,7 +332,10 @@ export function createApp(service, env, { authLimit = 15, indexHTML } = {}) {
       (title !== undefined &&
         (typeof title !== "string" || title.length > 180)) ||
       (oneTime !== undefined && typeof oneTime !== "boolean") ||
-      (demo !== undefined && typeof demo !== "boolean")
+      (demo !== undefined && typeof demo !== "boolean") ||
+      (published !== undefined && typeof published !== "boolean") ||
+      (spa !== undefined && typeof spa !== "boolean") ||
+      (domain !== undefined && typeof domain !== "string")
     )
       return res.status(400).json({ error: "Неверные настройки" });
     await service.locked(() => {
@@ -318,6 +347,45 @@ export function createApp(service, env, { authLimit = 15, indexHTML } = {}) {
         (t.expires !== null && t.expires <= Date.now())
       )
         throw Object.assign(new Error("Передача недоступна"), { status: 404 });
+      if ((published === true || domain || spa === true) && !siteEntry(t))
+        throw Object.assign(new Error("В передаче нет index.html"), {
+          status: 400,
+        });
+      if (domain !== undefined) {
+        const name = hosting.normalize(domain);
+        if (name) {
+          const existing = db
+            .prepare(
+              "SELECT id,expires,state FROM transfers WHERE site_domain=? AND id!=? AND state NOT IN ('deleted','deleting')",
+            )
+            .get(name, t.id);
+          if (
+            existing &&
+            (existing.expires === null || existing.expires > Date.now())
+          )
+            throw Object.assign(
+              new Error("Домен уже привязан к другой передаче"),
+              { status: 409 },
+            );
+          if (existing)
+            db.prepare("UPDATE transfers SET site_domain=NULL WHERE id=?").run(
+              existing.id,
+            );
+        }
+        db.prepare("UPDATE transfers SET site_domain=? WHERE id=?").run(
+          name,
+          t.id,
+        );
+      }
+      if (published !== undefined)
+        db.prepare(
+          "UPDATE transfers SET site_epoch=site_epoch+CASE WHEN site_published!=? THEN 1 ELSE 0 END,site_published=?,demo=CASE WHEN ?=1 THEN 1 ELSE demo END WHERE id=?",
+        ).run(published ? 1 : 0, published ? 1 : 0, published ? 1 : 0, t.id);
+      if (spa !== undefined)
+        db.prepare("UPDATE transfers SET site_spa=? WHERE id=?").run(
+          spa ? 1 : 0,
+          t.id,
+        );
       if (names !== undefined) service.rename(t.id, names, expectedRevision);
       if (title !== undefined)
         db.prepare("UPDATE transfers SET title=? WHERE id=?").run(
@@ -353,7 +421,15 @@ export function createApp(service, env, { authLimit = 15, indexHTML } = {}) {
           t.id,
         );
     });
+    hosting.refresh().catch((error) => console.error("[DU] domains", error));
     res.json(publicOwner(service.get(req.params.id)));
+  });
+  api.post("/transfers/:id/domain-check", async (req, res) => {
+    const t = service.get(req.params.id);
+    if (!t || t.parent)
+      return res.status(404).json({ error: "Передача недоступна" });
+    await hosting.refresh();
+    res.json(publicOwner(service.get(t.id)));
   });
   api.post("/transfers/:id/append", async (req, res) => {
     const result = await service.locked(() =>
@@ -603,7 +679,9 @@ export function createApp(service, env, { authLimit = 15, indexHTML } = {}) {
             locked: false,
             title: t.title || "",
             demo: !!t.demo,
-            site: site(t),
+            hasSite: !!siteEntry(t),
+            published: sitePublished(t),
+            site: sitePublished(t) ? site(t) : null,
             oneTime: !!t.one_time,
             preview: textCandidate(t),
             media:

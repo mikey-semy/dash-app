@@ -119,9 +119,21 @@ export function openDB(path) {
     ["demo", "INTEGER NOT NULL DEFAULT 0"],
     ["one_time", "INTEGER NOT NULL DEFAULT 0"],
     ["consumed", "INTEGER NOT NULL DEFAULT 0"],
+    ["site_domain", "TEXT"],
+    ["site_spa", "INTEGER NOT NULL DEFAULT 0"],
+    ["site_epoch", "INTEGER NOT NULL DEFAULT 0"],
   ])
     if (!columns.includes(name))
       db.exec(`ALTER TABLE transfers ADD COLUMN ${name} ${type}`);
+  if (!columns.includes("site_published")) {
+    db.exec(
+      "ALTER TABLE transfers ADD COLUMN site_published INTEGER NOT NULL DEFAULT 0",
+    );
+    db.exec("UPDATE transfers SET site_published=1 WHERE demo=1");
+  }
+  db.exec(
+    "CREATE UNIQUE INDEX IF NOT EXISTS site_domain_unique ON transfers(site_domain) WHERE site_domain IS NOT NULL AND state NOT IN ('deleted','deleting')",
+  );
   if (!columns.includes("password_cipher"))
     db.exec("ALTER TABLE transfers ADD COLUMN password_cipher TEXT");
   if (!columns.includes("parent"))

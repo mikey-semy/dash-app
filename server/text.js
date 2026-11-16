@@ -1,3 +1,4 @@
+import { resourceName } from "../src/resource-name.js";
 import languages from "../src/text-languages.json" with { type: "json" };
 import { mediaType } from "./media.js";
 import { archiveTextObject } from "./archive-text.js";
@@ -22,7 +23,9 @@ export function fileTextCandidate(file) {
     mediaType(file)
   )
     return false;
-  const name = (file.name || "").split("/").pop(),
+  const name = resourceName(file.name || "")
+      .split("/")
+      .pop(),
     extension = name.includes(".") ? name.split(".").pop().toLowerCase() : "";
   return (
     knownNames.test(name) ||

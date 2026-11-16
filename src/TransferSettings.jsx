@@ -1,6 +1,7 @@
 import { ErrorNotice } from "./Errors.jsx";
 import React, { useEffect, useRef, useState } from "react";
 import { Icon, Expiry } from "./Icons.jsx";
+import PublicationButton from "./PublicationButton.jsx";
 export const durations = [
   [3600, "1", "ч", "1 час"],
   [21600, "6", "ч", "6 часов"],
@@ -18,6 +19,9 @@ export default function TransferSettings({ transfer, api, onClose }) {
     [busy, setBusy] = useState(false),
     [copied, setCopied] = useState(false),
     [error, setError] = useState("");
+  const [domain, setDomain] = useState(transfer.domain || "");
+  const savingDomain = useRef(false);
+  useEffect(() => setDomain(transfer.domain || ""), [transfer.domain]);
   useEffect(() => {
     ref.current.showModal();
     let active = true;
@@ -54,6 +58,27 @@ export default function TransferSettings({ transfer, api, onClose }) {
     }
   };
   useEffect(() => () => clearTimeout(clickTimer.current), []);
+  const saveDomain = async (value = domain) => {
+    if (savingDomain.current || busy) return;
+    savingDomain.current = true;
+    try {
+      if (value.trim() !== (transfer.domain || ""))
+        await update({ domain: value.trim() });
+      else {
+        setBusy(true);
+        await api(
+          "/api/transfers/" + transfer.id + "/domain-check",
+          {},
+          "POST",
+        );
+      }
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      savingDomain.current = false;
+      setBusy(false);
+    }
+  };
   const generate = async () => {
     const bytes = new Uint32Array(1);
     do {
@@ -93,6 +118,28 @@ export default function TransferSettings({ transfer, api, onClose }) {
       </header>
       <div className="dialog-body">
         <div className="transfer-settings-controls">
+          {transfer.hasSite && (
+            <>
+              <PublicationButton
+                published={transfer.published}
+                disabled={busy}
+                onToggle={async (published) => {
+                  await update({ published });
+                }}
+              />
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Режим SPA"
+                aria-pressed={!!transfer.spa}
+                title="Открывать index.html для маршрутов приложения"
+                disabled={busy}
+                onClick={() => update({ spa: !transfer.spa })}
+              >
+                <Icon name="route" />
+              </button>
+            </>
+          )}
           <button
             type="button"
             className="icon-button duration-button"
@@ -187,6 +234,85 @@ export default function TransferSettings({ transfer, api, onClose }) {
           <p className="muted">
             Старый пароль не сохранён. Можно создать новый.
           </p>
+        )}
+        {transfer.hasSite && (
+          <div className="password-field domain-field">
+            <input
+              aria-label="Домен сайта"
+              placeholder="example.com"
+              value={domain}
+              autoCapitalize="none"
+              autoComplete="off"
+              spellCheck={false}
+              inputMode="url"
+              disabled={busy}
+              onChange={(event) => {
+                setDomain(event.target.value);
+                setError("");
+              }}
+              onBlur={(event) => {
+                if (
+                  !event.relatedTarget?.closest(".domain-field") &&
+                  domain.trim() !== (transfer.domain || "")
+                )
+                  saveDomain();
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  saveDomain();
+                } else if (event.key === "Escape") {
+                  event.stopPropagation();
+                  setDomain(transfer.domain || "");
+                }
+              }}
+            />
+            {domain && (
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Убрать домен"
+                disabled={busy}
+                onPointerDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  setDomain("");
+                  update({ domain: "" });
+                }}
+              >
+                <Icon name="cancel" />
+              </button>
+            )}
+            <button
+              type="button"
+              className={
+                "icon-button " +
+                (transfer.domainState?.state === "error" ? "edit-error" : "")
+              }
+              disabled={busy}
+              aria-label={
+                domain.trim() !== (transfer.domain || "")
+                  ? "Подключить домен"
+                  : "Проверить домен"
+              }
+              title="Проверить DNS и HTTPS"
+              onPointerDown={(event) => event.preventDefault()}
+              onClick={() => saveDomain()}
+            >
+              <Icon
+                name={
+                  domain.trim() !== (transfer.domain || "")
+                    ? "enter"
+                    : transfer.domainState?.state === "ready"
+                      ? "check"
+                      : transfer.domainState?.state === "error"
+                        ? "cancel"
+                        : transfer.domain
+                          ? "clock"
+                          : "enter"
+                }
+              />
+            </button>
+          </div>
         )}
         {error && <ErrorNotice error={error} />}
       </div>

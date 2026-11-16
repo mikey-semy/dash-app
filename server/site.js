@@ -1,3 +1,5 @@
+import { siteEntry, sitePublished } from "./site-policy.js";
+import { resourceType } from "./resource-type.js";
 import { createHmac, createHash, randomBytes } from "node:crypto";
 import { parse as htmlParse, serialize } from "parse5";
 import valueParser from "postcss-value-parser";
@@ -17,15 +19,15 @@ export function siteRoutes(app, service, env, transfer) {
           t.id,
           t.token,
           t.password,
+          t.site_epoch || 0,
+          !!t.site_spa,
           t.output?.key,
           t.output?.etag,
         ]),
       )
       .digest("base64url");
   const site = (t) => {
-    const entry = t.files
-      .filter((file) => /(?:^|\/)index\.html?$/i.test(file.name))
-      .sort((a, b) => a.name.split("/").length - b.name.split("/").length)[0];
+    const entry = siteEntry(t);
     return entry
       ? "/site/" +
           t.token +
@@ -35,12 +37,20 @@ export function siteRoutes(app, service, env, transfer) {
           entry.name.split("/").map(encodeURIComponent).join("/")
       : null;
   };
-  app.get("/site/:token/:key/{*path}", async (req, res) => {
+  async function render(req, res, context = null) {
     try {
-      const t = transfer(req);
-      if (req.params.key !== signature(t))
+      const direct = !!context;
+      const t = context?.transfer || transfer(req);
+      if (!sitePublished(t))
+        throw Object.assign(new Error("Сайт не опубликован"), { status: 404 });
+      if (!direct && req.params.key !== signature(t))
         throw Object.assign(new Error("Просмотр недоступен"), { status: 404 });
-      let name = (req.params.path || []).join("/");
+      const entry = siteEntry(t),
+        directory = entry.name.slice(0, entry.name.lastIndexOf("/") + 1);
+      let name = direct
+        ? directory + context.path
+        : (req.params.path || []).join("/");
+      let fallback = false;
       if (
         name.split("/").some((part) => part === ".." || part === ".") ||
         name.includes("\\")
@@ -55,16 +65,30 @@ export function siteRoutes(app, service, env, transfer) {
         t.files.some((file) => file.name === name + "/index.html")
       )
         return res.redirect(302, req.path + "/");
+      if (
+        index < 0 &&
+        t.site_spa &&
+        !name.split("/").pop().includes(".") &&
+        /text\/html/.test(req.headers.accept || "")
+      ) {
+        name = entry.name;
+        index = t.files.findIndex((file) => file.name === name);
+        fallback = true;
+      }
       if (index < 0)
         throw Object.assign(new Error("Файл не найден"), { status: 404 });
-      const file = t.files[index],
-        extension = name.split(".").pop().toLowerCase();
-      const root =
-        new URL(site(t), origin).pathname.split("/").slice(0, -1).join("/") +
-        "/";
+      const file = t.files[index];
+      const { extension, type } = resourceType(
+        name,
+        req.headers["sec-fetch-dest"],
+      );
+      const root = direct
+        ? "/"
+        : new URL(site(t), origin).pathname.split("/").slice(0, -1).join("/") +
+          "/";
       const capability = "/site/" + t.token + "/" + req.params.key + "/";
       const rewrite = (value) =>
-        value.startsWith("/") && !value.startsWith("//")
+        !direct && value.startsWith("/") && !value.startsWith("//")
           ? root + value.slice(1)
           : value;
       const css = (text) =>
@@ -132,6 +156,14 @@ export function siteRoutes(app, service, env, transfer) {
         t.files.length > 1
           ? await archiveTextObject(service.store, t, index)
           : await service.store.get(t.output.key, { IfMatch: t.output.etag });
+      const stillPublished = () => {
+        const current = service.get(t.id);
+        return sitePublished(current) && signature(current) === signature(t);
+      };
+      if (!stillPublished()) {
+        object.Body.destroy();
+        throw Object.assign(Error("Публикация изменилась"), { status: 404 });
+      }
       res.set({
         "Access-Control-Allow-Origin": "*",
         "Cross-Origin-Resource-Policy": "cross-origin",
@@ -139,8 +171,10 @@ export function siteRoutes(app, service, env, transfer) {
         "Referrer-Policy": "no-referrer",
         "Accept-Ranges": "bytes",
       });
-      res.type(extension);
+      res.set("Content-Type", type);
+      if (direct) res.removeHeader("Access-Control-Allow-Origin");
       const textType =
+        (!direct || fallback) &&
         ["html", "htm", "css", "js", "mjs"].includes(extension) &&
         file.size <= 5 * 1024 * 1024;
       if (textType) {
@@ -153,7 +187,7 @@ export function siteRoutes(app, service, env, transfer) {
         }
         if (size !== file.size) throw Error("Incomplete object");
         const buffer = Buffer.concat(chunks);
-        if (signature(transfer(req)) !== req.params.key)
+        if (!stillPublished())
           throw Object.assign(new Error("Передача обновилась"), {
             status: 412,
           });
@@ -166,6 +200,20 @@ export function siteRoutes(app, service, env, transfer) {
           "'";
         if (extension === "html" || extension === "htm") {
           const tree = htmlParse(body);
+          if (fallback) {
+            const head = tree.childNodes
+              .find((n) => n.tagName === "html")
+              ?.childNodes.find((n) => n.tagName === "head");
+            if (head && !head.childNodes.some((n) => n.tagName === "base"))
+              head.childNodes.unshift({
+                nodeName: "base",
+                tagName: "base",
+                attrs: [{ name: "href", value: root }],
+                namespaceURI: "http://www.w3.org/1999/xhtml",
+                childNodes: [],
+                parentNode: head,
+              });
+          }
           const visit = (node) => {
             for (const attr of node.attrs || []) {
               if (
@@ -208,18 +256,26 @@ export function siteRoutes(app, service, env, transfer) {
                 }
             for (const child of node.childNodes || []) visit(child);
           };
-          visit(tree);
+          if (!direct) visit(tree);
           body = serialize(tree);
         } else body = extension === "css" ? css(body) : javascript(body);
-        res.set(
-          "Content-Security-Policy",
-          `sandbox allow-scripts allow-forms allow-downloads; default-src 'none'; script-src ${origin + capability} https: 'unsafe-hashes' ${scriptHashes.join(" ")}; style-src ${origin + capability} https: 'unsafe-hashes' ${styleHashes.join(" ")}; img-src ${origin + capability} https: data: blob:; font-src ${origin + capability} https: data:; media-src ${origin + capability} blob:; connect-src ${origin + capability}; frame-src 'none'; base-uri ${origin + capability}; form-action 'none'; frame-ancestors 'self'`,
-        );
+        if (direct)
+          res.set(
+            "Content-Security-Policy",
+            "base-uri 'self'; frame-ancestors 'self'",
+          );
+        else
+          res.set(
+            "Content-Security-Policy",
+            `sandbox allow-scripts allow-forms allow-downloads; default-src 'none'; script-src ${origin + capability} https: 'unsafe-hashes' ${scriptHashes.join(" ")}; style-src ${origin + capability} https: 'unsafe-hashes' ${styleHashes.join(" ")}; img-src ${origin + capability} https: data: blob:; font-src ${origin + capability} https: data:; media-src ${origin + capability} blob:; connect-src ${origin + capability}; frame-src 'none'; base-uri ${origin + capability}; form-action 'none'; frame-ancestors 'self'`,
+          );
         return res.send(body);
       }
       res.set(
         "Content-Security-Policy",
-        "sandbox; default-src 'none'; frame-ancestors 'self'",
+        direct
+          ? "base-uri 'self'; frame-ancestors 'self'"
+          : "sandbox; default-src 'none'; frame-ancestors 'self'",
       );
       const requested = range(req.headers.range, file.size);
       if (requested === false) {
@@ -242,6 +298,10 @@ export function siteRoutes(app, service, env, transfer) {
                 Range: `bytes=${requested.start}-${requested.end}`,
                 IfMatch: t.output.etag,
               });
+        if (!stillPublished()) {
+          part.Body.destroy();
+          throw Object.assign(Error("Публикация изменилась"), { status: 404 });
+        }
         return await pipeline(part.Body, res);
       }
       res.set("Content-Length", file.size);
@@ -264,9 +324,11 @@ export function siteRoutes(app, service, env, transfer) {
         })
         .type("html")
         .send(
-          `<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><style nonce="${nonce}">body{margin:0;display:grid;place-items:center;height:100dvh}a{color:#d33434;display:flex}</style><a href="/" target="_top" aria-label="Вернуться к загрузке"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6 6 18 18M18 6 6 18"/></svg></a><script nonce="${nonce}">console.error('[DU] Static preview HTTP ${error.status || 503}')</script>`,
+          `<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><style nonce="${nonce}">body{margin:0;display:grid;place-items:center;height:100dvh}a{color:#d33434;display:flex}</style><a href="${context ? origin + "/" : "/"}" target="_top" aria-label="Вернуться к загрузке"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6 6 18 18M18 6 6 18"/></svg></a><script nonce="${nonce}">console.error('[DU] Static preview HTTP ${error.status || 503}')</script>`,
         );
     }
-  });
+  }
+  app.get("/site/:token/:key/{*path}", (req, res) => render(req, res));
+  site.render = render;
   return site;
 }

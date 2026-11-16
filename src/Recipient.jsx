@@ -137,7 +137,7 @@ export function Recipient({ token, api }) {
           media: info.files[viewer.index]?.media,
         };
   if (error && !info) return <ErrorPage error={error} />;
-  if (info?.demo && !info.locked)
+  if (info?.demo && !info.locked && (!info.hasSite || info.published))
     return (
       <Suspense fallback={null}>
         <DemoView token={token} info={info} onUnavailable={() => load(true)} />

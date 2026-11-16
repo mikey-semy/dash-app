@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   Presentation,
+  Globe,
+  Route,
   RotateCw,
   ArrowLeft,
   Search,
@@ -33,6 +35,8 @@ import {
   Settings,
 } from "lucide-react";
 const glyphs = {
+  globe: Globe,
+  route: Route,
   reload: RotateCw,
   presentation: Presentation,
   left: ArrowLeft,

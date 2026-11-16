@@ -1,7 +1,7 @@
 import { ErrorNotice } from "./Errors.jsx";
 import React, { useEffect, useRef, useState } from "react";
 import { Icon } from "./Icons.jsx";
-import { scanFolders, folderZip } from "./folders.js";
+import { scanFolders, folderFiles } from "./folders.js";
 export default function FolderUpload({ source, onClose, onSend }) {
   const ref = useRef(),
     alive = useRef(true);
@@ -30,12 +30,7 @@ export default function FolderUpload({ source, onClose, onSend }) {
     setBusy(true);
     setError("");
     try {
-      const files = [...plan.loose];
-      for (const root of plan.roots) {
-        const entries = plan.files.filter((item) => item.root === root);
-        if (entries.length)
-          files.push(await folderZip(root.name, entries, () => !alive.current));
-      }
+      const files = folderFiles(plan);
       if (!alive.current) return;
       if (!files.length) throw new Error("Нет файлов для загрузки");
       if ((await onSend(files)) !== false) onClose();

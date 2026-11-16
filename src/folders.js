@@ -139,6 +139,18 @@ function checkPlan(plan) {
   )
     throw new Error("Максимум 100 файлов и 2 ГБ суммарно внутри папок");
 }
+export function folderFiles(plan) {
+  return [
+    ...plan.loose,
+    ...plan.files.map(
+      (item) =>
+        new File(item.file ? [item.file] : [], item.path, {
+          type: item.directory ? "application/x-du-directory" : item.file.type,
+          lastModified: item.file?.lastModified || Date.now(),
+        }),
+    ),
+  ];
+}
 const encoder = new TextEncoder();
 const crcTable = Array.from({ length: 256 }, (_, i) => {
   for (let bit = 0; bit < 8; bit++)

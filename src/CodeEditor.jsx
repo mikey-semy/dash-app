@@ -44,7 +44,10 @@ function useDetection(text, filename) {
         worker.terminate();
       };
       deadline = setTimeout(fallback, 15000);
-      worker.onerror = fallback;
+      worker.onerror = (event) => {
+        event.preventDefault();
+        fallback();
+      };
       worker.onmessage = ({ data }) => {
         if (!active) return;
         clearTimeout(deadline);

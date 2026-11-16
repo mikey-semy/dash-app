@@ -1,4 +1,5 @@
 import { mediaType } from "./media.js";
+import { siteRoutes } from "./site.js";
 import { archiveTextObject } from "./archive-text.js";
 import { ZipArchive } from "archiver";
 import { passwordVault } from "./password-vault.js";
@@ -520,6 +521,7 @@ export function createApp(service, env, { authLimit = 15, indexHTML } = {}) {
     return t;
   }
   const grants = new Map();
+  const site = siteRoutes(app, service, env, transfer);
   const downloadClaims = new Map();
   function claimDownload(t, res, complete = true) {
     if (!t.one_time) return;
@@ -601,6 +603,7 @@ export function createApp(service, env, { authLimit = 15, indexHTML } = {}) {
             locked: false,
             title: t.title || "",
             demo: !!t.demo,
+            site: site(t),
             oneTime: !!t.one_time,
             preview: textCandidate(t),
             media:

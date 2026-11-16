@@ -63,7 +63,14 @@ export class Service {
       throw Object.assign(new Error("Выберите файлы"), { status: 400 });
     const next = insertTransfer(
       this.db,
-      [...parent.files.map(({ name, size }) => ({ name, size })), ...files],
+      [
+        ...parent.files.map(({ name, size, directory }) => ({
+          name,
+          size,
+          directory,
+        })),
+        ...files,
+      ],
       parent.ttl,
       "",
       parent,
@@ -230,7 +237,7 @@ export class Service {
     }
     const child = insertTransfer(
       this.db,
-      kept.map(({ name, size }) => ({ name, size })),
+      kept.map(({ name, size, directory }) => ({ name, size, directory })),
       parent.ttl,
       "",
       { ...parent, reuseFiles: kept, baseFiles: parent.files },
@@ -247,7 +254,7 @@ export class Service {
       marker.once("close", stop);
       try {
         if (marker.destroyed) throw new Error("Cancelled");
-        if (t.base.files.length === 1) {
+        if (t.base.files.length === 1 && !t.base.files[0].directory) {
           const file = t.files.find(
             (f) => f.reused && f.key === t.base.files[0].key,
           );
@@ -261,7 +268,7 @@ export class Service {
               const original = t.base.files[index++];
               if (
                 !original ||
-                entry.type !== "File" ||
+                entry.type !== (original.directory ? "Directory" : "File") ||
                 entry.path !== original.name
               ) {
                 entry.autodrain();
@@ -480,7 +487,7 @@ export class Service {
         .run(t.id);
       return;
     }
-    if (t.files.length === 1) {
+    if (t.files.length === 1 && !t.files[0].directory) {
       const f = t.files[0],
         h = await this.store.head(f.key);
       if (h.ContentLength !== f.size) throw new Error("Размер изменён");
@@ -508,7 +515,10 @@ export class Service {
           throw new Error("Append cancelled or superseded");
         const output = {
           ...out,
-          name: t.files.length === 1 ? out.name : archiveName(parent.created),
+          name:
+            t.files.length === 1 && !t.files[0].directory
+              ? out.name
+              : archiveName(parent.created),
           garbage: [
             ...new Set(
               [
@@ -533,7 +543,7 @@ export class Service {
             )
             .run(
               JSON.stringify(
-                t.files.length === 1
+                t.files.length === 1 && !t.files[0].directory
                   ? t.files.map((f) => ({ ...f, key: out.key }))
                   : t.files,
               ),
@@ -648,6 +658,7 @@ export class Service {
           });
           zip.append(checked, {
             name: file.name,
+            ...(file.directory ? { type: "directory" } : {}),
             date: new Date(t.base?.created || t.created),
           });
         });
@@ -775,7 +786,8 @@ export class Service {
     });
     if (!job) return;
     try {
-      if (job.parent && job.files.length === 1) await this.single(job);
+      if (job.parent && job.files.length === 1 && !job.files[0].directory)
+        await this.single(job);
       else await this.zip(job);
     } catch {
       this.db

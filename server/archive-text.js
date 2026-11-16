@@ -50,7 +50,7 @@ export async function archiveTextObject(store, t, index, range) {
         file = t.files[i];
       if (
         item.path !== file.name ||
-        item.type !== "File" ||
+        item.type !== (file.directory ? "Directory" : "File") ||
         item.uncompressedSize !== file.size
       )
         throw new Error("Archive composition mismatch");

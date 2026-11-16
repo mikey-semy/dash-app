@@ -10,6 +10,7 @@ import {
   range,
   safeNames,
   reservation,
+  revision,
 } from "../server/core.js";
 import { Service } from "../server/service.js";
 import { createApp } from "../server/app.js";
@@ -1464,7 +1465,10 @@ test("known Office and binary formats are not offered as text editors, and one-t
 test("unknown navigations use the app error page while API and Raw errors keep machine-readable formats", async () => {
   const { service } = await setup();
   const app = createApp(service, env, {
-    indexHTML: await readFile(new URL("../index.html", import.meta.url), "utf8"),
+    indexHTML: await readFile(
+      new URL("../index.html", import.meta.url),
+      "utf8",
+    ),
   });
   const page = await request(app)
     .get("/missing-page/relative-link")
@@ -1489,4 +1493,135 @@ test("unknown navigations use the app error page while API and Raw errors keep m
     .set("Accept", "application/json")
     .expect(404)
     .expect("Content-Type", /application\/json/);
+});
+
+test("folder paths remain addressable and sandboxed static sites preserve originals, password, expiry and deletion", async () => {
+  const { app, service, store, agent, db } = await setup();
+  const html = Buffer.from(
+    '<!doctype html><html><head><link rel="stylesheet" href="/assets/a.css"></head><body><h1>Site</h1><script type="module" src="/assets/a.js"></script><script>document.body.dataset.inline="yes"</script><a href="docs/page.html">Next</a></body></html>',
+  );
+  const id = await upload(
+    service,
+    store,
+    [
+      ["project/index.html", html],
+      [
+        "project/assets/a.css",
+        Buffer.from('body{background:url("/assets/a.png")}'),
+      ],
+      [
+        "project/assets/a.js",
+        Buffer.from(
+          'import value from "/assets/data.js";document.body.dataset.asset="/assets/a.png";',
+        ),
+      ],
+      ["project/assets/data.js", Buffer.from("export default 1;")],
+      ["project/assets/a.png", Buffer.from([1, 2, 3, 4])],
+      ["project/docs/page.html", Buffer.from("<p>Next page</p>")],
+      ["project/README.md", Buffer.from("# Docs\n\n[Next](docs/next.md)")],
+      ["project/docs/next.md", Buffer.from("# Next\n")],
+    ],
+    "123456",
+  );
+  await service.tick();
+  const t = service.get(id),
+    url = "/public/" + t.token;
+  assert.equal(t.files[0].name, "project/index.html");
+  assert.deepEqual(
+    Object.keys(unzipSync(store.objects.get(t.output.key))),
+    t.files.map((file) => file.name),
+  );
+  assert.equal((await request(app).get(url)).body.locked, true);
+  await post(agent, url + "/unlock", { password: "123456" }).expect(200);
+  const meta = (await agent.get(url).expect(200)).body;
+  assert.ok(meta.site);
+  const page = await request(app).get(meta.site).expect(200);
+  assert.match(
+    page.headers["content-security-policy"],
+    /sandbox allow-scripts/,
+  );
+  assert.ok(
+    !page.headers["content-security-policy"].includes("allow-same-origin"),
+  );
+  assert.ok(!page.headers["content-security-policy"].includes("unsafe-inline"));
+  assert.match(page.headers["content-security-policy"], /sha256-/);
+  const base = meta.site.slice(0, -"index.html".length);
+  assert.ok(page.text.includes(base + "assets/a.css"));
+  const css = await request(app)
+    .get(base + "assets/a.css")
+    .expect(200);
+  assert.ok(css.text.includes(base + "assets/a.png"));
+  const js = await request(app)
+    .get(base + "assets/a.js")
+    .expect(200);
+  assert.ok(js.text.includes(base + "assets/data.js"));
+  assert.equal(js.headers["access-control-allow-origin"], "*");
+  await request(app).head(meta.site).expect(200);
+  const range = await request(app)
+    .get(base + "assets/a.png")
+    .set("Range", "bytes=1-2")
+    .expect(206);
+  assert.deepEqual(range.body, Buffer.from([2, 3]));
+  const original = await agent.get(url + "/files/0/download").expect(200);
+  assert.equal(original.text || original.body.toString(), html.toString());
+  await request(app)
+    .get(base + "missing.html")
+    .expect(404);
+  await request(app)
+    .get(
+      meta.site.replace(
+        /\/site\/[^/]+\/[^/]+\//,
+        "/site/" + t.token + "/invalid/",
+      ),
+    )
+    .expect(404);
+  await agent
+    .patch("/api/transfers/" + id + "/settings")
+    .set("Origin", env.PUBLIC_URL)
+    .send({ password: "654321" })
+    .expect(200);
+  await request(app).get(meta.site).expect(404);
+  await post(agent, url + "/unlock", { password: "654321" }).expect(200);
+  const updatedSite = (await agent.get(url).expect(200)).body.site;
+  assert.notEqual(updatedSite, meta.site);
+  await request(app).get(updatedSite).expect(200);
+  db.prepare("UPDATE transfers SET expires=? WHERE id=?").run(
+    Date.now() - 1,
+    id,
+  );
+  await request(app).get(updatedSite).expect(404);
+  db.prepare(
+    "UPDATE transfers SET expires=NULL,state='deleted' WHERE id=?",
+  ).run(id);
+  await request(app).get(updatedSite).expect(404);
+});
+
+test("an empty folder remains a directory through append, rename and file removal", async () => {
+  const { service, store } = await setup();
+  const id = service.create(
+    [{ name: "project/empty/", size: 0, directory: true }],
+    0,
+    "",
+  );
+  await service.init(id, 0);
+  await service.finish(id);
+  await service.tick();
+  let t = service.get(id);
+  assert.equal(t.state, "ready");
+  assert.ok(unzipSync(store.objects.get(t.output.key))["project/empty/"]);
+  const appended = service.append(id, [{ name: "project/readme.md", size: 0 }]);
+  await service.init(appended.id, appended.offset);
+  await service.finish(appended.id);
+  await service.tick();
+  t = service.get(id);
+  assert.equal(t.files.length, 2);
+  assert.equal(t.files[0].directory, true);
+  service.rename(id, ["project/empty/", "project/README.md"], revision(t));
+  await service.tick();
+  t = service.get(id);
+  assert.ok(unzipSync(store.objects.get(t.output.key))["project/empty/"]);
+  service.removeFiles(id, [1], revision(t));
+  await service.tick();
+  t = service.get(id);
+  assert.ok(unzipSync(store.objects.get(t.output.key))["project/empty/"]);
 });

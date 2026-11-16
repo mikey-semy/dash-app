@@ -23,6 +23,15 @@ test("Markdown structure wins over false Gherkin matches without changing real f
     "# План\n\n## Feature\n\n- Given список задач\n- When нажать кнопку\n- Then показать результат\n\n**Важно**: [проверить](https://example.com).\n";
   assert.equal(detect(markdown).label, "Markdown");
   assert.equal(
+    detect(markdown, "text-20261116-123456789.dart").label,
+    "Markdown",
+  );
+  assert.equal(detect(markdown, "docs/README.md").label, "Markdown");
+  assert.equal(
+    detect("void main() { print('hello'); }", "example.dart").label,
+    "Dart",
+  );
+  assert.equal(
     detect(markdown, "text-20261116-123456789.feature").label,
     "Markdown",
   );

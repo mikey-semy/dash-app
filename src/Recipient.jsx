@@ -93,6 +93,19 @@ export function Recipient({ token, api }) {
       setViewer(null);
       return;
     }
+    const requested = new URLSearchParams(location.search).get("file");
+    const requestedIndex = requested
+      ? info.files.findIndex((file) => file.name === requested)
+      : -1;
+    if (requested && !automatic.current) {
+      automatic.current = true;
+      if (
+        requestedIndex >= 0 &&
+        (info.files[requestedIndex].preview || info.files[requestedIndex].media)
+      )
+        setViewer({ index: requestedIndex, version: composition });
+      else setError("Файл не найден");
+    }
     if (
       (info.media || (info.preview && !textUnavailable)) &&
       !automatic.current

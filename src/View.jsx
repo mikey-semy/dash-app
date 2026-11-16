@@ -94,7 +94,7 @@ export function FileList({
                 <Icon name="eye" />
               </button>
             )}
-            {downloadPath && (
+            {downloadPath && !f.name.endsWith("/") && (
               <a
                 className="icon-button"
                 href={downloadPath(i)}

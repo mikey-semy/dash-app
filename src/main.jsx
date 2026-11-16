@@ -228,6 +228,9 @@ function App() {
     choosing.current = true;
     setPreparingUpload(true);
     try {
+      // Virtual files dragged out of a desktop archive may not be readable by the browser.
+      for (const file of files)
+        await file.slice(0, Math.min(file.size, 1)).arrayBuffer();
       const { id, offset = 0 } = await api(
         parentId
           ? "/api/transfers/" +
@@ -235,7 +238,11 @@ function App() {
               (replacement === null ? "/append" : "/replace")
           : "/api/transfers",
         {
-          files: files.map((f) => ({ name: f.name, size: f.size })),
+          files: files.map((f) => ({
+            name: f.name,
+            size: f.size,
+            directory: f.type === "application/x-du-directory",
+          })),
           ttl: ttl === -1 ? 0 : ttl,
           oneTime: ttl === -1,
           password: secret,

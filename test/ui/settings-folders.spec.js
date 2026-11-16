@@ -74,8 +74,11 @@ test("folder drop reviews ignored files, restores a folder and uploads a complet
   const transfer = await page.evaluate(
     async () => (await (await fetch("/api/transfers")).json())[0],
   );
-  expect(transfer.files[0].name).toBe("project.zip");
-  expect(transfer.size).toBeGreaterThan(100);
+  expect(
+    transfer.files.some((file) => file.name === "project/src/main.py"),
+  ).toBe(true);
+  expect(transfer.files.some((file) => file.name.endsWith(".zip"))).toBe(false);
+  expect(transfer.size).toBeGreaterThan(0);
   const data = unzipSync(
     new Uint8Array(
       await (

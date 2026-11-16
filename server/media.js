@@ -1,4 +1,5 @@
 const types = {
+  svg: ["image", "image/svg+xml"],
   png: ["image", "image/png"],
   jpg: ["image", "image/jpeg"],
   jpeg: ["image", "image/jpeg"],

@@ -1,39 +1,28 @@
+import { unified } from "unified";
+import remarkParse from "remark-parse";
+import remarkGfm from "remark-gfm";
 import hljs from "./highlight.js";
 import languages from "./text-languages.json" with { type: "json" };
 const subset = [...new Set(languages.map((l) => l.id))];
+const parser = unified().use(remarkParse).use(remarkGfm);
 function markdownEvidence(text) {
-  const outside = text.replace(
-    /^ {0,3}(`{3,}|~{3,})[^\n]*\n[\s\S]*?^ {0,3}\1[ \t]*$/gm,
-    "",
+  const tree = parser.parse(text);
+  const blocks = tree.children;
+  const headings = blocks.filter((node) => node.type === "heading").length;
+  const lists = blocks.filter((node) => node.type === "list");
+  const fenced = blocks.some((node) => node.type === "code" && node.lang);
+  const rich = blocks.some((node) =>
+    ["table", "blockquote", "thematicBreak"].includes(node.type),
   );
-  const gherkin =
-    /^\s*(?:Feature|Функция|Функционал|Возможность)\s*:/im.test(outside) &&
-    /^\s*(?:Scenario(?: Outline)?|Сценарий(?:\s+\S+)?)\s*:/im.test(outside);
-  if (gherkin) return false;
-  if (
-    /^(?: {0,3})(?:import\s+|from\s+\S+\s+import|(?:async\s+)?def\s+|class\s+|(?:export\s+)?(?:const|let|var|function)\s+|fn\s+|package\s+|[\w$]+\s*=(?!=))/m.test(
-      outside,
-    )
-  )
-    return false;
-  const headings = (outside.match(/^ {0,3}#{1,6}[ \t]+\S/gm) || []).length;
-  const lists = (outside.match(/^ {0,3}(?:[-+*]|\d+[.)])[ \t]+\S/gm) || [])
-    .length;
-  const markup =
-    /!?\[[^\]\n]+\]\([^)\n]+\)|\*\*[^*\n]+\*\*|^ {0,3}>[ \t]+\S|^ {0,3}[-*+][ \t]+\[[ xX]\]/m.test(
-      outside,
-    );
-  const fences = (text.match(/^ {0,3}(?:`{3,}|~{3,})/gm) || []).length;
-  const table = /^\s*\|[^\n]+\|\s*\n\s*\|?\s*:?-{3,}/m.test(outside);
+  const inline = (node) =>
+    ["link", "image", "strong", "delete"].includes(node.type) ||
+    node.children?.some(inline);
   return (
-    fences >= 2 ||
-    table ||
     headings >= 2 ||
-    (headings > 0 &&
-      (lists > 0 ||
-        markup ||
-        /^\s*#{1,6}[ \t]+[^\n]+\n[ \t]*\n/.test(outside))) ||
-    lists >= 2
+    (headings > 0 && (lists.length || fenced || rich || blocks.some(inline))) ||
+    (lists.some((node) => node.children.length >= 2) && blocks.some(inline)) ||
+    rich ||
+    fenced
   );
 }
 export function detect(text, filename = "") {
@@ -48,8 +37,7 @@ export function detect(text, filename = "") {
   );
   if (language) {
     if (
-      language.name === "Gherkin" &&
-      /^text-\d{8}-\d{9}\.feature$/i.test(base) &&
+      /^text-\d{8}-\d{9}\.\w+$/i.test(base) &&
       markdownEvidence(text.slice(0, 65536))
     ) {
       const markdown = languages.find((item) => item.name === "Markdown");
@@ -79,7 +67,7 @@ export function detect(text, filename = "") {
     } catch {}
   }
   const result = hljs.highlightAuto(first, subset);
-  if (result.language === "gherkin" && markdownEvidence(first)) {
+  if (markdownEvidence(first)) {
     const markdown = languages.find((item) => item.name === "Markdown");
     return { ...markdown, label: "Markdown" };
   }

@@ -178,7 +178,15 @@ export default function TextPreview({
             }
           >
             {markdown && preview ? (
-              <MarkdownPreview source={source} />
+              <MarkdownPreview
+                source={source}
+                filename={info.name}
+                files={info.files}
+                token={
+                  token ||
+                  (shareUrl ? new URL(shareUrl).pathname.split("/").pop() : "")
+                }
+              />
             ) : (
               <CodeEditor
                 value={source}

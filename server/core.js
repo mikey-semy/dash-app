@@ -64,28 +64,41 @@ export function verify(password, value) {
 }
 export function safeNames(files) {
   const used = new Set();
-  return files.map((f) => {
+  const segment = (value) => {
     let name =
-      f.name
+      value
         .normalize("NFC")
-        .replace(/[\\/:*?"<>|\x00-\x1f\x7f]/g, "_")
-        .replace(/^\.+/, "_")
+        .replace(/[\\:*?"<>|\x00-\x1f\x7f]/g, "_")
         .replace(/[. ]+$/, "") || "file";
     name = Array.from(name).slice(0, 180).join("");
-    if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(name))
-      name = "_" + name;
-    const base = name;
-    let n = 1;
-    while (used.has(name.toLowerCase())) name = `${n++}_${base}`;
+    return /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(name)
+      ? "_" + name
+      : name;
+  };
+  return files.map((f) => {
+    const directory = f.directory === true && f.size === 0;
+    const raw = f.name.replace(/\/$/, "");
+    const parts = raw.split("/");
+    const safe =
+      parts.length <= 64 && !parts.some((p) => !p || p === "." || p === "..");
+    const clean = safe
+      ? parts.map(segment)
+      : [segment(raw.replace(/[\\/]/g, "_").replace(/^\.+/, "_"))];
+    const leaf = clean.pop(),
+      prefix = clean.length ? clean.join("/") + "/" : "";
+    let name = prefix + leaf + (directory ? "/" : ""),
+      n = 1;
+    while (used.has(name.toLowerCase()))
+      name = prefix + `${n++}_${leaf}` + (directory ? "/" : "");
     used.add(name.toLowerCase());
-    return { ...f, name };
+    return { ...f, name, ...(directory ? { directory: true } : {}) };
   });
 }
 export function reservation(files) {
   const sum = files.reduce((n, f) => n + f.size, 0);
   return (
     sum +
-    (files.length > 1
+    (files.length > 1 || files[0]?.directory
       ? sum +
         files.reduce((n, f) => n + Buffer.byteLength(f.name) * 2 + 256, 0) +
         65536
@@ -163,10 +176,16 @@ export function insertTransfer(db, files, ttl, password, append = null) {
     });
   if (![0, 3600, 21600, 86400, 259200, 604800].includes(ttl))
     throw Object.assign(new Error("Неверный срок"), { status: 400 });
-  const clean = safeNames(files.map(({ name, size }) => ({ name, size })));
+  const clean = safeNames(
+    files.map(({ name, size, directory }) => ({
+      name,
+      size,
+      ...(directory === true && size === 0 ? { directory: true } : {}),
+    })),
+  );
   const id = token(),
     reserved = append
-      ? clean.length === 1
+      ? clean.length === 1 && !clean[0].directory
         ? clean[0].size
         : reservation(clean) -
           (append.reuseFiles || append.files).reduce((n, f) => n + f.size, 0)

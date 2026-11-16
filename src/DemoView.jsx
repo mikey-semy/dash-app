@@ -32,13 +32,19 @@ export default function DemoView({ token, info, onUnavailable }) {
   }, [index, info.etag]);
   const images =
     info.files.length > 0 && info.files.every((file) => file.media === "image");
+  const requestedName = new URLSearchParams(location.search).get("file");
+  const requestedIndex = info.files.findIndex(
+    (file) => file.name === requestedName,
+  );
+  const chosen = index ?? (requestedIndex >= 0 ? requestedIndex : null);
+  const siteMode = info.site && chosen === null;
   const selected =
-    index === null
+    chosen === null
       ? info.files.length === 1 || images
         ? 0
         : null
-      : index < info.files.length
-        ? index
+      : chosen < info.files.length
+        ? chosen
         : 0;
   const file = selected === null ? null : info.files[selected];
   const content = file && { ...info, ...file };
@@ -55,7 +61,8 @@ export default function DemoView({ token, info, onUnavailable }) {
     token +
     (selected === null ? "" : "/files/" + selected) +
     "/download";
-  const binary = !!file && ((!file.media && !file.preview) || download);
+  const binary =
+    !siteMode && !!file && ((!file.media && !file.preview) || download);
   useEffect(() => {
     if (binary) location.assign(downloadPath);
   }, [binary, downloadPath, info.etag]);
@@ -90,6 +97,17 @@ export default function DemoView({ token, info, onUnavailable }) {
     return () => window.removeEventListener("keydown", key);
   }, [selected, images, info.files.length]);
   if (failed) return <ErrorPage error={failed} />;
+  if (siteMode)
+    return (
+      <main className="demo-view">
+        <iframe
+          className="site-frame"
+          src={info.site}
+          sandbox="allow-scripts allow-forms allow-downloads"
+          title={info.title || "Статический сайт"}
+        />
+      </main>
+    );
   if (!file)
     return (
       <main className="demo-view demo-collection">

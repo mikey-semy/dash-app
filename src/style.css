@@ -1976,11 +1976,16 @@ summary * {
   display: none;
 }
 .error-notice {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  z-index: 100;
   display: flex;
   justify-content: center;
   align-items: center;
   color: #d33434;
-  margin: 16px 0;
+  margin: 0;
 }
 .error-notice svg {
   width: 24px;
@@ -2037,4 +2042,11 @@ button.unavailable {
     top: 12px;
     left: 12px;
   }
+}
+
+.site-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
 }

@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Icon } from "./Icons.jsx";
 export const connectionError = (error) =>
   /связаться с сервером|соединени.*прерван|временно недоступна|failed to fetch|network|load failed/i.test(
@@ -8,20 +9,28 @@ export function ErrorNotice({ error, context = "interface" }) {
   useEffect(() => {
     if (error) console.error("[DU]", context, error);
   }, [error, context]);
-  return error && connectionError(error) ? (
-    <button
-      type="button"
-      className="icon-button error-notice"
-      aria-label="Перезагрузить страницу"
-      onClick={() => location.reload()}
-    >
-      <Icon name="reload" />
-    </button>
-  ) : error ? (
-    <span className="error-notice" role="img" aria-label="Ошибка">
-      <Icon name="cancel" />
-    </span>
-  ) : null;
+  const content =
+    error && connectionError(error) ? (
+      <button
+        type="button"
+        className="icon-button error-notice"
+        aria-label="Перезагрузить страницу"
+        onClick={() => location.reload()}
+      >
+        <Icon name="reload" />
+      </button>
+    ) : error ? (
+      <span className="error-notice" role="img" aria-label="Ошибка">
+        <Icon name="cancel" />
+      </span>
+    ) : null;
+  return content
+    ? createPortal(
+        content,
+        Array.from(document.querySelectorAll("dialog[open]")).at(-1) ||
+          document.body,
+      )
+    : null;
 }
 export function ErrorPage({ error, status }) {
   const retry = connectionError(error) || status >= 500;

@@ -14,8 +14,15 @@ const extensions = new Set([
 const knownNames =
   /^(?:readme|license|licence|notice|changelog|authors|contributing|install|todo|copying|version|dockerfile|makefile|gemfile|rakefile|procfile|justfile|jenkinsfile|cmakelists\.txt)$/i;
 export function fileTextCandidate(file) {
-  if (!file || file.size > TEXT_LIMIT || mediaType(file)) return false;
-  const name = file.name || "",
+  if (
+    !file ||
+    file.directory ||
+    file.name?.endsWith("/") ||
+    file.size > TEXT_LIMIT ||
+    mediaType(file)
+  )
+    return false;
+  const name = (file.name || "").split("/").pop(),
     extension = name.includes(".") ? name.split(".").pop().toLowerCase() : "";
   return (
     knownNames.test(name) ||

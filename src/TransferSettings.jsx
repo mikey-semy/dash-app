@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Icon, Expiry, CopyButton } from "./Icons.jsx";
+import { Icon, Expiry } from "./Icons.jsx";
 export const durations = [
   [3600, "1", "ч", "1 час"],
   [21600, "6", "ч", "6 часов"],
@@ -176,7 +176,6 @@ export default function TransferSettings({ transfer, api, onClose, onEdit }) {
               name={copied ? "check" : transfer.hasPassword ? "lock" : "unlock"}
             />
           </button>
-          <CopyButton value={password} label="Копировать пароль" />
         </div>
         {transfer.hasPassword && password === null && (
           <p className="muted">

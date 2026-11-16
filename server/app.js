@@ -31,7 +31,7 @@ import {
   revision,
   safeNames,
 } from "./core.js";
-export function createApp(service, env, { authLimit = 15 } = {}) {
+export function createApp(service, env, { authLimit = 15, indexHTML } = {}) {
   const app = express(),
     db = service.db,
     origin = new URL(env.PUBLIC_URL).origin,
@@ -856,7 +856,7 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
       }
     },
   );
-  let index;
+  let index = indexHTML;
   async function html(req, res) {
     index ??= await readFile("dist/index.html", "utf8");
     const nonce = randomBytes(18).toString("base64");

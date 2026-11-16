@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import request from "supertest";
 import { unzipSync } from "fflate";
 import {
@@ -1461,7 +1462,10 @@ test("known Office and binary formats are not offered as text editors, and one-t
 });
 
 test("unknown navigations use the app error page while API and Raw errors keep machine-readable formats", async () => {
-  const { app } = await setup();
+  const { service } = await setup();
+  const app = createApp(service, env, {
+    indexHTML: await readFile(new URL("../index.html", import.meta.url), "utf8"),
+  });
   const page = await request(app)
     .get("/missing-page/relative-link")
     .set("Accept", "text/html")

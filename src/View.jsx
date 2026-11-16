@@ -741,20 +741,40 @@ export function OwnerView(p) {
   };
   useEffect(() => {
     const paste = (event) => {
+      if (event.clipboardData?.files.length) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (
+          p.upload ||
+          p.preparingUpload ||
+          draft !== null ||
+          folders !== null ||
+          config ||
+          (historyOpen && !viewing)
+        )
+          return;
+        const current = viewing?.record || latest;
+        if (viewing) {
+          setViewing(null);
+          setHistoryOpen(false);
+          p.setSelected(current.id);
+        }
+        receiveFiles(event.clipboardData, current?.url ? current.id : null);
+        return;
+      }
       if (
         event.defaultPrevented ||
         p.upload ||
         historyOpen ||
+        viewing ||
+        config ||
         draft !== null ||
         folders !== null ||
         (event.target instanceof Element &&
           event.target.closest("input,textarea,[contenteditable=true]"))
       )
         return;
-      if (event.clipboardData.files.length) {
-        event.preventDefault();
-        receiveFiles(event.clipboardData, latest?.url ? latest.id : null);
-      } else {
+      {
         const text = event.clipboardData.getData("text/plain");
         if (text) {
           event.preventDefault();
@@ -763,9 +783,20 @@ export function OwnerView(p) {
         }
       }
     };
-    document.addEventListener("paste", paste);
-    return () => document.removeEventListener("paste", paste);
-  }, [p.upload, p.choose, historyOpen, draft, folders, p.selected, p.history]);
+    document.addEventListener("paste", paste, true);
+    return () => document.removeEventListener("paste", paste, true);
+  }, [
+    p.upload,
+    p.preparingUpload,
+    p.choose,
+    historyOpen,
+    draft,
+    folders,
+    config,
+    viewing,
+    p.selected,
+    p.history,
+  ]);
   useEffect(() => {
     if (config && !p.history.some((t) => t.id === config && t.url))
       setConfig(null);
@@ -867,6 +898,7 @@ export function OwnerView(p) {
           !preparing &&
           !folders &&
           !historyOpen &&
+          !viewing &&
           !config &&
           !draft
         ) {
@@ -886,9 +918,52 @@ export function OwnerView(p) {
         )
           p.setDrag(false);
       }}
+      onDropCapture={(e) => {
+        if (
+          !e.dataTransfer.files.length &&
+          !Array.from(e.dataTransfer.types || []).includes("Files")
+        )
+          return;
+        if (
+          draft ||
+          folders ||
+          config ||
+          (historyOpen && !viewing) ||
+          p.upload ||
+          p.preparingUpload
+        ) {
+          e.preventDefault();
+          e.stopPropagation();
+          p.setDrag(false);
+        } else if (viewing) {
+          e.preventDefault();
+          e.stopPropagation();
+          p.setDrag(false);
+          const current = viewing.record;
+          setViewing(null);
+          setHistoryOpen(false);
+          p.setSelected(current.id);
+          receiveFiles(e.dataTransfer, current.id);
+        }
+      }}
       onDrop={(e) => {
         e.preventDefault();
         p.setDrag(false);
+        if (
+          viewing &&
+          !p.upload &&
+          !p.preparingUpload &&
+          !draft &&
+          !folders &&
+          !config
+        ) {
+          const current = viewing.record;
+          setViewing(null);
+          setHistoryOpen(false);
+          p.setSelected(current.id);
+          receiveFiles(e.dataTransfer, current.id);
+          return;
+        }
         if (
           e.target instanceof Element &&
           e.target.closest("[contenteditable=true]")

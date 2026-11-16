@@ -130,6 +130,30 @@ test("connection failures offer a centered red reload button without an error se
     page.getByRole("link", { name: "СКАЧАТЬ", exact: true }),
   ).toBeVisible();
 });
+
+test("a brief proxy 404 during startup recovers without showing an error or losing the login form", async ({
+  page,
+}) => {
+  let calls = 0;
+  const failures = [];
+  page.on("pageerror", (error) => failures.push(error.message));
+  await page.route("**/api/session", (route) =>
+    ++calls < 3
+      ? route.fulfill({
+          status: 404,
+          contentType: "text/plain",
+          body: "404 page not found",
+        })
+      : route.continue(),
+  );
+  await page.goto("/");
+  await expect(page.getByLabel("Пароль", { exact: true })).toBeVisible();
+  expect(calls).toBe(3);
+  expect(failures).toEqual([]);
+  await expect(
+    page.getByRole("button", { name: "Перезагрузить страницу", exact: true }),
+  ).toHaveCount(0);
+});
 test("desktop archive and menu feedback animate even with system motion disabled", async ({
   page,
 }) => {

@@ -1,4 +1,5 @@
-import { ErrorPage, ErrorBoundary } from "./Errors.jsx";
+import api from "./api.js";
+import { ErrorPage, ErrorBoundary, connectionError } from "./Errors.jsx";
 import {
   rememberUpload,
   recoverUpload,
@@ -26,30 +27,6 @@ document.addEventListener(
   },
   true,
 );
-async function api(path, body, method = body === undefined ? "GET" : "POST") {
-  let r, v;
-  try {
-    r = await fetch(path, {
-      method,
-      headers: body === undefined ? {} : { "Content-Type": "application/json" },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
-    v = await r.json();
-  } catch (error) {
-    console.error("[DU] request", path, error);
-    throw Object.assign(
-      new Error("Не удалось связаться с сервером. Повторите."),
-      { status: r?.status },
-    );
-  }
-  if (!r.ok) {
-    console.error("[DU] HTTP", r.status, path, v.error || v);
-    throw Object.assign(new Error(v.error || "Ошибка запроса"), {
-      status: r.status,
-    });
-  }
-  return v;
-}
 function App() {
   const [logged, setLogged] = useState(false),
     [checking, setChecking] = useState(true),
@@ -99,7 +76,9 @@ function App() {
   useEffect(() => {
     api("/api/session")
       .then(() => setLogged(true))
-      .catch(() => {})
+      .catch((error) => {
+        if (error.status !== 401) setError(error.message);
+      })
       .finally(() => setChecking(false));
   }, []);
   useEffect(() => {
@@ -390,6 +369,7 @@ function App() {
     }
   }
   if (checking) return <main />;
+  if (!logged && connectionError(error)) return <ErrorPage error={error} />;
   if (!logged)
     return (
       <main className="center">

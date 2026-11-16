@@ -1,3 +1,4 @@
+import { ErrorNotice, ErrorPage } from "./Errors.jsx";
 import React, {
   lazy,
   Suspense,
@@ -16,6 +17,7 @@ export default function DemoView({ token, info, onUnavailable }) {
   const [index, setIndex] = useState(hashIndex),
     [download, setDownload] = useState(false),
     [failed, setFailed] = useState(false),
+    [badImages, setBadImages] = useState(new Set()),
     gallery = useRef(),
     activeSlide = useRef(0);
   useEffect(() => {
@@ -26,6 +28,7 @@ export default function DemoView({ token, info, onUnavailable }) {
   useEffect(() => {
     setDownload(false);
     setFailed(false);
+    setBadImages(new Set());
   }, [index, info.etag]);
   const images =
     info.files.length > 0 && info.files.every((file) => file.media === "image");
@@ -86,14 +89,7 @@ export default function DemoView({ token, info, onUnavailable }) {
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
   }, [selected, images, info.files.length]);
-  if (failed)
-    return (
-      <main className="demo-view">
-        <a className="unavailable" href="/" aria-label="Вернуться к загрузке">
-          <Icon name="cancel" />
-        </a>
-      </main>
-    );
+  if (failed) return <ErrorPage error={failed} />;
   if (!file)
     return (
       <main className="demo-view demo-collection">
@@ -127,21 +123,32 @@ export default function DemoView({ token, info, onUnavailable }) {
           }}
         >
           {info.files.map((entry, i) => (
-            <img
-              key={i}
-              className="demo-image demo-slide"
-              src={
-                "/preview/" +
-                token +
-                "/" +
-                i +
-                "?v=" +
-                encodeURIComponent(info.etag || "")
-              }
-              alt={entry.name}
-              draggable={false}
-              loading={i === (selected || 0) ? "eager" : "lazy"}
-            />
+            <div className="demo-slide" key={i}>
+              {badImages.has(i) ? (
+                <ErrorNotice
+                  error={"Не удалось загрузить изображение"}
+                  context={"/preview/" + token + "/" + i}
+                />
+              ) : (
+                <img
+                  onError={() =>
+                    setBadImages((previous) => new Set([...previous, i]))
+                  }
+                  className="demo-image"
+                  src={
+                    "/preview/" +
+                    token +
+                    "/" +
+                    i +
+                    "?v=" +
+                    encodeURIComponent(info.etag || "")
+                  }
+                  alt={entry.name}
+                  draggable={false}
+                  loading={i === (selected || 0) ? "eager" : "lazy"}
+                />
+              )}
+            </div>
           ))}
         </div>
         {info.files.length > 1 && (
@@ -173,12 +180,17 @@ export default function DemoView({ token, info, onUnavailable }) {
           className="demo-image"
           src={source}
           alt={file.name}
-          onError={() => setFailed(true)}
+          onError={() => setFailed("Не удалось загрузить изображение")}
         />
       ) : file.media === "pdf" ? (
         <iframe className="demo-pdf" src={source} title={file.name} />
       ) : file.media === "video" ? (
         <video
+          onError={(event) =>
+            setFailed(
+              event.currentTarget.error?.message || "Не удалось открыть видео",
+            )
+          }
           className="demo-video"
           src={source}
           controls
@@ -186,7 +198,16 @@ export default function DemoView({ token, info, onUnavailable }) {
           playsInline
         />
       ) : file.media === "audio" ? (
-        <audio src={source} controls preload="metadata" />
+        <audio
+          src={source}
+          controls
+          preload="metadata"
+          onError={(event) =>
+            setFailed(
+              event.currentTarget.error?.message || "Не удалось открыть аудио",
+            )
+          }
+        />
       ) : binary ? null : (
         <Suspense fallback={null}>
           <TextPreview

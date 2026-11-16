@@ -1,3 +1,4 @@
+import { ErrorNotice } from "./Errors.jsx";
 import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Icon } from "./Icons.jsx";
 import languages from "./text-languages.json";
@@ -110,11 +111,7 @@ export default function TextComposer({
           />
         </Suspense>
       </div>
-      {error && (
-        <p className="text-error" role="alert">
-          {error}
-        </p>
-      )}
+      {error && <ErrorNotice error={error} />}
     </dialog>
   );
 }

@@ -68,30 +68,37 @@ export function Icon({ name, size = 18 }) {
   return <Glyph key={name} size={size} strokeWidth={1.4} aria-hidden="true" />;
 }
 export function CopyButton({ value, label = "Копировать ссылку" }) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState(false),
+    [failed, setFailed] = useState(false);
   useEffect(() => {
-    if (copied) {
-      const id = setTimeout(() => setCopied(false), 1500);
+    if (copied || failed) {
+      const id = setTimeout(() => {
+        setCopied(false);
+        setFailed(false);
+      }, 1500);
       return () => clearTimeout(id);
     }
-  }, [copied]);
+  }, [copied, failed]);
   return (
     <button
       type="button"
-      className="icon-button"
+      className={failed ? "icon-button edit-error" : "icon-button"}
       aria-label={label}
-      title={copied ? "Скопировано" : label}
+      title={failed ? undefined : copied ? "Скопировано" : label}
       disabled={!value}
       onClick={async () => {
         try {
           await navigator.clipboard.writeText(value);
           setCopied(true);
-        } catch {
+          setFailed(false);
+        } catch (error) {
+          console.error("[DU] clipboard", label, error);
+          setFailed(true);
           setCopied(false);
         }
       }}
     >
-      <Icon name={copied ? "check" : "copy"} />
+      <Icon name={failed ? "cancel" : copied ? "check" : "copy"} />
       <span className="sr-only" role="status">
         {copied ? "Скопировано" : ""}
       </span>

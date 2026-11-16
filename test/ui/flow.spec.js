@@ -143,7 +143,7 @@ test("empty page, settings, upload, private recipient, ZIP, history and deletion
   await expect(item.locator(".history-information")).toBeVisible();
   await item.getByRole("button", { name: "QR-код", exact: true }).click();
   await expect(page.getByRole("img", { name: "QR-код ссылки" })).toBeVisible();
-  await expect(item.locator(".share-controls button")).toHaveCount(5);
+  await expect(item.locator(".share-controls button")).toHaveCount(6);
   await confirmDelete(
     item.getByRole("button", { name: "Удалить", exact: true }),
   );
@@ -410,7 +410,10 @@ test("history expansion preserves modal and clicked header positions throughout 
       for (const p of positions) {
         expect(Math.abs(p.y - before.y)).toBeLessThan(1);
         expect(Math.abs(p.height - before.height)).toBeLessThan(1);
-        expect(Math.abs(p.headerY - header.y)).toBeLessThan(1);
+        expect(
+          Math.abs(p.headerY - header.y),
+          JSON.stringify({ width, expanded, before, header, p }),
+        ).toBeLessThan(1);
       }
     }
     const rapid = await page.evaluate(async () => {
@@ -461,10 +464,8 @@ test("password is enabled only after successful copy", async ({ page }) => {
   });
   await button.click();
   await expect(button).toHaveAttribute("data-active", "false");
-  await expect(button).toHaveAttribute(
-    "title",
-    "Не удалось скопировать. Повторить",
-  );
+  await expect(button).toHaveClass(/edit-error/);
+  await expect(button).not.toHaveAttribute("title", /Не удалось/);
 });
 
 test("double-click removes password without a delayed reactivation or changing the clipboard", async ({
@@ -558,7 +559,7 @@ test("history and ready-view plus append to the same transfer and preserve its l
   await page.getByLabel("Настройки", { exact: true }).click();
   await page.getByRole("button", { name: "История", exact: true }).click();
   const first = page.locator(".history-item").first();
-  await expect(first.locator(".share-controls button")).toHaveCount(5);
+  await expect(first.locator(".share-controls button")).toHaveCount(6);
   const choosing = page.waitForEvent("filechooser");
   await first
     .getByRole("button", { name: "Добавить файлы в передачу", exact: true })
@@ -986,9 +987,9 @@ test("failed delete closes QR and never leaks Safari JSON parser errors; retry r
       .getByRole("button", { name: /Удалить|Подтвердить/ }),
   );
   await expect(page.locator(".qr-popover.is-open")).toHaveCount(0);
-  await expect(page.getByRole("alert")).toHaveText(
-    "Не удалось связаться с сервером. Повторите.",
-  );
+  await expect(
+    page.getByRole("img", { name: "Ошибка", exact: true }),
+  ).toBeVisible();
   await page.unroute("**/api/transfers/*");
   await confirmDelete(
     page

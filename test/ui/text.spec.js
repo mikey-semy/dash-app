@@ -347,7 +347,9 @@ test("oversize text remains in the editor and highlighter startup failure preser
   await page
     .getByRole("button", { name: "Отправить текст", exact: true })
     .click();
-  await expect(page.getByRole("alert")).toHaveText("Максимум 5 МиБ текста");
+  await expect(
+    page.getByRole("img", { name: "Ошибка", exact: true }),
+  ).toBeVisible();
   await expect(page.locator(".code-editor")).toHaveAttribute(
     "data-language",
     "?",

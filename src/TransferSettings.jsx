@@ -1,3 +1,4 @@
+import { ErrorNotice } from "./Errors.jsx";
 import React, { useEffect, useRef, useState } from "react";
 import { Icon, Expiry } from "./Icons.jsx";
 export const durations = [
@@ -187,7 +188,7 @@ export default function TransferSettings({ transfer, api, onClose }) {
             Старый пароль не сохранён. Можно создать новый.
           </p>
         )}
-        {error && <p role="alert">{error}</p>}
+        {error && <ErrorNotice error={error} />}
       </div>
     </dialog>
   );

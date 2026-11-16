@@ -24,7 +24,10 @@ export default function QRButton({ url }) {
       .then((value) => {
         if (active) setQr(value);
       })
-      .catch(() => setOpen(false));
+      .catch((error) => {
+        console.error("[DU] QR", error);
+        setOpen(false);
+      });
     return () => {
       active = false;
     };

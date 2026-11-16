@@ -30,7 +30,6 @@ export function PasswordInput({
           className="password-error"
           role="img"
           aria-label="Неверный пароль"
-          title={error}
         >
           <Icon name="cancel" />
         </span>

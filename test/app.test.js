@@ -1459,3 +1459,30 @@ test("known Office and binary formats are not offered as text editors, and one-t
   assert.equal(service.get(created.id).one_time, 1);
   assert.equal(service.get(created.id).ttl, 0);
 });
+
+test("unknown navigations use the app error page while API and Raw errors keep machine-readable formats", async () => {
+  const { app } = await setup();
+  const page = await request(app)
+    .get("/missing-page/relative-link")
+    .set("Accept", "text/html")
+    .expect(404);
+  assert.match(page.headers["content-type"], /text\/html/);
+  assert.match(page.text, /du-error-status/);
+  assert.ok(!page.text.includes("Cannot GET"));
+  assert.match(page.headers["content-security-policy"], /nonce-/);
+  const raw = await request(app)
+    .get("/raw/missing")
+    .set("Accept", "text/html")
+    .expect(404);
+  assert.match(raw.headers["content-type"], /text\/html/);
+  assert.ok(!raw.headers["content-disposition"]);
+  await request(app)
+    .get("/raw/missing")
+    .expect(404)
+    .expect("Content-Type", /text\/plain/);
+  await request(app)
+    .get("/missing-page")
+    .set("Accept", "application/json")
+    .expect(404)
+    .expect("Content-Type", /application\/json/);
+});

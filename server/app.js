@@ -51,6 +51,54 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
         new URL(env.S3_ENDPOINT).origin +
         "; img-src 'self' data:; media-src 'self'; frame-src 'self'; style-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
     });
+    const navigation =
+      ["GET", "HEAD"].includes(req.method) &&
+      (/text\/html/i.test(req.headers.accept || "") ||
+        req.headers["sec-fetch-mode"] === "navigate");
+    const originalSend = res.send,
+      originalJson = res.json,
+      baseCSP = res.get("Content-Security-Policy");
+    const showNavigationError = () => {
+      res.locals.errorPage = true;
+      res.locals.httpErrorStatus = res.statusCode;
+      for (const header of [
+        "Content-Disposition",
+        "Content-Length",
+        "Content-Range",
+        "Accept-Ranges",
+        "ETag",
+        "Last-Modified",
+      ])
+        res.removeHeader(header);
+      res.set(
+        "Content-Security-Policy",
+        req.headers["sec-fetch-dest"] === "iframe"
+          ? baseCSP.replace("frame-ancestors 'none'", "frame-ancestors 'self'")
+          : baseCSP,
+      );
+      html(req, res).catch(next);
+      return res;
+    };
+    res.send = function (body) {
+      if (
+        navigation &&
+        res.statusCode >= 400 &&
+        !res.headersSent &&
+        !res.locals.errorPage
+      )
+        return showNavigationError();
+      return originalSend.call(this, body);
+    };
+    res.json = function (body) {
+      if (
+        navigation &&
+        res.statusCode >= 400 &&
+        !res.headersSent &&
+        !res.locals.errorPage
+      )
+        return showNavigationError();
+      return originalJson.call(this, body);
+    };
     if (secure) res.set("Strict-Transport-Security", "max-age=31536000");
     if (
       !["GET", "HEAD", "OPTIONS"].includes(req.method) &&
@@ -821,11 +869,18 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
           `style-src 'self' 'nonce-${nonce}'; worker-src 'self'`,
         ),
     );
-    res.type("html").send(index.replace("__CSP_NONCE__", nonce));
+    let page = index.replace("__CSP_NONCE__", nonce);
+    if (res.locals.httpErrorStatus)
+      page = page.replace(
+        "</head>",
+        `<meta name="du-error-status" content="${res.locals.httpErrorStatus}"></head>`,
+      );
+    res.type("html").send(page);
   }
   app.get(["/", "/index.html", "/t/:token"], html);
   app.get(/^\/[A-Za-z0-9]{6}$/, html);
   app.use(express.static("dist", { index: false }));
+  app.use((req, res) => res.status(404).json({ error: "Страница не найдена" }));
   app.use((err, req, res, next) => {
     if (res.headersSent) return res.destroy();
     if (req.path.startsWith("/raw/"))
@@ -834,6 +889,7 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
         .type("text/plain")
         .send(err.status ? err.message : "Повторите позже");
     res.status(err.status || 503).json({
+      code: err.name || "Error",
       error: err.status
         ? err.message
         : "Операция временно недоступна. Повторите позже.",

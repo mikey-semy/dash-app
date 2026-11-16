@@ -341,7 +341,9 @@ test("lost local file cache asks for the same files and refuses changed bytes be
     mimeType: "application/octet-stream",
     buffer: Buffer.alloc(data.length, 99),
   });
-  await expect(page.getByRole("alert")).toContainText("Содержимое");
+  await expect(
+    page.getByRole("img", { name: "Ошибка", exact: true }),
+  ).toBeVisible();
   await page.locator("input[type=file]").setInputFiles({
     name: "reselect.bin",
     mimeType: "application/octet-stream",

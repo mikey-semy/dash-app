@@ -1,3 +1,4 @@
+import { ErrorNotice, ErrorPage } from "./Errors.jsx";
 import { AnimatedDetails } from "./Disclosure.jsx";
 import { Icon } from "./Icons.jsx";
 import { PasswordInput } from "./PasswordInput.jsx";
@@ -122,6 +123,7 @@ export function Recipient({ token, api }) {
           size: info.files[viewer.index]?.size,
           media: info.files[viewer.index]?.media,
         };
+  if (error && !info) return <ErrorPage error={error} />;
   if (info?.demo && !info.locked)
     return (
       <Suspense fallback={null}>
@@ -142,7 +144,7 @@ export function Recipient({ token, api }) {
         {error &&
           !info?.locked &&
           (info && !info.locked ? (
-            <p role="alert">{error}</p>
+            <ErrorNotice error={error} />
           ) : (
             <a
               href="/"

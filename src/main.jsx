@@ -1,3 +1,4 @@
+import { ErrorPage, ErrorBoundary } from "./Errors.jsx";
 import {
   rememberUpload,
   recoverUpload,
@@ -34,16 +35,19 @@ async function api(path, body, method = body === undefined ? "GET" : "POST") {
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     v = await r.json();
-  } catch {
+  } catch (error) {
+    console.error("[DU] request", path, error);
     throw Object.assign(
       new Error("Не удалось связаться с сервером. Повторите."),
       { status: r?.status },
     );
   }
-  if (!r.ok)
+  if (!r.ok) {
+    console.error("[DU] HTTP", r.status, path, v.error || v);
     throw Object.assign(new Error(v.error || "Ошибка запроса"), {
       status: r.status,
     });
+  }
   return v;
 }
 function App() {
@@ -187,6 +191,18 @@ function App() {
     window.addEventListener("beforeunload", fn);
     return () => window.removeEventListener("beforeunload", fn);
   }, []);
+  async function waitForChange(id, current) {
+    for (let attempt = 0; current?.appendState && attempt < 240; attempt++) {
+      if (current.appendState === "failed")
+        throw new Error(current.appendError || "Не удалось изменить передачу");
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      const list = await api("/api/transfers");
+      setHistory(list);
+      current = list.find((t) => t.id === id);
+      if (!current) throw new Error("Передача удалена");
+    }
+    if (current?.appendState) throw new Error("Изменение ещё выполняется");
+  }
   async function choose(list, parentId = null, replacement = null) {
     if (active.current || choosing.current) return false;
     if (upload?.missing) {
@@ -455,23 +471,7 @@ function App() {
             "PATCH",
           );
           await reload();
-          for (
-            let attempt = 0;
-            current.appendState && attempt < 240;
-            attempt++
-          ) {
-            if (current.appendState === "failed")
-              throw new Error(
-                current.appendError || "Не удалось переименовать",
-              );
-            await new Promise((resolve) => setTimeout(resolve, 500));
-            const list = await api("/api/transfers");
-            setHistory(list);
-            current = list.find((t) => t.id === record.id);
-            if (!current) throw new Error("Передача удалена");
-          }
-          if (current.appendState)
-            throw new Error("Переименование ещё выполняется");
+          await waitForChange(record.id, current);
           return true;
         } catch (error) {
           setError(error.message);
@@ -491,17 +491,26 @@ function App() {
         setLogged(false);
       }}
       removeFiles={async (id, indices, revision) => {
+        setRenaming(true);
+        setError("");
         try {
           await api(
             "/api/transfers/" + id + "/files",
             { indices, revision },
             "DELETE",
           );
-          await reload();
+          const list = await api("/api/transfers");
+          setHistory(list);
+          await waitForChange(
+            id,
+            list.find((t) => t.id === id),
+          );
           return true;
         } catch (e) {
           setError(e.message);
           return false;
+        } finally {
+          setRenaming(false);
         }
       }}
       removeHistory={async (ids) => {
@@ -533,6 +542,18 @@ function App() {
 const token =
   location.pathname.match(/^\/t\/([\w-]+)$/)?.[1] ||
   location.pathname.match(/^\/([A-Za-z0-9]{6})$/)?.[1];
+const errorStatus =
+  Number(document.querySelector('meta[name="du-error-status"]')?.content) ||
+  null;
+const knownPath = token || ["/", "/index.html"].includes(location.pathname);
 createRoot(document.getElementById("root")).render(
-  token ? <Recipient token={token} api={api} /> : <App />,
+  <ErrorBoundary>
+    {errorStatus || !knownPath ? (
+      <ErrorPage status={errorStatus || 404} />
+    ) : token ? (
+      <Recipient token={token} api={api} />
+    ) : (
+      <App />
+    )}
+  </ErrorBoundary>,
 );

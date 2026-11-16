@@ -1,4 +1,5 @@
-import React, { useEffect, useRef } from "react";
+import { ErrorNotice } from "./Errors.jsx";
+import React, { useEffect, useRef, useState } from "react";
 import { Icon, CopyButton } from "./Icons.jsx";
 import QRButton from "./QRButton.jsx";
 export default function MediaViewer({
@@ -10,7 +11,10 @@ export default function MediaViewer({
   download,
   shareUrl,
 }) {
-  const ref = useRef();
+  const ref = useRef(),
+    [error, setError] = useState("");
+  const failure = (event) =>
+    setError(event.currentTarget.error?.message || "Не удалось показать файл");
   useEffect(() => {
     ref.current.showModal();
     return () => ref.current?.close();
@@ -56,8 +60,11 @@ export default function MediaViewer({
         </div>
       </header>
       <div className="media-body">
-        {info.media === "image" ? (
+        {error ? (
+          <ErrorNotice error={error} context="media preview" />
+        ) : info.media === "image" ? (
           <img
+            onError={failure}
             src={
               path +
               (path.includes("?") ? "&" : "?") +
@@ -68,6 +75,7 @@ export default function MediaViewer({
           />
         ) : info.media === "pdf" ? (
           <iframe
+            onError={failure}
             src={
               path +
               (path.includes("?") ? "&" : "?") +
@@ -78,6 +86,7 @@ export default function MediaViewer({
           />
         ) : info.media === "video" ? (
           <video
+            onError={failure}
             src={
               path +
               (path.includes("?") ? "&" : "?") +
@@ -90,6 +99,7 @@ export default function MediaViewer({
           />
         ) : (
           <audio
+            onError={failure}
             src={
               path +
               (path.includes("?") ? "&" : "?") +

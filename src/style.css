@@ -785,6 +785,10 @@ main,
 .history-toggle:active {
   scale: 1;
 }
+.history-toggle:hover,
+.history-toggle:active {
+  transform: none;
+}
 
 .primary-action > svg {
   display: block;
@@ -1887,4 +1891,128 @@ summary * {
   .editable-name[contenteditable="true"] {
     font-size: 16px;
   }
+}
+/* Fixed action columns keep preview/delete controls aligned across filenames. */
+.files li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 16px;
+}
+.file-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.files:has(.file-actions .icon-button) .file-actions {
+  min-width: 64px;
+}
+.file-size {
+  text-align: right;
+}
+.history-row {
+  grid-template-columns: 14px 18px minmax(0, 1fr) auto 32px;
+  gap: 10px;
+}
+.history-toggle {
+  width: 32px;
+  padding: 7px;
+  justify-content: center;
+}
+.history-middle {
+  overflow: hidden;
+}
+.history-middle .editable-name,
+.history-middle > span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.history-middle .editable-name[contenteditable="true"] {
+  white-space: pre-wrap;
+}
+.history-dates {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 11px;
+  color: #777;
+  margin-bottom: 18px;
+  font-variant-numeric: tabular-nums;
+}
+.history-remaining {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+  color: #777;
+  font-size: 11px;
+}
+.history-row .share-controls {
+  gap: 2px;
+}
+.demo-image {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  flex-shrink: 0;
+}
+.demo-slide {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+@media (max-width: 600px) {
+  .history-row {
+    gap: 4px;
+    grid-template-columns: 12px 16px minmax(0, 1fr) auto 24px;
+  }
+  .history-toggle {
+    width: 24px;
+    padding: 3px;
+  }
+  .history-row .share-controls {
+    gap: 0;
+  }
+  .history-row .share-controls .icon-button {
+    padding: 4px;
+  }
+  .files li {
+    gap: 8px;
+  }
+  .file-actions {
+    gap: 4px;
+  }
+  .files:has(.file-actions .icon-button) .file-actions {
+    min-width: 60px;
+  }
+}
+.files:not(:has(.icon-button)) li {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.files:not(:has(.icon-button)) .file-actions {
+  display: none;
+}
+.error-notice {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #d33434;
+  margin: 16px 0;
+}
+.error-notice svg {
+  width: 24px;
+  height: 24px;
+}
+.demo-file img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 180px;
+  align-self: center;
 }

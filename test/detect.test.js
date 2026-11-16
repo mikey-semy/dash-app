@@ -17,3 +17,21 @@ test("automatic language identification uses filename, shebang, JSON and a plain
   assert.equal(detect("Привет, забери ключи вечером.").label, "?");
   assert.equal(detect("").label, "?");
 });
+
+test("Markdown structure wins over false Gherkin matches without changing real feature files", () => {
+  const markdown =
+    "# План\n\n## Feature\n\n- Given список задач\n- When нажать кнопку\n- Then показать результат\n\n**Важно**: [проверить](https://example.com).\n";
+  assert.equal(detect(markdown).label, "Markdown");
+  assert.equal(
+    detect(markdown, "text-20261116-123456789.feature").label,
+    "Markdown",
+  );
+  const feature =
+    "Feature: download\n  Scenario: valid files\n    Given uploaded files\n    When I download\n    Then I receive a ZIP\n";
+  assert.equal(detect(feature, "download.feature").label, "Gherkin");
+  assert.ok(!detect(feature).label.startsWith("Markdown"));
+  assert.equal(
+    detect("# Python comment\n\nvalue = 2\n", "program.py").label,
+    "Python",
+  );
+});

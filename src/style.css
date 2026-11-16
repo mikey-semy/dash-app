@@ -2127,3 +2127,25 @@ button.unavailable {
 .domain-verified {
   color: #25864a;
 }
+.editable-name-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+}
+.editable-name-group .editable-name {
+  min-width: 0;
+}
+.name-generator {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  padding: 4px;
+}
+.name-generator[aria-busy="true"] svg {
+  animation: name-generate 1s linear infinite;
+}
+@keyframes name-generate {
+  to { transform: rotate(360deg); }
+}

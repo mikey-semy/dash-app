@@ -2,6 +2,7 @@ import { mediaType } from "./media.js";
 import { siteRoutes } from "./site.js";
 import { hosting as createHosting } from "./hosting.js";
 import { siteEntry, sitePublished } from "./site-policy.js";
+import { generateSiteTitle } from "./site-names.js";
 import { archiveTextObject } from "./archive-text.js";
 import { ZipArchive } from "archiver";
 import { passwordVault } from "./password-vault.js";
@@ -305,6 +306,24 @@ export function createApp(
       password: vault.open(t.id, t.password_cipher),
       hasPassword: !!t.password,
     });
+  });
+  api.get("/transfers/:id/title-suggestion", (req, res) => {
+    const t = service.get(req.params.id);
+    if (
+      !t ||
+      t.parent ||
+      !["ready", "empty"].includes(t.state) ||
+      (t.expires !== null && t.expires <= Date.now())
+    )
+      return res.status(404).json({ error: "Передача недоступна" });
+    if (!siteEntry(t))
+      return res.status(400).json({ error: "В передаче нет сайта" });
+    if (
+      req.query.current !== undefined &&
+      (typeof req.query.current !== "string" || req.query.current.length > 180)
+    )
+      return res.status(400).json({ error: "Неверное название" });
+    res.json({ title: generateSiteTitle(db, { avoid: [req.query.current] }) });
   });
   api.patch("/transfers/:id/settings", async (req, res) => {
     const {

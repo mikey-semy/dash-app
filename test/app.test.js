@@ -1871,6 +1871,71 @@ test("single-file transfer title is independent from filename and website entry"
   assert.equal(service.get(second).files[0].name, "changed.txt");
 });
 
+test("site title suggestions are owner-only drafts; site append generates a name without replacing manual titles", async () => {
+  const { app, agent, service, store, db } = await setup();
+  const id = await upload(service, store, [
+    ["index.html", Buffer.from("site")],
+  ]);
+  const original = service.get(id),
+    path = "/api/transfers/" + id + "/title-suggestion";
+  await request(app).get(path).expect(401);
+  const suggestion = (
+    await agent
+      .get(path + "?current=" + encodeURIComponent(original.title))
+      .expect(200)
+  ).body.title;
+  assert.match(suggestion, /^[a-z]+-[a-z]+$/);
+  assert.notEqual(suggestion, original.title);
+  assert.equal(service.get(id).title, original.title);
+  assert.equal(service.get(id).files[0].name, "index.html");
+  await agent.get(path + "?current=" + "x".repeat(181)).expect(400);
+  const ordinary = await upload(service, store, [
+    ["note.txt", Buffer.alloc(0)],
+  ]);
+  await agent
+    .get("/api/transfers/" + ordinary + "/title-suggestion")
+    .expect(400);
+  for (const manual of [false, true]) {
+    const parent = await upload(service, store, [
+      ["readme.md", Buffer.alloc(0)],
+    ]);
+    if (manual)
+      db.prepare("UPDATE transfers SET title=? WHERE id=?").run(
+        "My project",
+        parent,
+      );
+    const child = service.append(parent, [
+      { name: "project/index.htm", size: 0 },
+    ]);
+    await service.init(child.id, child.offset);
+    await service.finish(child.id);
+    await service.tick();
+    const t = service.get(parent);
+    assert.equal(t.state, "ready");
+    if (manual) assert.equal(t.title, "My project");
+    else assert.match(t.title, /^[a-z]+-[a-z]+$/);
+  }
+});
+
+test("nested index.htm with original case remains the website root after automatic naming", async () => {
+  const { app, agent, service, store } = await setup();
+  const id = await upload(service, store, [
+    ["project/INDEX.HTM", Buffer.from("<h1>Root</h1>")],
+  ]);
+  await agent
+    .patch("/api/transfers/" + id + "/settings")
+    .set("Origin", env.PUBLIC_URL)
+    .send({ published: true, domain: "site.example.com" })
+    .expect(200);
+  const page = await request(app)
+    .get("/")
+    .set("Host", "site.example.com")
+    .expect(200);
+  assert.equal(page.text, "<h1>Root</h1>");
+  assert.match(service.get(id).title, /^[a-z]+-[a-z]+$/);
+  assert.equal(service.get(id).files[0].name, "project/INDEX.HTM");
+});
+
 test("an empty folder remains a directory through append, rename and file removal", async () => {
   const { service, store } = await setup();
   const id = service.create(

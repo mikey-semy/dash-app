@@ -10,6 +10,7 @@ import {
   safeNames,
 } from "./core.js";
 import { textCandidate, TEXT_LIMIT } from "./text.js";
+import { assignSiteTitle } from "./site-names.js";
 export class Service {
   constructor(db, store) {
     this.db = db;
@@ -30,7 +31,9 @@ export class Service {
       .run(JSON.stringify(t.files), t.id);
   }
   create(files, ttl, password) {
-    return insertTransfer(this.db, files, ttl, password);
+    const id = insertTransfer(this.db, files, ttl, password);
+    assignSiteTitle(this.db, this.get(id));
+    return id;
   }
   append(id, files) {
     const parent = this.get(id);
@@ -556,6 +559,7 @@ export class Service {
               "UPDATE transfers SET state='merged',reserved=0,output=?,error=NULL WHERE id=?",
             )
             .run(JSON.stringify(out), t.id);
+          assignSiteTitle(this.db, this.get(parent.id));
           this.db.exec("COMMIT");
         } catch (e) {
           this.db.exec("ROLLBACK");

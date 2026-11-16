@@ -50,6 +50,7 @@ export function siteRoutes(app, service, env, transfer) {
       let name = direct
         ? directory + context.path
         : (req.params.path || []).join("/");
+      if (direct && !context.path) name = entry.name;
       let fallback = false,
         errorStatus = 0;
       if (

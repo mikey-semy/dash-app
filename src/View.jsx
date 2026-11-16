@@ -241,6 +241,7 @@ function HistoryItem({
   onOpen,
   onRenameFile,
   onRenameTitle,
+  onGenerateTitle,
   onView,
   renaming,
   selected,
@@ -324,6 +325,9 @@ function HistoryItem({
               label="Название передачи"
               disabled={!!busy}
               onSave={(value) => onRenameTitle(t, value)}
+              onGenerate={
+                t.hasSite ? (current) => onGenerateTitle(t, current) : undefined
+              }
             />
           ) : (
             <span>{t.title || t.name || t.files[0]?.name || "—"}</span>
@@ -459,6 +463,7 @@ function History({
   uploading,
   onRenameFile,
   onRenameTitle,
+  onGenerateTitle,
   onView,
   renaming,
   suspended,
@@ -672,6 +677,7 @@ function History({
             onPublish={onPublish}
             onRenameFile={onRenameFile}
             onRenameTitle={onRenameTitle}
+            onGenerateTitle={onGenerateTitle}
             renaming={renaming}
             onView={(record, index) => {
               ref.current.close();
@@ -1324,6 +1330,19 @@ export function OwnerView(p) {
                     label="Название передачи"
                     disabled={p.renaming}
                     onSave={(value) => p.rename(latest, { title: value })}
+                    onGenerate={
+                      latest.hasSite
+                        ? (current) =>
+                            p
+                              .settingsApi(
+                                "/api/transfers/" +
+                                  latest.id +
+                                  "/title-suggestion?current=" +
+                                  encodeURIComponent(current),
+                              )
+                              .then((result) => result.title)
+                        : undefined
+                    }
                   />
                 </p>
                 <FileList
@@ -1443,6 +1462,16 @@ export function OwnerView(p) {
             })
           }
           onRenameTitle={(record, value) => p.rename(record, { title: value })}
+          onGenerateTitle={(record, current) =>
+            p
+              .settingsApi(
+                "/api/transfers/" +
+                  record.id +
+                  "/title-suggestion?current=" +
+                  encodeURIComponent(current),
+              )
+              .then((result) => result.title)
+          }
           onView={(record, index) => setViewing({ record, index })}
           uploading={!!p.upload || p.preparingUpload}
           onOpen={(item) => p.setSelected(item.id)}

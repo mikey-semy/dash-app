@@ -1,8 +1,10 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Icon } from "./Icons.jsx";
 export default function EditableName({
   value,
   label,
   onSave,
+  onGenerate,
   disabled = false,
   className = "",
 }) {
@@ -11,10 +13,20 @@ export default function EditableName({
     latest = useRef(value),
     [editing, setEditing] = useState(false),
     [busy, setBusy] = useState(false);
+  const [generating, setGenerating] = useState(false),
+    [failed, setFailed] = useState(false),
+    pending = useRef(false),
+    session = useRef(0);
+  useEffect(() => {
+    if (failed) {
+      const timer = setTimeout(() => setFailed(false), 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [failed]);
   latest.current = value;
   useLayoutEffect(() => {
     if (!editing && ref.current) ref.current.textContent = value;
-  }, [value, editing]);
+  }, [value, editing, !!onGenerate]);
   useLayoutEffect(() => {
     if (editing) {
       ref.current.focus({ preventScroll: true });
@@ -28,10 +40,12 @@ export default function EditableName({
   const start = () => {
     if (disabled || busy || active.current) return;
     active.current = true;
+    session.current++;
     setEditing(true);
   };
   const cancel = () => {
     active.current = false;
+    session.current++;
     ref.current.textContent = latest.current;
     setEditing(false);
     ref.current.blur();
@@ -39,6 +53,7 @@ export default function EditableName({
   const commit = async () => {
     if (!active.current) return;
     active.current = false;
+    session.current++;
     const next = ref.current.textContent.replace(/[\r\n]+/g, " ").trim();
     ref.current.blur();
     if (!next || next === latest.current) {
@@ -56,7 +71,7 @@ export default function EditableName({
       setEditing(false);
     }
   };
-  return (
+  const field = (
     <span
       ref={ref}
       className={"editable-name " + className}
@@ -77,7 +92,7 @@ export default function EditableName({
         start();
       }}
       onFocus={start}
-      onBlur={commit}
+      onBlur={onGenerate ? undefined : commit}
       onKeyDown={(event) => {
         if (event.key === "Enter") {
           event.preventDefault();
@@ -108,5 +123,70 @@ export default function EditableName({
         selection.addRange(range);
       }}
     />
+  );
+  if (!onGenerate) return field;
+  return (
+    <span
+      className="editable-name-group"
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) commit();
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && editing) {
+          event.preventDefault();
+          event.stopPropagation();
+          cancel();
+        }
+      }}
+    >
+      {field}
+      {editing && (
+        <button
+          type="button"
+          className={
+            "icon-button name-generator" + (failed ? " edit-error" : "")
+          }
+          aria-label="Сгенерировать название"
+          title="Сгенерировать название"
+          aria-busy={generating}
+          disabled={busy || disabled}
+          onPointerDown={(event) => event.preventDefault()}
+          onKeyDown={(event) => {
+            event.stopPropagation();
+            if (event.key === "Escape") {
+              event.preventDefault();
+              cancel();
+            }
+          }}
+          onClick={async (event) => {
+            event.stopPropagation();
+            if (pending.current || busy || disabled) return;
+            pending.current = true;
+            setGenerating(true);
+            setFailed(false);
+            const version = session.current,
+              before = ref.current.textContent;
+            try {
+              const next = await onGenerate(before);
+              if (
+                active.current &&
+                session.current === version &&
+                ref.current.textContent === before
+              ) {
+                ref.current.textContent = next;
+              }
+            } catch (error) {
+              console.error("[DU] title generator", error);
+              setFailed(true);
+            } finally {
+              pending.current = false;
+              setGenerating(false);
+            }
+          }}
+        >
+          <Icon name={failed ? "cancel" : "reload"} />
+        </button>
+      )}
+    </span>
   );
 }

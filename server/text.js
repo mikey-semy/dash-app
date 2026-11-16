@@ -1,10 +1,16 @@
+import { mediaType } from "./media.js";
 import { archiveTextObject } from "./archive-text.js";
 import { TextDecoder } from "node:util";
 export const TEXT_LIMIT = 5 * 1024 * 1024;
 const binary =
   /\.(?:png|jpe?g|gif|webp|avif|ico|pdf|zip|gz|7z|rar|exe|dll|dnl|mp[34]|wav|woff2?|ttf|sqlite|db)$/i;
 export function fileTextCandidate(file) {
-  return !!file && file.size <= TEXT_LIMIT && !binary.test(file.name);
+  return (
+    !!file &&
+    file.size <= TEXT_LIMIT &&
+    !binary.test(file.name) &&
+    !mediaType(file)
+  );
 }
 export function textCandidate(t) {
   return (

@@ -1,7 +1,14 @@
 import { ZipArchive } from "archiver";
 import { Parse } from "unzipper";
 import { Readable, PassThrough } from "node:stream";
-import { PART, row, insertTransfer, archiveName, revision } from "./core.js";
+import {
+  PART,
+  row,
+  insertTransfer,
+  archiveName,
+  revision,
+  safeNames,
+} from "./core.js";
 import { textCandidate, TEXT_LIMIT } from "./text.js";
 export class Service {
   constructor(db, store) {
@@ -106,6 +113,63 @@ export class Service {
       { ...parent, reuseFiles: [], baseFiles: parent.files },
     );
     return { id: next, offset: 0 };
+  }
+  rename(id, names, expectedRevision) {
+    const parent = this.get(id);
+    if (
+      !parent ||
+      parent.parent ||
+      parent.state !== "ready" ||
+      (parent.expires !== null && parent.expires <= Date.now())
+    )
+      throw Object.assign(new Error("Передача недоступна"), { status: 404 });
+    if (expectedRevision !== revision(parent))
+      throw Object.assign(
+        new Error("Передача изменилась. Откройте параметры заново."),
+        { status: 409 },
+      );
+    if (
+      !Array.isArray(names) ||
+      names.length !== parent.files.length ||
+      names.some(
+        (name) => typeof name !== "string" || !name.trim() || name.length > 256,
+      )
+    )
+      throw Object.assign(new Error("Неверные имена"), { status: 400 });
+    if (
+      this.db
+        .prepare(
+          "SELECT 1 FROM transfers WHERE parent=? AND state NOT IN ('deleted','merged','deleting')",
+        )
+        .get(id)
+    )
+      throw Object.assign(
+        new Error("Дождитесь завершения изменения передачи"),
+        { status: 409 },
+      );
+    const next = safeNames(
+      parent.files.map((file, i) => ({ ...file, name: names[i] })),
+    );
+    if (next.every((file, i) => file.name === parent.files[i].name)) return;
+    if (next.length === 1) {
+      this.db
+        .prepare("UPDATE transfers SET files=?,output=? WHERE id=?")
+        .run(
+          JSON.stringify(next),
+          JSON.stringify({ ...parent.output, name: next[0].name }),
+          id,
+        );
+      return;
+    }
+    const child = insertTransfer(this.db, next, parent.ttl, "", {
+      ...parent,
+      reuseFiles: next,
+      baseFiles: parent.files,
+    });
+    this.db
+      .prepare("UPDATE transfers SET state='queued' WHERE id=?")
+      .run(child);
+    return child;
   }
   removeFiles(id, indices, expectedRevision) {
     const parent = this.get(id);

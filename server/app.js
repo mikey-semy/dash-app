@@ -1,3 +1,6 @@
+import { mediaType } from "./media.js";
+import { archiveTextObject } from "./archive-text.js";
+import { ZipArchive } from "archiver";
 import { passwordVault } from "./password-vault.js";
 import { readFile } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
@@ -6,7 +9,28 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import { rateLimit } from "express-rate-limit";
 import { pipeline } from "node:stream/promises";
-import { hash, verify, token, range, archiveName, revision } from "./core.js";
+import { Transform } from "node:stream";
+function exactLength(expected) {
+  let seen = 0;
+  return new Transform({
+    transform(chunk, encoding, done) {
+      seen += chunk.length;
+      done(seen > expected ? new Error("Object size changed") : null, chunk);
+    },
+    flush(done) {
+      done(seen === expected ? null : new Error("Incomplete object"));
+    },
+  });
+}
+import {
+  hash,
+  verify,
+  token,
+  range,
+  archiveName,
+  revision,
+  safeNames,
+} from "./core.js";
 export function createApp(service, env, { authLimit = 15 } = {}) {
   const app = express(),
     db = service.db,
@@ -25,7 +49,7 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
       "Content-Security-Policy":
         "default-src 'self'; connect-src 'self' " +
         new URL(env.S3_ENDPOINT).origin +
-        "; img-src 'self' data:; style-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+        "; img-src 'self' data:; media-src 'self'; frame-src 'self'; style-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
     });
     if (secure) res.set("Strict-Transport-Security", "max-age=31536000");
     if (
@@ -92,6 +116,7 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
       id: t.id,
       revision: revision(t),
       preview: textCandidate(t),
+      media: t.files.length === 1 ? mediaType(t.files[0])?.[0] || null : null,
       etag: t.output?.etag,
       state: t.state,
       created: t.created,
@@ -99,10 +124,14 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
       expires: t.expires,
       ttl: t.ttl,
       hasPassword: !!t.password,
+      title: t.title || "",
+      oneTime: !!t.one_time,
+      consumed: !!t.consumed,
       files: t.files.map(({ name, size }) => ({
         name,
         size,
         preview: fileTextCandidate({ name, size }),
+        media: mediaType({ name })?.[0] || null,
       })),
       size: t.files.reduce((n, f) => n + f.size, 0),
       error: t.error,
@@ -123,6 +152,18 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
         .map((r) => publicOwner(service.get(r.id))),
     ),
   );
+  api.get("/uploads/:id", (req, res) => {
+    const t = service.get(req.params.id);
+    service.uploadable(t);
+    res.json({
+      id: t.id,
+      parentId: t.parent || null,
+      offset: t.files.filter((file) => file.reused).length,
+      files: t.files
+        .filter((file) => !file.reused)
+        .map(({ name, size }) => ({ name, size })),
+    });
+  });
   api.delete("/history", (req, res) => {
     const ids = req.body?.ids;
     if (
@@ -182,12 +223,28 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
     });
   });
   api.patch("/transfers/:id/settings", async (req, res) => {
-    const { ttl, password } = req.body;
+    const {
+      ttl,
+      password,
+      title,
+      names,
+      revision: expectedRevision,
+      oneTime,
+    } = req.body;
     if (
-      (ttl === undefined && password === undefined) ||
+      (ttl === undefined &&
+        password === undefined &&
+        title === undefined &&
+        names === undefined &&
+        oneTime === undefined) ||
       (ttl !== undefined &&
         ![0, 3600, 21600, 86400, 259200, 604800].includes(ttl)) ||
-      (password !== undefined && password !== "" && !/^\d{6}$/.test(password))
+      (password !== undefined &&
+        password !== "" &&
+        !/^\d{6}$/.test(password)) ||
+      (title !== undefined &&
+        (typeof title !== "string" || title.length > 180)) ||
+      (oneTime !== undefined && typeof oneTime !== "boolean")
     )
       return res.status(400).json({ error: "Неверные настройки" });
     await service.locked(() => {
@@ -199,6 +256,17 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
         (t.expires !== null && t.expires <= Date.now())
       )
         throw Object.assign(new Error("Передача недоступна"), { status: 404 });
+      if (names !== undefined) service.rename(t.id, names, expectedRevision);
+      if (title !== undefined)
+        db.prepare("UPDATE transfers SET title=? WHERE id=?").run(
+          title.trim(),
+          t.id,
+        );
+      if (oneTime !== undefined)
+        db.prepare("UPDATE transfers SET one_time=?,consumed=0 WHERE id=?").run(
+          oneTime ? 1 : 0,
+          t.id,
+        );
       if (password !== undefined)
         db.prepare(
           "UPDATE transfers SET password=?,password_cipher=? WHERE id=?",
@@ -365,23 +433,60 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
     const t = r && service.get(r.id);
     if (
       !t ||
+      (t.one_time && t.consumed) ||
       !["ready", "empty"].includes(t.state) ||
       (t.expires !== null && t.expires <= Date.now())
     )
       throw Object.assign(new Error("Передача недоступна или срок истёк"), {
         status: 404,
       });
-    if (t.files.length > 1) t.output.name = archiveName(t.created);
+    if (t.files.length > 1)
+      t.output.name = t.title
+        ? safeNames([{ name: t.title, size: 0 }])[0].name + ".zip"
+        : archiveName(t.created);
     return t;
   }
   const grants = new Map();
+  const downloadClaims = new Map();
+  function claimDownload(t, res, complete = true) {
+    if (!t.one_time) return;
+    if (downloadClaims.has(t.id))
+      throw Object.assign(new Error("Скачивание уже выполняется"), {
+        status: 409,
+      });
+    const claim = Symbol();
+    downloadClaims.set(t.id, claim);
+    const release = () => {
+      if (downloadClaims.get(t.id) === claim) downloadClaims.delete(t.id);
+    };
+    res.once("finish", () => {
+      if (complete && res.statusCode >= 200 && res.statusCode < 300) {
+        const current = service.get(t.id);
+        if (
+          current?.output?.key === t.output.key &&
+          current.password === t.password
+        )
+          db.prepare(
+            "UPDATE transfers SET consumed=1 WHERE id=? AND one_time=1 AND state='ready'",
+          ).run(t.id);
+      }
+      release();
+    });
+    res.once("close", release);
+  }
   const readText = textReader(service.store);
-  const rawCookie = (req, res, t, grant) =>
+  const rawCookie = (req, res, t, grant) => {
     res.cookie("grant_" + t.id, grant, {
+      ...options,
+      path: "/preview/" + req.params.token,
+      maxAge: Math.max(0, grants.get(grant).expires - Date.now()),
+    });
+    return res.cookie("grant_" + t.id, grant, {
       ...options,
       path: "/raw/" + req.params.token,
       maxAge: Math.max(0, grants.get(grant).expires - Date.now()),
     });
+  };
   function allowed(req, t) {
     const g = grants.get(req.cookies["grant_" + t.id]);
     return (
@@ -421,12 +526,17 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
       allowed(req, t)
         ? {
             locked: false,
+            title: t.title || "",
+            oneTime: !!t.one_time,
             preview: textCandidate(t),
+            media:
+              t.files.length === 1 ? mediaType(t.files[0])?.[0] || null : null,
             etag: t.output?.etag,
             files: t.files.map(({ name, size }) => ({
               name,
               size,
               preview: fileTextCandidate({ name, size }),
+              media: mediaType({ name })?.[0] || null,
             })),
             expires: t.expires,
             size: t.output.size,
@@ -436,20 +546,116 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
     );
   });
   app.all(
+    "/public/:token/selection",
+    express.urlencoded({ extended: false, limit: "2kb" }),
+    async (req, res) => {
+      if (!["GET", "POST", "HEAD"].includes(req.method))
+        return res.sendStatus(405);
+      const t = transfer(req);
+      if (!allowed(req, t)) return res.sendStatus(401);
+      const chosen =
+        req.method === "POST" ? req.body?.indices : req.query.indices;
+      let indices;
+      try {
+        indices = typeof chosen === "string" ? JSON.parse(chosen) : chosen;
+      } catch {}
+      if (
+        !Array.isArray(indices) ||
+        !indices.length ||
+        indices.length > 100 ||
+        new Set(indices).size !== indices.length ||
+        indices.some((i) => !Number.isInteger(i) || !t.files[i])
+      )
+        return res.sendStatus(400);
+      if (req.method === "HEAD") return res.type("application/zip").end();
+      if (indices.length === 1)
+        return res.redirect(
+          303,
+          "/public/" + req.params.token + "/files/" + indices[0] + "/download",
+        );
+      claimDownload(t, res);
+      const zip = new ZipArchive({ store: true, forceZip64: true });
+      let body;
+      const close = () => {
+        body?.destroy();
+        zip.destroy();
+      };
+      res.once("close", close);
+      res
+        .attachment(t.output.name || archiveName(t.created))
+        .type("application/zip");
+      const sending = pipeline(zip, res);
+      sending.catch(() => {});
+      try {
+        for (const index of indices) {
+          const object =
+            t.files.length > 1
+              ? await archiveTextObject(service.store, t, index)
+              : await service.store.get(t.output.key);
+          const original = object.Body;
+          const checked = exactLength(t.files[index].size);
+          body = checked;
+          original.once("error", (error) => checked.destroy(error));
+          checked.once("close", () => original.destroy());
+          original.pipe(checked);
+          zip.append(body, { name: t.files[index].name });
+          await new Promise((resolve, reject) => {
+            const cancelled = () => {
+              cleanup();
+              reject(new Error("Cancelled"));
+            };
+            const cleanup = () => res.off("close", cancelled);
+            body.once("end", () => {
+              cleanup();
+              resolve();
+            });
+            body.once("error", (error) => {
+              cleanup();
+              reject(error);
+            });
+            res.once("close", cancelled);
+          });
+        }
+        await zip.finalize();
+        await sending;
+      } catch {
+        close();
+        res.destroy();
+      } finally {
+        res.off("close", close);
+      }
+    },
+  );
+  app.all(
     [
       "/public/:token/download",
       "/raw/:token",
       "/raw/:token/:index",
       "/public/:token/files/:index/download",
+      "/preview/:token",
+      "/preview/:token/:index",
+      "/api/transfers/:id/media/:index",
     ],
     async (req, res) => {
-      const raw = req.path.startsWith("/raw/");
+      const raw = req.path.startsWith("/raw/"),
+        privateFile = req.path.startsWith("/api/"),
+        preview =
+          req.path.startsWith("/preview/") ||
+          (privateFile && req.query.download !== "1");
       if (!["GET", "HEAD"].includes(req.method))
         return raw
           ? res.status(405).type("text/plain").send("Method Not Allowed")
           : res.sendStatus(405);
-      const t = transfer(req);
-      if (!allowed(req, t))
+      const t = privateFile ? service.get(req.params.id) : transfer(req);
+      if (
+        privateFile &&
+        (!t ||
+          t.parent ||
+          t.state !== "ready" ||
+          (t.expires !== null && t.expires <= Date.now()))
+      )
+        throw Object.assign(new Error("Передача недоступна"), { status: 404 });
+      if (!privateFile && !allowed(req, t))
         return raw
           ? res.status(401).type("text/plain").send("Нужен пароль передачи")
           : res.status(401).json({ error: "Нужен пароль передачи" });
@@ -470,7 +676,13 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
           !t.files[index])
       )
         throw Object.assign(new Error("Файл не найден"), { status: 404 });
-      if (raw || member) {
+      if (
+        preview &&
+        ((index === undefined && t.files.length !== 1) ||
+          !mediaType(t.files[index ?? 0]))
+      )
+        throw Object.assign(new Error("Нет предпросмотра"), { status: 415 });
+      if (raw) {
         if (!(member ? fileTextCandidate(t.files[index]) : textCandidate(t)))
           throw Object.assign(new Error("Текстовый просмотр недоступен"), {
             status: 415,
@@ -491,14 +703,22 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
           : t.output,
         modified = new Date(t.ready).toUTCString();
       res.set({
-        "Accept-Ranges": "bytes",
+        "Accept-Ranges":
+          t.one_time && !raw && !preview && !privateFile ? "none" : "bytes",
         ETag: out.etag,
         "Last-Modified": modified,
         "Content-Type": raw
           ? "text/plain; charset=utf-8"
-          : "application/octet-stream",
-        "Content-Disposition": `${raw ? "inline" : "attachment"}; filename="${t.files.length > 1 ? out.name : "download"}"; filename*=UTF-8''${encodeURIComponent(out.name).replace(/['()*]/g, (c) => "%" + c.charCodeAt(0).toString(16))}`,
+          : preview
+            ? mediaType(t.files[index ?? 0])[1]
+            : "application/octet-stream",
+        "Content-Disposition": `${raw || preview ? "inline" : "attachment"}; filename="${/^[\x20-\x7e]+$/.test(out.name) ? out.name : "download"}"; filename*=UTF-8''${encodeURIComponent(out.name).replace(/['()*]/g, (c) => "%" + c.charCodeAt(0).toString(16))}`,
       });
+      if (preview)
+        res.set(
+          "Content-Security-Policy",
+          "default-src 'none'; frame-ancestors 'self'",
+        );
       const match = (h, strong = false) =>
         h
           ?.split(",")
@@ -529,6 +749,7 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
       const ir = req.headers["if-range"];
       if (
         req.method === "GET" &&
+        (!t.one_time || raw || preview || privateFile) &&
         (!ir ||
           ir === out.etag ||
           (!ir.startsWith("W/") &&
@@ -544,14 +765,18 @@ export function createApp(service, env, { authLimit = 15 } = {}) {
       res.status(r ? 206 : 200).set("Content-Length", String(length));
       if (r) res.set("Content-Range", `bytes ${r.start}-${r.end}/${out.size}`);
       if (req.method === "HEAD") return res.end();
-      if (raw || member)
-        return res.end(r ? text.subarray(r.start, r.end + 1) : text);
-      const object = await service.store.get(
-        out.key,
-        r ? { Range: `bytes=${r.start}-${r.end}` } : {},
-      );
+      if (!raw && !preview && !privateFile)
+        claimDownload(t, res, !r || r.end === out.size - 1);
+      if (raw) return res.end(r ? text.subarray(r.start, r.end + 1) : text);
+      const object =
+        member && t.files.length > 1
+          ? await archiveTextObject(service.store, t, index, r)
+          : await service.store.get(out.key, {
+              IfMatch: out.etag,
+              ...(r ? { Range: `bytes=${r.start}-${r.end}` } : {}),
+            });
       try {
-        await pipeline(object.Body, res);
+        await pipeline(object.Body, exactLength(length), res);
       } catch {
         res.destroy();
       }

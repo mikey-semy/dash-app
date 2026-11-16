@@ -1,3 +1,9 @@
+import {
+  rememberUpload,
+  recoverUpload,
+  forgetUpload,
+  matchUpload,
+} from "./upload-cache.js";
 import { PasswordInput } from "./PasswordInput.jsx";
 import React, { useState, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
@@ -64,10 +70,13 @@ function App() {
     [running, setRunning] = useState(false),
     [elapsed, setElapsed] = useState(0),
     [drag, setDrag] = useState(false),
-    [selected, setSelected] = useState(null);
+    [selected, setSelected] = useState(null),
+    [preparingUpload, setPreparingUpload] = useState(false);
   const control = useRef({ paused: false, cancel: false, xhr: null }),
     start = useRef(0),
-    active = useRef(false);
+    active = useRef(false),
+    choosing = useRef(false),
+    recoveryChecked = useRef(false);
   useEffect(() => {
     document.title = logged ? "Загрузка" : "Вход";
   }, [logged]);
@@ -95,6 +104,53 @@ function App() {
     return () => clearInterval(timer);
   }, [logged]);
   useEffect(() => {
+    if (!logged || recoveryChecked.current) return;
+    recoveryChecked.current = true;
+    choosing.current = true;
+    setPreparingUpload(true);
+    recoverUpload()
+      .then(async (value) => {
+        if (!value) return;
+        try {
+          const state = await api("/api/uploads/" + value.id);
+          if (
+            state.files.length !== value.files.length ||
+            state.files.some((file, i) => file.size !== value.files[i].size)
+          )
+            throw Object.assign(new Error("Состав загрузки изменился"), {
+              status: 409,
+            });
+          setUpload(value);
+          setSelected(value.parentId || value.id);
+          setPaused(true);
+          control.current = { paused: true, cancel: false, xhr: null };
+          start.current = Date.now();
+        } catch (error) {
+          if ([404, 409].includes(error.status)) {
+            await forgetUpload(value.id);
+            return;
+          }
+          if ([401, 403].includes(error.status)) {
+            recoveryChecked.current = false;
+            setLogged(false);
+            return;
+          }
+          setUpload(value);
+          setSelected(value.parentId || value.id);
+          setPaused(true);
+          control.current = { paused: true, cancel: false, xhr: null };
+          start.current = Date.now();
+          setError(
+            "Не удалось проверить загрузку. Можно повторить продолжение.",
+          );
+        }
+      })
+      .finally(() => {
+        choosing.current = false;
+        setPreparingUpload(false);
+      });
+  }, [logged]);
+  useEffect(() => {
     if (
       upload &&
       !running &&
@@ -103,10 +159,11 @@ function App() {
           t.id === (upload.parentId || upload.id) &&
           (upload.parentId
             ? ["queued", "archiving"].includes(t.appendState) ||
-              t.files.length >= upload.offset + upload.files.length
+              (!t.appendState && t.revision !== upload.baseRevision)
             : ["queued", "archiving", "ready"].includes(t.state)),
       )
     ) {
+      forgetUpload(upload.id);
       setUpload(null);
       setError("");
     }
@@ -130,7 +187,20 @@ function App() {
     return () => window.removeEventListener("beforeunload", fn);
   }, []);
   async function choose(list, parentId = null, replacement = null) {
-    if (active.current) return false;
+    if (active.current || choosing.current) return false;
+    if (upload?.missing) {
+      try {
+        const restored = await matchUpload(upload, Array.from(list));
+        setUpload(restored);
+        await rememberUpload(restored);
+        run(restored);
+        return true;
+      } catch (error) {
+        setError(error.message);
+        return false;
+      }
+    }
+    if (upload) return false;
     const files = Array.from(list);
     if (!files.length) return false;
     if (files.length > 100 || files.reduce((n, f) => n + f.size, 0) > 2e9) {
@@ -138,6 +208,8 @@ function App() {
       return false;
     }
     setError("");
+    choosing.current = true;
+    setPreparingUpload(true);
     try {
       const { id, offset = 0 } = await api(
         parentId
@@ -155,10 +227,15 @@ function App() {
       const u = {
         id,
         parentId,
+        created: Date.now(),
+        baseRevision: parentId
+          ? history.find((t) => t.id === parentId)?.revision
+          : null,
         offset,
         files,
         total: files.reduce((n, f) => n + f.size, 0),
       };
+      await rememberUpload(u).catch(() => false);
       setUpload(u);
       setSelected(parentId || id);
       setProgress(0);
@@ -174,6 +251,9 @@ function App() {
         throw e;
       }
       return false;
+    } finally {
+      choosing.current = false;
+      setPreparingUpload(false);
     }
   }
   function put(url, blob, offset) {
@@ -246,12 +326,18 @@ function App() {
       }
       if (!control.current.paused && !control.current.cancel) {
         await api(`/api/transfers/${u.id}/complete`, {});
+        await forgetUpload(u.id);
         setUpload(null);
-
         await reload();
       }
     } catch (e) {
       if (!control.current.paused && !control.current.cancel) {
+        if ([404, 409].includes(e.status)) {
+          await forgetUpload(u.id);
+          setUpload(null);
+          setError(e.message);
+          return;
+        }
         setError(e.message + " — можно продолжить");
         control.current.paused = true;
         setPaused(true);
@@ -271,6 +357,7 @@ function App() {
     control.current.xhr?.abort();
     try {
       await api("/api/transfers/" + upload.id, undefined, "DELETE");
+      await forgetUpload(upload.id);
       setUpload(null);
       reload();
     } catch (e) {
@@ -318,6 +405,7 @@ function App() {
     <OwnerView
       {...{
         history,
+        preparingUpload,
         ttl,
         setTtl,
         secret,

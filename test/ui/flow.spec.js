@@ -129,7 +129,7 @@ test("empty page, settings, upload, private recipient, ZIP, history and deletion
   ).toBeVisible();
   await recipient.screenshot({ path: "work/ui-recipient.png", fullPage: true });
   const download = recipient.waitForEvent("download");
-  await recipient.getByRole("link", { name: "СКАЧАТЬ" }).click();
+  await recipient.getByRole("link", { name: "СКАЧАТЬ", exact: true }).click();
   expect((await download).suggestedFilename()).toMatch(
     /^files-\d{8}-\d{9}\.zip$/,
   );
@@ -854,6 +854,10 @@ test("history selection deletes multiple records without expanding and supports 
     "Готово",
   ]);
   await expect(page.locator(".dialog-header h2")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(
+    page.getByRole("button", { name: "Поиск в истории", exact: true }),
+  ).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.locator(".dialog-header input")).toBeFocused();
   expect(

@@ -1180,3 +1180,221 @@ test("owner can update retention and a recoverable encrypted PIN; old grants are
   );
   await patch({ ttl: 0 }).expect(404);
 });
+
+test("media previews and general members respect password, Range, exact bytes and streamed subset ZIPs", async () => {
+  const { app, agent, service, store } = await setup();
+  const png = Buffer.from(
+    "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000b49444154789c636000020000050001a5f645400000000049454e44ae426082",
+    "hex",
+  );
+  const large = Buffer.alloc(6 * 1024 * 1024, 65);
+  const id = await upload(
+    service,
+    store,
+    [
+      ["photo.png", png],
+      ["данные.bin", large],
+      ["note.txt", Buffer.from("note")],
+    ],
+    "123456",
+  );
+  await service.tick();
+  const t = service.get(id),
+    url = "/public/" + t.token,
+    reader = request.agent(app);
+  await reader.get("/preview/" + t.token + "/0").expect(401);
+  await post(reader, url + "/unlock", { password: "123456" }).expect(200);
+  const info = (await reader.get(url)).body;
+  assert.equal(info.files[0].media, "image");
+  assert.equal(info.files[0].preview, false);
+  await reader
+    .head("/preview/" + t.token + "/0")
+    .expect(200)
+    .expect("Content-Type", /image\/png/)
+    .expect("Content-Length", String(png.length));
+  const bytes = await reader
+    .get(url + "/files/1/download")
+    .set("Range", "bytes=1024-2047")
+    .expect(206);
+  assert.deepEqual(bytes.body, large.subarray(1024, 2048));
+  const image = await reader
+    .get("/preview/" + t.token + "/0")
+    .set("Range", "bytes=0-7")
+    .expect(206);
+  assert.deepEqual(image.body, png.subarray(0, 8));
+  await reader.get("/preview/" + t.token + "/2").expect(415);
+  const parse = (res, cb) => {
+    const chunks = [];
+    res.on("data", (c) => chunks.push(c));
+    res.on("end", () => cb(null, Buffer.concat(chunks)));
+  };
+  const selection = await post(reader, url + "/selection", { indices: [2, 0] })
+    .buffer(true)
+    .parse(parse)
+    .expect(200);
+  const selected = unzipSync(selection.body);
+  assert.deepEqual(Object.keys(selected), ["note.txt", "photo.png"]);
+  assert.deepEqual(Buffer.from(selected["photo.png"]), png);
+  await post(reader, url + "/selection", { indices: [-1] }).expect(400);
+  await post(reader, url + "/selection", { indices: [0, 0] }).expect(400);
+  await post(request(app), url + "/selection", { indices: [0, 2] }).expect(401);
+  await agent
+    .get("/api/transfers/" + id + "/media/0?download=1")
+    .expect(200)
+    .expect("Content-Disposition", /attachment/);
+});
+test("renaming a transfer and its files preserves its link, PIN and expiry and atomically rebuilds archives", async () => {
+  const { agent, service, store } = await setup();
+  const id = await upload(
+    service,
+    store,
+    [
+      ["a.txt", Buffer.from("a")],
+      ["b.txt", Buffer.from("b")],
+    ],
+    "123456",
+  );
+  await service.tick();
+  const original = service.get(id),
+    record = (await agent.get("/api/transfers")).body.find((t) => t.id === id);
+  await agent
+    .patch("/api/transfers/" + id + "/settings")
+    .set("Origin", env.PUBLIC_URL)
+    .send({
+      title: "Документы",
+      names: ["first.py", "second.md"],
+      revision: record.revision,
+    })
+    .expect(200);
+  assert.equal(service.get(id).output.key, original.output.key);
+  await service.tick();
+  const updated = service.get(id);
+  assert.deepEqual(
+    updated.files.map((f) => f.name),
+    ["first.py", "second.md"],
+  );
+  for (const key of ["token", "password", "expires"])
+    assert.equal(updated[key], original[key]);
+  assert.deepEqual(
+    Object.keys(unzipSync(store.objects.get(updated.output.key))),
+    ["first.py", "second.md"],
+  );
+  await agent
+    .patch("/api/transfers/" + id + "/settings")
+    .set("Origin", env.PUBLIC_URL)
+    .send({ names: ["bad", "bad"], revision: record.revision })
+    .expect(409);
+  const single = await upload(service, store, [
+    ["old.txt", Buffer.from("data")],
+  ]);
+  const r = (await agent.get("/api/transfers")).body.find(
+    (t) => t.id === single,
+  );
+  await agent
+    .patch("/api/transfers/" + single + "/settings")
+    .set("Origin", env.PUBLIC_URL)
+    .send({ names: ["new.md"], revision: r.revision })
+    .expect(200);
+  assert.equal(service.get(single).output.name, "new.md");
+});
+test("one-time links survive HEAD, Raw, previews and failed downloads, then close after a completed download", async () => {
+  const { app, agent, service, store } = await setup();
+  const id = await upload(service, store, [
+      ["note.txt", Buffer.from("content")],
+    ]),
+    t = service.get(id),
+    url = "/public/" + t.token;
+  const settings = (oneTime) =>
+    agent
+      .patch("/api/transfers/" + id + "/settings")
+      .set("Origin", env.PUBLIC_URL)
+      .send({ oneTime });
+  await settings(true).expect(200);
+  await request(app)
+    .head(url + "/download")
+    .expect(200);
+  await request(app)
+    .get("/raw/" + t.token)
+    .expect(200);
+  assert.equal(service.get(id).consumed, 0);
+  store.failGet = true;
+  await request(app)
+    .get(url + "/download")
+    .expect(503);
+  assert.equal(service.get(id).consumed, 0);
+  store.failGet = false;
+  await request(app)
+    .get("/raw/" + t.token)
+    .set("Range", "bytes=0-2")
+    .expect(206);
+  assert.equal(service.get(id).consumed, 0);
+  await request(app)
+    .get(url + "/download")
+    .set("Range", "bytes=3-6")
+    .expect(200)
+    .expect("Accept-Ranges", "none");
+  assert.equal(service.get(id).consumed, 1);
+  await request(app).get(url).expect(404);
+  await request(app)
+    .get("/raw/" + t.token)
+    .expect(404);
+  await settings(false).expect(200);
+  await request(app).get(url).expect(200);
+  await settings(true).expect(200);
+  await request(app)
+    .get(url + "/download")
+    .expect(200);
+  await request(app)
+    .get(url + "/download")
+    .expect(404);
+});
+
+test("upload recovery metadata is owner-only and rejects completed or expired uploads", async () => {
+  const { app, agent, service, store, db } = await setup();
+  const id = service.create([{ name: "resume.bin", size: 8 }], 3600, "");
+  await request(app)
+    .get("/api/uploads/" + id)
+    .expect(401);
+  const result = (await agent.get("/api/uploads/" + id).expect(200)).body;
+  assert.deepEqual(result, {
+    id,
+    parentId: null,
+    offset: 0,
+    files: [{ name: "resume.bin", size: 8 }],
+  });
+  db.prepare("UPDATE transfers SET created=? WHERE id=?").run(
+    Date.now() - 86400001,
+    id,
+  );
+  await agent.get("/api/uploads/" + id).expect(409);
+  const complete = await upload(service, store, [
+    ["done.txt", Buffer.from("done")],
+  ]);
+  await agent.get("/api/uploads/" + complete).expect(409);
+});
+
+test("an incomplete one-time response does not consume the link and can be retried", async () => {
+  const { app, agent, service, store } = await setup();
+  const id = await upload(service, store, [
+    ["file.bin", Buffer.from("complete")],
+  ]);
+  const t = service.get(id);
+  await agent
+    .patch("/api/transfers/" + id + "/settings")
+    .set("Origin", env.PUBLIC_URL)
+    .send({ oneTime: true })
+    .expect(200);
+  const get = store.get.bind(store),
+    { Readable } = await import("node:stream");
+  store.get = async () => ({ Body: Readable.from([Buffer.from("bad")]) });
+  await assert.rejects(
+    async () => request(app).get("/public/" + t.token + "/download"),
+    /aborted|reset|socket|closed/i,
+  );
+  assert.equal(service.get(id).consumed, 0);
+  store.get = get;
+  await request(app)
+    .get("/public/" + t.token + "/download")
+    .expect(200);
+  assert.equal(service.get(id).consumed, 1);
+});

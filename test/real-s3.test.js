@@ -119,6 +119,25 @@ test(
         .get("/public/" + service.get(id).token + "/files/2/download")
         .expect(200);
 
+      const member = await request(archiveApp)
+        .get("/public/" + service.get(id).token + "/files/0/download")
+        .set("Range", "bytes=200-299")
+        .expect(206);
+      assert.deepEqual(member.body, payload.subarray(200, 300));
+      const chosen = await request(archiveApp)
+        .get("/public/" + service.get(id).token + "/selection")
+        .query({ indices: JSON.stringify([1, 2]) })
+        .buffer(true)
+        .parse((res, callback) => {
+          const chunks = [];
+          res.on("data", (chunk) => chunks.push(chunk));
+          res.on("end", () => callback(null, Buffer.concat(chunks)));
+        })
+        .expect(200);
+      assert.deepEqual(Object.keys(unzipSync(chosen.body)), [
+        "empty",
+        "added.txt",
+      ]);
       await service.tick();
       assert.equal(service.get(id).reserved, merged.output.size);
       service.removeFiles(id, [0]);

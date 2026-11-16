@@ -101,6 +101,13 @@ export function openDB(path) {
     .prepare("PRAGMA table_info(transfers)")
     .all()
     .map((c) => c.name);
+  for (const [name, type] of [
+    ["title", "TEXT"],
+    ["one_time", "INTEGER NOT NULL DEFAULT 0"],
+    ["consumed", "INTEGER NOT NULL DEFAULT 0"],
+  ])
+    if (!columns.includes(name))
+      db.exec(`ALTER TABLE transfers ADD COLUMN ${name} ${type}`);
   if (!columns.includes("password_cipher"))
     db.exec("ALTER TABLE transfers ADD COLUMN password_cipher TEXT");
   if (!columns.includes("parent"))

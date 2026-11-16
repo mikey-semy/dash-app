@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
+  Search,
+  Clock,
   CodeXml,
   Pencil,
   Save,
@@ -28,6 +30,8 @@ import {
   Settings,
 } from "lucide-react";
 const glyphs = {
+  search: Search,
+  clock: Clock,
   edit: Pencil,
   save: Save,
   code: CodeXml,

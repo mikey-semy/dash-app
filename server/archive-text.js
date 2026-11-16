@@ -1,6 +1,6 @@
 import { Open } from "unzipper";
 import { PassThrough, Readable } from "node:stream";
-export async function archiveTextObject(store, t, index) {
+export async function archiveTextObject(store, t, index, range) {
   const streams = new Set();
   let failure;
   const source = {
@@ -100,7 +100,7 @@ export async function archiveTextObject(store, t, index) {
     throw new Error("Invalid archive offsets");
   return entry.uncompressedSize
     ? store.get(t.output.key, {
-        Range: `bytes=${offset}-${offset + entry.uncompressedSize - 1}`,
+        Range: `bytes=${offset + (range?.start || 0)}-${offset + (range?.end ?? entry.uncompressedSize - 1)}`,
         IfMatch: t.output.etag,
       })
     : { Body: Readable.from([]) };

@@ -10,10 +10,14 @@
 - `src/lib/`: formatting, retention presentation and password generation. Components import these utilities directly.
 - `server/auth.js`: owner authentication and the common session predicate.
 - `server/owner-api.js`: authenticated transfer management routes.
-- `server/app.js`: application composition, public transfer endpoints and response policy.
+- `server/app.js`: application composition and middleware order.
+- `server/public-access.js`: transfer validity, password grants and one-time download claims, isolated per app.
+- `server/public-api.js`: public metadata, unlock and website route coordination.
+- `server/downloads.js`: original, member, Raw, media and selected ZIP responses. Private media explicitly requires owner authentication.
+- `server/http-policy.js` and `server/pages.js`: response policy, CSP and app-page rendering.
 - Other `server/` modules own storage, previews, website policy, domains and standalone status-page rendering.
 
-`src/main.jsx` coordinates authentication and upload requests. Owner routes and authentication have explicit modules; storage state transitions remain in `server/service.js`. Keep future extractions focused on a single responsibility and preserve their existing authorization and concurrency rules.
+`src/main.jsx` selects the owner or recipient screen. `src/features/auth/LoginView.jsx` renders sign-in; `src/features/upload/useOwnerWorkspace.js` owns authentication and upload workspace state, recovery and management actions. `src/features/upload/transport.js` sends multipart bytes, handles retries and reports progress independently of React. Storage state transitions remain in `server/service.js`. Keep future extractions focused on a single responsibility and preserve their existing authorization and concurrency rules.
 
 ## Identity
 

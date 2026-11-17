@@ -102,12 +102,19 @@ test("wrong login keeps input in place, clears it and resets the inline error on
   await page.goto("/");
   const input = page.getByLabel("Password", { exact: true }),
     before = await input.boundingBox();
-  await input.fill("000000");
+  await input.fill("12");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
     page.getByRole("img", { name: "Incorrect password", exact: true }),
   ).toBeVisible();
   await expect(input).toHaveValue("");
+  expect(await input.getAttribute("pattern")).toBeNull();
+  expect(await input.getAttribute("minlength")).toBeNull();
+  const cross = await page
+    .getByRole("img", { name: "Incorrect password", exact: true })
+    .boundingBox();
+  expect(cross.x).toBeGreaterThanOrEqual(before.x);
+  expect(cross.x + cross.width).toBeLessThan(before.x + before.width / 2);
   const after = await input.boundingBox();
   expect(after.x).toBe(before.x);
   expect(after.y).toBe(before.y);

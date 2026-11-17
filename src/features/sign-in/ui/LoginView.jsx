@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { PIN_DIGITS } from "#common/config.js";
 import { PasswordInput } from "#src/shared/ui/PasswordInput.jsx";
 
 export function LoginView({ error, onChange, onSubmit }) {
@@ -8,6 +7,7 @@ export function LoginView({ error, onChange, onSubmit }) {
     <main className="center">
       <div className="login">
         <form
+          noValidate
           onSubmit={async (event) => {
             event.preventDefault();
             await onSubmit(password);
@@ -23,9 +23,7 @@ export function LoginView({ error, onChange, onSubmit }) {
               onChange();
             }}
             required
-            maxLength={PIN_DIGITS}
-            minLength={PIN_DIGITS}
-            pattern={`[0-9]{${PIN_DIGITS}}`}
+            maxLength={256}
             inputMode="numeric"
           />
         </form>

@@ -208,12 +208,20 @@
   position: relative;
 }
 .password-error {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  translate: 0 -50%;
+  pointer-events: none;
   display: flex;
   color: var(--color-danger-strong);
   align-items: center;
   justify-content: center;
   width: var(--size-28);
   flex-shrink: 0;
+}
+.password-field:has(.password-error) input {
+  padding-left: var(--size-32);
 }
 .transfer-settings-dialog[open] {
   height: min(var(--size-560), 80dvh);

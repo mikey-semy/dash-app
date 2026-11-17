@@ -94,7 +94,10 @@ export function hosting(service, env, options = {}) {
   const canonical = new URL(env.PUBLIC_URL),
     states = new Map();
   const mac = (purpose, value) =>
-    createHmac("sha256", env.ADMIN_PASSWORD + "\0" + (env.S3_SECRET_KEY || ""))
+    createHmac(
+      "sha256",
+      (env.APP_SECRET || env.ADMIN_PASSWORD) + "\0" + (env.S3_SECRET_KEY || ""),
+    )
       .update(purpose + "\0" + JSON.stringify(value))
       .digest("base64url");
   const proof = (t) => mac("domain", [t.id, t.site_domain]);

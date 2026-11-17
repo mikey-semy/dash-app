@@ -10,7 +10,7 @@ export function passwordVault(env) {
       "du-passwords-v1\0" +
         (env.S3_SECRET_KEY || "") +
         "\0" +
-        env.ADMIN_PASSWORD,
+        (env.APP_SECRET || env.ADMIN_PASSWORD),
     )
     .digest();
   return {

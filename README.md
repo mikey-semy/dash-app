@@ -36,3 +36,5 @@ npx playwright test
 Start with `node --env-file=.env server/main.js`. For a local address, set `PUBLIC_URL=http://localhost:3000` and allow that origin in the bucket CORS configuration.
 
 Project conventions are in [AGENTS.md](AGENTS.md), boundaries in [ARCHITECTURE.md](ARCHITECTURE.md), and test guidance in [VALIDATION.md](VALIDATION.md).
+
+`ADMIN_PASSWORD` controls sign-in. Keep `APP_SECRET` unchanged when changing it: existing transfer passwords and site signatures depend on this stable secret. Older installations use their original admin password as the default application secret.

@@ -11,6 +11,15 @@ export function PasswordInput({
   const [visible, setVisible] = useState(false);
   return (
     <div className="password-field login-field">
+      {error && (
+        <span
+          className="password-error"
+          role="img"
+          aria-label={copy.incorrectPassword}
+        >
+          <Icon name="cancel" />
+        </span>
+      )}
       <input
         {...props}
         aria-label={label}
@@ -25,15 +34,6 @@ export function PasswordInput({
       >
         <Icon name={visible ? "hidden" : "eye"} />
       </IconButton>
-      {error && (
-        <span
-          className="password-error"
-          role="img"
-          aria-label={copy.incorrectPassword}
-        >
-          <Icon name="cancel" />
-        </span>
-      )}
       <IconButton
         type="submit"
 

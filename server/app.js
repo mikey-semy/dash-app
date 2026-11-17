@@ -75,7 +75,7 @@ export function createApp(
     limited,
     readText,
   });
-  app.get(["/", "/index.html", "/t/:token"], html);
+  app.get(["/", "/index.html", "/history", "/t/:token"], html);
   app.get(/^\/[A-Za-z0-9]{6}$/, html);
   app.use(express.static("dist", { index: false }));
   app.use("/assets", legacyAssets(assetDirectory));

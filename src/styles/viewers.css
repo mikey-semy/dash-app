@@ -93,13 +93,15 @@
   overflow-anchor: none;
   max-height: calc(
     100dvh - var(--transfer-expanded-title-offset) -
-      env(safe-area-inset-top, var(--size-0)) - var(--size-95)
+      env(safe-area-inset-top, var(--size-0)) - var(--size-28) -
+      var(--transfer-toggle-space) - var(--transfer-bottom-space)
   );
 }
 .recipient .transfer-information {
   max-height: calc(
     100dvh - var(--transfer-expanded-title-offset) -
-      env(safe-area-inset-top, var(--size-0)) - var(--size-95) -
+      env(safe-area-inset-top, var(--size-0)) - var(--size-28) -
+      var(--transfer-toggle-space) - var(--transfer-bottom-space) -
       var(--size-48) - var(--size-40)
   );
   padding-top: 0;
@@ -112,34 +114,56 @@
   justify-content: center;
   background: var(--color-surface);
 }
-.recipient .recipient-file-header,
-.recipient .transfer-information .files li {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--size-80) var(--size-64);
-  gap: 0;
-}
-.recipient-file-header {
+.file-table-header {
   height: var(--size-40);
-  overflow-y: hidden;
-  scrollbar-gutter: stable;
   border-bottom: var(--size-1) solid var(--color-divider);
   font-size: var(--font-size-caption);
   color: var(--color-muted);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--table-size-width) var(
+      --table-actions-width
+    );
+  gap: 0;
+  align-items: stretch;
+}
+.file-table-header > span,
+.file-table-header > .file-actions {
+  padding: var(--size-10) var(--size-12);
+  align-content: center;
+}
+.file-table-header > :first-child {
+  padding-left: 0;
+}
+.file-table-header > .file-size {
+  border-left: var(--size-1) solid var(--color-divider);
+}
+.recipient-file-header {
+  overflow-y: hidden;
+  scrollbar-gutter: stable;
 }
 .recipient .transfer-information .files li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--table-size-width) var(
+      --table-actions-width
+    );
+  gap: 0;
   padding: 0;
   align-items: stretch;
 }
-.recipient-file-header > span,
 .recipient .transfer-information .files li > :first-child {
   padding: var(--size-10) var(--size-12) var(--size-10) 0;
   align-content: center;
 }
-.recipient .recipient-file-header > .file-size,
 .recipient .transfer-information .file-size {
   border-left: var(--size-1) solid var(--color-divider);
   padding: var(--size-10) var(--size-12);
   align-content: center;
+}
+.recipient .transfer-information .files .file-actions {
+  min-width: 0;
+}
+.recipient-file-header > .file-actions {
+  padding: 0;
 }
 .recipient-file-header .file-selection-actions {
   margin: 0;

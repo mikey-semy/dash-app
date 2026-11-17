@@ -6,6 +6,7 @@ import {
 } from "./CurrentTransfer.jsx";
 import { UploadProgress } from "./UploadProgress.jsx";
 import { DropZones } from "./DropZones.jsx";
+import { useHistoryPage } from "../model/useHistoryPage.js";
 import { useFileIntake } from "../model/useFileIntake.js";
 import { IconButton } from "#src/shared/ui/IconButton.jsx";
 import { copy } from "#common/copy.js";
@@ -34,7 +35,7 @@ export function OwnerView(p) {
     [opening, setOpening] = useState(false),
     [editorError, setEditorError] = useState(""),
     [viewing, setViewing] = useState(null),
-    [historyOpen, setHistoryOpen] = useState(false),
+    [historyOpen, setHistoryOpen] = useHistoryPage(),
     input = useRef(),
     appendTarget = useRef(null),
     settings = useRef(),

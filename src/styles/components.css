@@ -403,3 +403,35 @@ button.unavailable {
     transform: rotate(360deg);
   }
 }
+
+/* Landscape phones keep the file list usable below a compact toolbar. */
+@media (--short-screen) {
+  .owner,
+  .recipient {
+    --transfer-expanded-title-offset: var(--size-64);
+    --transfer-toggle-space: var(--size-0);
+  }
+  .owner:has(.owner-details[data-open="true"]),
+  .recipient:has(.transfer-details[data-open="true"]) {
+    --transfer-action-offset: var(--size-32);
+  }
+  .owner .owner-details .details-toggle,
+  .recipient .transfer-details .details-toggle {
+    position: absolute;
+    top: calc(-1 * (var(--size-28) + var(--size-16)));
+    z-index: var(--layer-2);
+    right: var(--size-64);
+    margin: 0;
+  }
+  .owner .owner-details .transfer-heading,
+  .recipient .transfer-heading {
+    padding-inline: max(
+      calc(var(--size-64) + var(--size-40)),
+      calc((100vw - var(--transfer-frame-width)) / 2)
+    );
+  }
+  .recipient .transfer-information .files li > :first-child,
+  .recipient .transfer-information .file-size {
+    padding-block: var(--size-6);
+  }
+}

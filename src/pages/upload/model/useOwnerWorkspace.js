@@ -47,7 +47,11 @@ export function useOwnerWorkspace() {
     choosing = useRef(false),
     recoveryChecked = useRef(false);
   useEffect(() => {
-    document.title = logged ? copy.upload : copy.signIn;
+    document.title = logged
+      ? location.pathname === "/history"
+        ? copy.history
+        : copy.upload
+      : copy.signIn;
   }, [logged]);
   useEffect(() => {
     try {

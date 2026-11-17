@@ -14,7 +14,8 @@ const token =
 const errorStatus =
   Number(document.querySelector('meta[name="du-error-status"]')?.content) ||
   null;
-const knownPath = token || ["/", "/index.html"].includes(location.pathname);
+const knownPath =
+  token || ["/", "/index.html", "/history"].includes(location.pathname);
 createRoot(document.getElementById("root")).render(
   <ErrorBoundary>
     {errorStatus || !knownPath ? (

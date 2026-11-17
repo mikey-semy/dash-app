@@ -2,6 +2,7 @@
 export const copy = Object.freeze({
   fileNameColumn: "Name",
   fileSizeColumn: "Size",
+  fileActionsColumn: "Actions",
   couldNotConnectToTheServerTryAgain:
     "Could not connect to the server. Try again.",
   requestFailed: "Request failed",

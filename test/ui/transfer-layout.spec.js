@@ -48,7 +48,7 @@ for (const width of [390, 1280, 1920])
     await page.getByLabel("Settings", { exact: true }).click();
     await page.getByRole("button", { name: "History", exact: true }).click();
     await page
-      .getByRole("dialog", { name: "History", exact: true })
+      .getByRole("region", { name: "History", exact: true })
       .getByRole("button", { name: "Open transfer", exact: true })
       .click();
     async function verify(name, action) {
@@ -272,4 +272,56 @@ for (const width of [390, 1280])
     expect(
       (await page.locator(".details-body").boundingBox()).height,
     ).toBeGreaterThan(500);
+  });
+for (const height of [300, 390])
+  test(`landscape download keeps a usable file area at ${height}px high`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 844, height });
+    await page.route("**/public/Lnd123", (route) =>
+      route.fulfill({
+        json: {
+          locked: false,
+          title: "Landscape archive",
+          name: "files.zip",
+          expires: null,
+          size: 1000,
+          files: Array.from({ length: 100 }, (_, i) => ({
+            name: "project/analysis/service-review-" + i + ".md",
+            size: 10,
+          })),
+        },
+      }),
+    );
+    await page.goto("/Lnd123");
+    await page
+      .getByRole("button", { name: "Transfer details", exact: true })
+      .click();
+    await expect
+      .poll(async () =>
+        Math.round(
+          (await page.locator(".transfer-name").boundingBox()).y +
+            (await page.locator(".transfer-name").boundingBox()).height / 2,
+        ),
+      )
+      .toBe(64);
+    const body = page.locator(".transfer-information");
+    expect((await body.boundingBox()).height).toBeGreaterThan(height * 0.3);
+    await expect(
+      page.getByRole("link", { name: "DOWNLOAD", exact: true }),
+    ).toBeInViewport();
+    await expect(
+      page.getByRole("button", {
+        name: "Download selected files",
+        exact: true,
+      }),
+    ).toBeInViewport();
+    await expect(page.locator(".recipient-share-actions")).toBeInViewport();
+    await body.evaluate((el) => (el.scrollTop = el.scrollHeight));
+    await expect(page.locator(".recipient-share-actions")).toBeInViewport();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
   });

@@ -34,7 +34,7 @@ for (const width of [390, 1280]) {
     await page.getByLabel("Settings", { exact: true }).click();
     const trigger = page.getByRole("button", { name: "History", exact: true });
     await trigger.click();
-    const history = page.getByRole("dialog", { name: "History", exact: true }),
+    const history = page.getByRole("region", { name: "History", exact: true }),
       body = history.locator(".dialog-body");
     await expect(history).toBeVisible();
     expect(

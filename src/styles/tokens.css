@@ -1,9 +1,19 @@
 /* Canonical UI design values. Custom media is compiled for all supported browsers. */
 @custom-media --mobile (max-width: 600px);
+@custom-media --short-screen (max-height: 500px);
+@custom-media --compact-table (max-width: 760px);
 @custom-media --touch (hover: none) and (pointer: coarse);
 @custom-media --no-hover (hover: none);
 
 :root {
+  --transfer-toggle-space: var(--size-32);
+  --transfer-bottom-space: max(
+    var(--size-24),
+    env(safe-area-inset-bottom, var(--size-0))
+  );
+  --table-size-width: var(--size-80);
+  --table-actions-width: var(--size-40);
+  --history-actions-width: var(--size-250);
   --transfer-frame-width: var(--size-1000);
   --transfer-action-offset: var(--size-48);
   --transfer-motion-duration: 0.42s;

@@ -1,6 +1,7 @@
 import { useSelection } from "#src/shared/lib/useSelection.js";
 import { SelectionCheckbox } from "#src/shared/ui/SelectionCheckbox.jsx";
-import { Modal } from "#src/shared/ui/Modal.jsx";
+import { PageSurface } from "#src/shared/ui/PageSurface.jsx";
+import { FileTableHeader } from "#src/shared/ui/FileTableHeader.jsx";
 import { IconButton } from "#src/shared/ui/IconButton.jsx";
 import { useRef, useState } from "react";
 import { copy } from "#common/copy.js";
@@ -54,100 +55,107 @@ function HistoryItem({
   return (
     <article className="history-item">
       <div className="history-row">
-        <SelectionCheckbox
-          className="history-select"
-          aria-label={copy.selectTransferPrefix + date(t.created)}
-          checked={selected}
-          disabled={selectionDisabled}
-          onChange={onSelect}
-        />
-        {t.hasSite && !t.consumed && t.state === "ready" ? (
-          <PublicationButton
-            className="history-state"
-            published={t.published}
-            disabled={!!busy || !t.url}
-            onToggle={(value) => onPublish(t, value)}
+        <div className="history-identity">
+          <SelectionCheckbox
+            className="history-select"
+            aria-label={copy.selectTransferPrefix + date(t.created)}
+            checked={selected}
+            disabled={selectionDisabled}
+            onChange={onSelect}
           />
-        ) : (
-          <span
-            className={
-              ["queued", "archiving"].includes(t.state)
-                ? "history-state archive-status"
-                : "history-state"
-            }
-            role="img"
-            aria-label={
-              t.consumed
-                ? copy.received
-                : typeof states[t.state] === "string"
-                  ? states[t.state]
-                  : copy.buildingZip
-            }
-            title={
-              t.consumed
-                ? copy.received
-                : typeof states[t.state] === "string"
-                  ? states[t.state]
-                  : copy.buildingZip
-            }
-          >
-            <Icon
-              name={
-                t.consumed
-                  ? "cancel"
-                  : {
-                      ready: "check",
-                      empty: "archive",
-                      deleted: "cancel",
-                      deleting: "cancel",
-                      failed: "warning",
-                      archiving: "archive",
-                      queued: "archive",
-                      uploading: "upload",
-                    }[t.state] || "warning"
-              }
-            />
-          </span>
-        )}
-        <div className="history-middle">
-          {t.url ? (
-            <EditableName
-              value={t.title || t.name || t.files[0]?.name || "—"}
-              label={copy.transferName}
-              disabled={!!busy}
-              onSave={(value) => onRenameTitle(t, value)}
-              onGenerate={
-                t.hasSite ? (current) => onGenerateTitle(t, current) : undefined
-              }
+          {t.hasSite && !t.consumed && t.state === "ready" ? (
+            <PublicationButton
+              className="history-state"
+              published={t.published}
+              disabled={!!busy || !t.url}
+              onToggle={(value) => onPublish(t, value)}
             />
           ) : (
-            <span>{t.title || t.name || t.files[0]?.name || "—"}</span>
+            <span
+              className={
+                ["queued", "archiving"].includes(t.state)
+                  ? "history-state archive-status"
+                  : "history-state"
+              }
+              role="img"
+              aria-label={
+                t.consumed
+                  ? copy.received
+                  : typeof states[t.state] === "string"
+                    ? states[t.state]
+                    : copy.buildingZip
+              }
+              title={
+                t.consumed
+                  ? copy.received
+                  : typeof states[t.state] === "string"
+                    ? states[t.state]
+                    : copy.buildingZip
+              }
+            >
+              <Icon
+                name={
+                  t.consumed
+                    ? "cancel"
+                    : {
+                        ready: "check",
+                        empty: "archive",
+                        deleted: "cancel",
+                        deleting: "cancel",
+                        failed: "warning",
+                        archiving: "archive",
+                        queued: "archive",
+                        uploading: "upload",
+                      }[t.state] || "warning"
+                }
+              />
+            </span>
           )}
+          <div className="history-middle">
+            {t.url ? (
+              <EditableName
+                value={t.title || t.name || t.files[0]?.name || "—"}
+                label={copy.transferName}
+                disabled={!!busy}
+                onSave={(value) => onRenameTitle(t, value)}
+                onGenerate={
+                  t.hasSite
+                    ? (current) => onGenerateTitle(t, current)
+                    : undefined
+                }
+              />
+            ) : (
+              <span>{t.title || t.name || t.files[0]?.name || "—"}</span>
+            )}
+          </div>
         </div>
-        <Share
-          url={t.shareUrl || t.url}
-          compact
-          onOpen={t.url && onOpen ? () => onOpen(t) : undefined}
-          onAdd={t.url && onAdd && !busy ? () => onAdd(t.id) : undefined}
-          onSettings={t.url && !busy ? () => onSettings(t) : undefined}
-          onDelete={
-            ["deleted", "deleting"].includes(t.state)
-              ? undefined
-              : () => onDelete(t.id)
-          }
-          confirmationKey={t.revision}
-        />
-        <IconButton
-          className="icon-button history-toggle"
-          aria-label={copy.transferPrefix + date(t.created)}
-          aria-expanded={open}
-          aria-controls={"history-" + t.id}
-          onClick={() => setOpen(!open)}
-        >
-          <span className={open ? "chevron expanded" : "chevron"}>
-            <Icon name="chevron" />
-          </span>
-        </IconButton>
+        <small className="history-size file-size">{bytes(t.size)}</small>
+        <div className="history-actions">
+          <Share
+            url={t.shareUrl || t.url}
+            compact
+            onOpen={t.url && onOpen ? () => onOpen(t) : undefined}
+            onAdd={t.url && onAdd && !busy ? () => onAdd(t.id) : undefined}
+            onSettings={t.url && !busy ? () => onSettings(t) : undefined}
+            onDelete={
+              ["deleted", "deleting"].includes(t.state)
+                ? undefined
+                : () => onDelete(t.id)
+            }
+            confirmationKey={t.revision}
+          />
+          <IconButton
+            className="icon-button history-toggle"
+            aria-label={copy.transferPrefix + date(t.created)}
+            aria-expanded={open}
+            aria-controls={"history-" + t.id}
+            onClick={() => setOpen(!open)}
+          >
+            <span className={open ? "chevron expanded" : "chevron"}>
+              <Icon name="chevron" />
+            </span>
+          </IconButton>
+        </div>
       </div>
       <Disclosure open={open} id={"history-" + t.id}>
         <section className="history-information">
@@ -275,14 +283,13 @@ export default function History({
     [error, setError] = useState("");
   const selectedItems = items.filter((item) => selection.has(item.id));
   return (
-    <Modal
-      className="history-dialog"
+    <PageSurface
+      className="history-dialog history-page"
       aria-label={copy.history}
       onClose={onClose}
       suspended={suspended}
-      initialFocus="h2"
       title={copy.history}
-      closeOnBackdrop
+      returnTitle={copy.upload}
     >
       {({ close, dismiss }) => (
         <>
@@ -380,6 +387,7 @@ export default function History({
               ))}
             </div>
           )}
+          <FileTableHeader className="history-table-header" showActionsLabel />
           <div
             className={
               visibleItems.length ? "dialog-body" : "dialog-body is-empty"
@@ -439,6 +447,6 @@ export default function History({
           </div>
         </>
       )}
-    </Modal>
+    </PageSurface>
   );
 }

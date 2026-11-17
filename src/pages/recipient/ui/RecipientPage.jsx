@@ -1,3 +1,4 @@
+import { FileTableHeader } from "#src/shared/ui/FileTableHeader.jsx";
 import { useSelection } from "#src/shared/lib/useSelection.js";
 import { IconButton } from "#src/shared/ui/IconButton.jsx";
 import { copy } from "#common/copy.js";
@@ -250,35 +251,36 @@ export function Recipient({ token, api }) {
                   </div>
                 }
               >
-                <div className="recipient-file-header">
-                  <span>{copy.fileNameColumn}</span>
-                  <span className="file-size">{copy.fileSizeColumn}</span>
-                  <div className="file-actions">
-                    {info.files.length > 1 && (
-                      <div className="file-selection-actions recipient-selection-actions">
-                        <form
-                          method="get"
-                          action={"/public/" + token + "/selection"}
-                        >
-                          <input
-                            type="hidden"
-                            name="indices"
-                            value={JSON.stringify([...fileSelection])}
-                          />
-                          <IconButton
-                            type="submit"
-
-                            disabled={!fileSelection.size}
-                            aria-label={copy.downloadSelectedFiles}
-                            title={copy.downloadSelection}
+                <FileTableHeader
+                  className="recipient-file-header"
+                  actions={
+                    <>
+                      {info.files.length > 1 && (
+                        <div className="file-selection-actions recipient-selection-actions">
+                          <form
+                            method="get"
+                            action={"/public/" + token + "/selection"}
                           >
-                            <Icon name="download" />
-                          </IconButton>
-                        </form>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                            <input
+                              type="hidden"
+                              name="indices"
+                              value={JSON.stringify([...fileSelection])}
+                            />
+                            <IconButton
+                              type="submit"
+
+                              disabled={!fileSelection.size}
+                              aria-label={copy.downloadSelectedFiles}
+                              title={copy.downloadSelection}
+                            >
+                              <Icon name="download" />
+                            </IconButton>
+                          </form>
+                        </div>
+                      )}
+                    </>
+                  }
+                />
                 <div className="transfer-information">
                   <FileList
                     selection={

@@ -137,7 +137,7 @@ test("names edit in place, Escape cancels, settings have no names and their geom
   await expect(field).toHaveAttribute("aria-readonly", "true");
   await page.getByLabel("Settings", { exact: true }).click();
   await page.getByRole("button", { name: "History", exact: true }).click();
-  const history = page.getByRole("dialog", { name: "History", exact: true }),
+  const history = page.getByRole("region", { name: "History", exact: true }),
     box = await history.boundingBox();
   await page
     .locator(".history-item")
@@ -148,12 +148,11 @@ test("names edit in place, Escape cancels, settings have no names and their geom
     name: "Transfer settings",
     exact: true,
   });
-  expect(await settings.boundingBox()).toMatchObject({
-    width: box.width,
-    height: box.height,
-    x: box.x,
-    y: box.y,
-  });
+  const settingsBox = await settings.boundingBox();
+  expect(settingsBox.width).toBeLessThanOrEqual(box.width);
+  expect(settingsBox.height).toBeLessThanOrEqual(box.height);
+  expect(settingsBox.x).toBeGreaterThanOrEqual(0);
+  expect(settingsBox.y).toBeGreaterThanOrEqual(0);
   await expect(page.locator("dialog[open]")).toHaveCount(1);
   await expect(
     settings.getByRole("textbox", { name: "Transfer name", exact: true }),

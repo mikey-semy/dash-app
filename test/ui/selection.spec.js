@@ -28,7 +28,7 @@ test("history row and file selections stay independent and reset on filters or r
   await page.goto("/");
   await page.getByLabel("Settings", { exact: true }).click();
   await page.getByRole("button", { name: "History", exact: true }).click();
-  const history = page.getByRole("dialog", { name: "History", exact: true });
+  const history = page.getByRole("region", { name: "History", exact: true });
   const all = history.getByRole("checkbox", {
     name: "Select all transfers",
     exact: true,

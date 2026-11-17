@@ -133,7 +133,9 @@ test("empty page, settings, upload, private recipient, ZIP, history and deletion
   );
   await page.getByLabel("Settings", { exact: true }).click();
   await page.getByRole("button", { name: "History", exact: true }).click();
-  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "History", exact: true }),
+  ).toBeVisible();
   await expect(page).toHaveTitle("History");
   const item = page.locator(".history-item").first();
   await expect(item.locator(".history-information")).toBeHidden();
@@ -372,7 +374,7 @@ test("history expansion preserves modal and clicked header positions throughout 
     await page.reload();
     await page.getByLabel("Settings", { exact: true }).click();
     await page.getByRole("button", { name: "History", exact: true }).click();
-    const dialog = page.getByRole("dialog"),
+    const dialog = page.getByRole("region", { name: "History", exact: true }),
       toggle = page.locator(".history-toggle").first(),
       before = await dialog.boundingBox(),
       header = await toggle.boundingBox();
@@ -560,7 +562,9 @@ test("history and ready-view plus append to the same transfer and preserve its l
     mimeType: "text/plain",
     buffer: Buffer.from("extra"),
   });
-  await expect(page.getByRole("dialog")).toBeHidden();
+  await expect(
+    page.getByRole("region", { name: "History", exact: true }),
+  ).toBeHidden();
   const count = async () => {
     const list = await (await page.request.get("/api/transfers")).json();
     return list.find((t) => t.url === original)?.files.length;

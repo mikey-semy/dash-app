@@ -81,8 +81,8 @@ test("domain verification exports only server DNS addresses and checks HTTPS bef
 test("proxy export cannot overwrite domains owned by other applications or inject router rules", () => {
   const code = `import runpy,json
 m=runpy.run_path('deploy/sync-sites.py')
-c,s=m['configuration'](['site.example.com','example.com','bad\u0060) || Host(\u0060evil.com',42],{'example.com'})
-assert s=={'example.com':'reserved','site.example.com':'configured'}
+c,s=m['configuration'](['site.example.com','reserved.example.com','bad\u0060) || Host(\u0060evil.com',42],{'reserved.example.com'})
+assert s=={'reserved.example.com':'reserved','site.example.com':'configured'}
 assert len(c['http']['routers'])==2
 assert all(v['rule']=='Host(\u0060site.example.com\u0060)' for v in c['http']['routers'].values())
 print('ok')`;

@@ -1,40 +1,51 @@
-# DU
+# S3 Flash Drive
 
-Personal file sharing and static-site publishing at [files.example.com](https://files.example.com).
+A self-hosted file-sharing and static-site publishing application backed by S3-compatible storage. Minimal white interface, short links and icon actions.
 
-- Upload files or folders by selection, drag-and-drop or paste. Folder paths are preserved; ignore rules exclude dependencies, caches and secrets. Review excluded entries before sending.
-- Share a short link. Recipients download original files, a ZIP, or selected members. Images, audio, video, PDF, UTF-8 text and Markdown support preview.
-- Paste text to open the full-screen editor. Syntax detection, source copying and password-protected Raw preserve the original text. Preview/editor limit: 5 MiB.
-- History at `/history` supports search, selection, individual removal and adding files to an existing link. Rename transfer titles and filenames independently, directly in place.
-- Retention: 1/6/24 hours, 3/7 days, forever, or one completed download. The lock generates and copies a six-digit PIN; double-click removes it. Current-transfer settings are independent of new-upload defaults.
-- Trash and file removal require a second click to confirm. Deleted and expired transfers disappear from history; restoration is not available.
-- A transfer containing `index.html` or `index.htm` is a site. New sites receive a distinct readable title; the inline generator proposes another title while editing. Enter/blur saves, Escape cancels. Files and links remain unchanged.
-- Publish/unpublish controls public access. Presentation mode hides DU controls. A custom `404.html` handles missing site pages; otherwise a centered red cross is shown.
-- Connect a domain in transfer settings after pointing its DNS at the DU server. HTTPS is issued and renewed by Traefik. Once verified, copy, QR and native sharing use the domain; otherwise they use the DU short link. React/Vue route fallback is optional for built SPAs.
+## Features
 
-Up to **100 files / 2 GB** per transfer. Total quota: **20 GB**, including temporary ZIPs. Interrupted uploads can resume in the same browser for 24 hours; changed source files are rejected.
+- File and folder uploads, drag-and-drop, clipboard paste and resumable multipart uploads. Folder paths are preserved; dependency folders, caches and sensitive files can be excluded before upload.
+- Original downloads, ZIP archives and selected-file downloads. Passwords, expiry, one-time downloads and reusable permanent links.
+- Full-screen text/code editor, automatic language detection, syntax highlighting, Markdown preview and protected Raw responses. UTF-8 preview limit: 5 MiB.
+- Image, audio, video and PDF previews, with an optional presentation mode that hides application controls.
+- A searchable `/history` page with selection, inline renaming, file management and transfer settings. Transfer titles and filenames are independent.
+- Static sites from `index.html` or `index.htm`, optional SPA fallback, custom error pages, publication controls and custom domains with automatic HTTPS through Traefik.
 
-## Setup and deployment
+Defaults: **100 files / 2 GB per transfer**, **20 GB total quota**, including temporary archives. Retention ranges from one hour to permanent storage or one completed download. Product limits are defined in `shared/config.js`.
 
-Copy `.env.example` to `.env` and fill in the owner PIN, S3 and hosting configuration. Example values are neutral; credentials and runtime data are excluded from Git.
+## Run locally
 
-Pushes to `main` run checks and deploy through GitHub Actions. The service uses the `holder` Compose project, S3 objects and a persistent SQLite volume. `holder-sites.service` exports validated domain routes without giving the app access to Docker socket or other applications' configuration.
-
-## Development
-
-Node.js 24:
+Requires Node.js 24 and an S3-compatible bucket.
 
 ```sh
 npm ci
+cp .env.example .env
+# Fill in the storage credentials, application URL and passwords.
+npm run build
+node --env-file=.env server/main.js
+```
+
+For local use, set `PUBLIC_URL=http://localhost:3000`. Configure the bucket CORS rules for the actual application origin. `.env.example` contains neutral examples; never commit your `.env` or credentials.
+
+`ADMIN_PASSWORD` controls owner sign-in and has no fixed digit count. `APP_SECRET` is a separate, stable secret used for stored transfer passwords and website signatures. Keep it unchanged when rotating the sign-in password. Existing installations that omit it use their original admin password as the fallback; set `APP_SECRET` to that original value before changing `ADMIN_PASSWORD`.
+
+## Deploy
+
+Docker Compose and GitHub Actions deployment are provided for a Linux server with Traefik. Deployment is optional: configure repository variables and SSH secrets to enable it. See [deployment instructions](deploy/README.md) for prerequisites, storage templates and HTTPS setup.
+
+## Development
+
+```sh
 npm run lint
 npm run format:check
 npm test
 npm run build
+npx playwright install chromium
 npx playwright test
 ```
 
-Start with `node --env-file=.env server/main.js`. For a local address, set `PUBLIC_URL=http://localhost:3000` and allow that origin in the bucket CORS configuration.
+See [architecture](ARCHITECTURE.md), [project conventions](AGENTS.md), [validation](VALIDATION.md) and the [roadmap](ROADMAP.md).
 
-Project conventions are in [AGENTS.md](AGENTS.md), boundaries in [ARCHITECTURE.md](ARCHITECTURE.md), and test guidance in [VALIDATION.md](VALIDATION.md).
+## License
 
-`ADMIN_PASSWORD` controls sign-in. Keep `APP_SECRET` unchanged when changing it: existing transfer passwords and site signatures depend on this stable secret. Older installations use their original admin password as the default application secret.
+[MIT](LICENSE). Bundled fonts retain their own [license](public/Manrope-LICENSE.txt).

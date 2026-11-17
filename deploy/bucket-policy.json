@@ -17,7 +17,7 @@
         "s3:AbortMultipartUpload",
         "s3:ListMultipartUploadParts"
       ],
-      "Resource": "arn:aws:s3:::example-bucket/holder/*"
+      "Resource": "arn:aws:s3:::example-bucket/uploads/*"
     }
   ]
 }

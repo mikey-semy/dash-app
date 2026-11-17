@@ -3,7 +3,7 @@
     {
       "ID": "abort-incomplete",
       "Status": "Enabled",
-      "Filter": { "Prefix": "holder/" },
+      "Filter": { "Prefix": "uploads/" },
       "AbortIncompleteMultipartUpload": { "DaysAfterInitiation": 1 }
     }
   ]

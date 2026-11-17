@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { Store } from "../server/s3.js";
 test("holder prefix applies exactly once to every S3 request and signed upload; purge never escapes transfer", async () => {
   const store = new Store({
-      S3_ENDPOINT: "https://storage.yandexcloud.net",
+      S3_ENDPOINT: "https://s3.example.com",
       S3_BUCKET: "example-bucket",
       S3_PREFIX: "holder/",
       S3_ACCESS_KEY: "fake",

@@ -1,11 +1,46 @@
 # Deployment
 
-`assets-cache/` retains hashed resources for the ten latest local DU images so already-open tabs can load lazy modules after a release. The release script populates and prunes this dedicated cache before switching containers; the app mounts it read-only. Keep it separate from transfer data and exclude it from source archives and Docker build contexts.
+## Prerequisites
 
-The established GitHub Actions workflow builds and deploys the `holder` Compose service after checks pass. Runtime configuration is kept in the server `.env`; use `.env.example` as the complete neutral template.
+- A Linux server with Docker and the Compose plugin, and an S3-compatible bucket.
+- Traefik with a shared Docker network, file-provider directory and an HTTP-01 certificate resolver. Inbound ports 80 and 443 must be accessible for HTTPS issuance and renewal.
+- DNS records for your application domain pointing at the server.
 
-S3 configuration is shared infrastructure. Read existing CORS, lifecycle, policy and versioning settings before merging changes. Restrict this application's object access and multipart cleanup to its configured prefix; preserve other applications' rules and credentials. The JSON files in this directory are templates to review and merge, not replacement commands.
+Copy `.env.example` to the server `.env` and replace all examples. Set a stable `APP_SECRET` separately from `ADMIN_PASSWORD`; do not change it during password rotation. Keep environment files, SQLite, exports and credentials outside Git and source archives.
 
-Custom domains use the existing Traefik file provider and certificate resolver. `sync-sites.py` accepts only validated domain names, refuses hostnames already used by other applications, and writes only its own routing file. The app exports domain data through a dedicated bind mount and receives no Docker socket.
+## Docker Compose
 
-Point domain A/AAAA records at the same server as DU. HTTP-01 certificate issuance requires correct DNS and accessible ports 80/443. Domains stay separate from transfer titles and share tokens.
+The supplied configuration joins the existing network named by `TRAEFIK_NETWORK` and uses the certificate resolver named by `TRAEFIK_CERTRESOLVER`. Configure both before starting it.
+
+```sh
+docker compose -p holder up -d --build
+```
+
+SQLite lives in a persistent Docker volume. S3 object data, SQLite metadata and the application secret must be included in a consistent backup plan. Keep runtime mounts and caches separate from the checkout you publish.
+
+## GitHub Actions
+
+Checks run on pushes and pull requests. The deployment job runs on a push to `main` only when these repository variables are configured:
+
+| Variable            | Example                      |
+| ------------------- | ---------------------------- |
+| `DEPLOY_TARGET`     | `deploy@server.example.com`  |
+| `DEPLOY_HEALTH_URL` | `https://files.example.com/` |
+
+Add `DEPLOY_SSH_KEY` and `DEPLOY_KNOWN_HOSTS` as repository secrets. The deployment account must have the privileges required by `deploy/release.sh`. Review that script before adopting it: the supplied Linux layout uses `/root/apps/s3-flash-drive` and `/root/infra/traefik/dynamic`. Prepare the application directory and its `.env` before the first release.
+
+The workflow builds the tested image, transfers it over SSH, then invokes the release script. The script preserves the database volume, checks container health and can restore the previous configuration on failure. An optional server-side `.env.pending` is applied during the next release; do not place it in the repository.
+
+`assets-cache/` retains complete hashed resource graphs for the ten latest local images so already-open tabs can load lazy modules after deployment. The app mounts this dedicated cache read-only. It contains no application configuration or user transfers.
+
+## S3 templates
+
+`cors.json`, `bucket-policy.json` and `lifecycle.json` are neutral templates. Replace the application origin, bucket, account identifier and object prefix with your own values. Align them with `.env`; do not blindly replace an existing bucket's configuration.
+
+Restrict object access and incomplete multipart cleanup to the configured application prefix. Preserve any rules used by other applications sharing the bucket.
+
+## Custom domains
+
+Point each custom domain's A/AAAA records at the application server. `sync-sites.py` accepts validated domains, avoids routes owned by other applications and writes only its own routing file. The application exports domain data through a dedicated bind mount and receives no Docker socket.
+
+DNS verification alone does not prove that a certificate was issued. Check the real HTTPS endpoint after issuance. Domain addresses remain independent of transfer titles and short share tokens.

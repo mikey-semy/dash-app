@@ -22,7 +22,7 @@ jobs:
           PLAYWRIGHT_BUNDLED: "1"
   deploy:
     needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY_TARGET != '' && vars.DEPLOY_HEALTH_URL != ''
     runs-on: ubuntu-latest
     timeout-minutes: 20
     concurrency:
@@ -46,6 +46,7 @@ jobs:
       - name: Transfer and release
         env:
           DEPLOY_TARGET: ${{ vars.DEPLOY_TARGET }}
+          DEPLOY_HEALTH_URL: ${{ vars.DEPLOY_HEALTH_URL }}
         run: |
           set -euo pipefail
           test -n "$DEPLOY_TARGET"
@@ -53,4 +54,4 @@ jobs:
           scp -i ~/.ssh/id_deploy compose.yaml deploy/release.sh deploy/sync-sites.py "$DEPLOY_TARGET:/root/apps/s3-flash-drive/releases/$GITHUB_SHA/"
           docker save "s3-flash-drive:$GITHUB_SHA" | gzip | ssh -i ~/.ssh/id_deploy "$DEPLOY_TARGET" 'gunzip | docker load >/dev/null'
           ssh -i ~/.ssh/id_deploy "$DEPLOY_TARGET" "bash /root/apps/s3-flash-drive/releases/$GITHUB_SHA/release.sh $GITHUB_SHA"
-          curl --fail --retry 6 --retry-all-errors --retry-delay 5 https://files.example.com/ -o /dev/null
+          curl --fail --retry 6 --retry-all-errors --retry-delay 5 "$DEPLOY_HEALTH_URL" -o /dev/null

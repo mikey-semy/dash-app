@@ -27,7 +27,7 @@ async function checkAction(page, role, text) {
     );
     expect(box.width).toBeLessThan(width);
     expect(Math.abs(box.x + box.width / 2 - width / 2)).toBeLessThan(2);
-    expect(Math.abs(box.y + box.height / 2 - 844 / 2)).toBeLessThan(2);
+    expect(Math.abs(box.y + box.height / 2 - (844 / 2 - 48))).toBeLessThan(2);
     expect(await action.evaluate((el) => getComputedStyle(el).whiteSpace)).toBe(
       "nowrap",
     );
@@ -683,7 +683,7 @@ test("mobile completed controls stay centered with no document overflow after a 
         const r = await page.locator(".share-ready").boundingBox();
         return (
           Math.abs(r.x + r.width / 2 - 195) < 2 &&
-          Math.abs(r.y + r.height / 2 - height / 2) < 2
+          Math.abs(r.y + r.height / 2 - (height / 2 - 48)) < 2
         );
       })
       .toBe(true);

@@ -379,20 +379,8 @@ test("browser selection form downloads only checked files without leaving the tr
       action = await page
         .getByRole("button", { name: "Download selected files", exact: true })
         .boundingBox();
-    expect(action.x).toBeGreaterThan(name.x + name.width);
-    await expect
-      .poll(() =>
-        page.locator(".transfer-heading").evaluate((el) => {
-          const name = el
-              .querySelector(".transfer-name")
-              .getBoundingClientRect(),
-            action = el.querySelector("button").getBoundingClientRect();
-          return Math.abs(
-            action.y + action.height / 2 - name.y - name.height / 2,
-          );
-        }),
-      )
-      .toBeLessThan(2);
+    expect(action.y).toBeGreaterThan(name.y + name.height);
+    expect(Math.abs(name.y + name.height / 2 - 844 / 2)).toBeLessThan(2);
   }
   const event = page.waitForEvent("download");
   await page

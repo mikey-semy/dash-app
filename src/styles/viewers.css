@@ -76,11 +76,20 @@
 }
 .recipient .transfer-information,
 .owner .owner-details .transfer-information {
-  padding-left: max(var(--size-24), calc((100vw - var(--size-480)) / 2));
-  padding-right: max(var(--size-24), calc((100vw - var(--size-480)) / 2));
+  padding-left: max(
+    var(--size-24),
+    calc((100vw - var(--transfer-frame-width)) / 2)
+  );
+  padding-right: max(
+    var(--size-24),
+    calc((100vw - var(--transfer-frame-width)) / 2)
+  );
   scrollbar-width: thin;
 }
+.recipient .transfer-information,
 .owner .owner-details .transfer-information {
+  overscroll-behavior: contain;
+  overflow-anchor: none;
   max-height: calc(50dvh - var(--size-95));
 }
 .qr-popover.qr-dropdown {

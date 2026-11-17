@@ -52,7 +52,7 @@ export function Disclosure({ open, children, className = "", id }) {
   );
 }
 export const AnimatedDetails = forwardRef(function AnimatedDetails(
-  { className, label, title, summary, children, inline = false },
+  { className, label, title, summary, heading, children, inline = false },
   ref,
 ) {
   const [open, setOpen] = useState(false),
@@ -77,6 +77,7 @@ export const AnimatedDetails = forwardRef(function AnimatedDetails(
         if (e.key === "Escape") setOpen(false);
       }}
     >
+      {heading}
       <button
         type="button"
         className="details-toggle"

@@ -291,17 +291,6 @@ body:has(.owner) {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.recipient .transfer-information {
-  max-height: calc(50dvh - var(--size-95));
-  overflow-y: auto;
-  scrollbar-width: thin;
-  overscroll-behavior: contain;
-  padding-right: var(--size-18);
-  padding-left: var(--size-18);
-}
-.recipient .transfer-details {
-  width: min(var(--size-516), calc(100% - var(--size-12)));
-}
 
 .history-row {
   grid-template-columns: var(--size-14) minmax(0, 1fr) auto;

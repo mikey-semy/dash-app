@@ -49,9 +49,8 @@ export function CurrentTransferDetails({
       className="transfer-details owner-details"
       label={copy.transferDetails}
       summary={<Icon name="chevron" />}
-    >
-      <div className="transfer-information">
-        <p>
+      heading={
+        <div className="transfer-heading">
           <EditableName
             value={transfer.title || transfer.name || date(transfer.created)}
             label={copy.transferName}
@@ -63,7 +62,10 @@ export function CurrentTransferDetails({
                 : undefined
             }
           />
-        </p>
+        </div>
+      }
+    >
+      <div className="transfer-information">
         <FileList
           files={transfer.files}
           onRemove={(index) => onRemoveFiles(transfer, [index])}

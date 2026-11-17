@@ -256,22 +256,41 @@ button.unavailable {
   border: 0;
 }
 
+.owner .content > .primary-action,
+.owner .content > .share-ready,
+.recipient .content > .primary-action {
+  translate: 0 calc(-1 * var(--transfer-action-offset));
+}
 .transfer-heading {
-  position: sticky;
-  top: 0;
+  position: absolute;
+  top: calc(-1 * var(--size-28));
+  left: 0;
+  translate: 0 -50%;
   z-index: var(--layer-1);
+  width: 100%;
+  padding-inline: max(
+    var(--size-24),
+    calc((100vw - var(--transfer-frame-width)) / 2)
+  );
   background: var(--color-surface);
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--size-16);
-  margin: 0 0 var(--size-16);
+  justify-content: center;
+  text-align: center;
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-1-5);
 }
-.transfer-name {
+.transfer-name,
+.transfer-heading .editable-name:not([contenteditable="true"]) {
   min-width: 0;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.transfer-heading form {
+.recipient-selection-actions {
+  justify-content: flex-end;
+}
+.recipient-selection-actions form {
   display: flex;
   align-items: center;
   flex-shrink: 0;

@@ -239,34 +239,39 @@ export function Recipient({ token, api }) {
                 className="transfer-details"
                 label={copy.transferDetails}
                 summary={<Icon name="chevron" />}
+                heading={
+                  <div className="transfer-heading">
+                    <span
+                      className="transfer-name"
+                      title={info.title || info.name}
+                    >
+                      {info.title || info.name}
+                    </span>
+                  </div>
+                }
               >
                 <div className="transfer-information">
-                  {(info.files.length > 1 || info.title) && (
-                    <div className="transfer-heading">
-                      <span className="transfer-name">
-                        {info.title || info.name}
-                      </span>
-                      {info.files.length > 1 && (
-                        <form
-                          method="get"
-                          action={"/public/" + token + "/selection"}
-                        >
-                          <input
-                            type="hidden"
-                            name="indices"
-                            value={JSON.stringify([...fileSelection])}
-                          />
-                          <IconButton
-                            type="submit"
+                  {info.files.length > 1 && (
+                    <div className="file-selection-actions recipient-selection-actions">
+                      <form
+                        method="get"
+                        action={"/public/" + token + "/selection"}
+                      >
+                        <input
+                          type="hidden"
+                          name="indices"
+                          value={JSON.stringify([...fileSelection])}
+                        />
+                        <IconButton
+                          type="submit"
 
-                            disabled={!fileSelection.size}
-                            aria-label={copy.downloadSelectedFiles}
-                            title={copy.downloadSelection}
-                          >
-                            <Icon name="download" />
-                          </IconButton>
-                        </form>
-                      )}
+                          disabled={!fileSelection.size}
+                          aria-label={copy.downloadSelectedFiles}
+                          title={copy.downloadSelection}
+                        >
+                          <Icon name="download" />
+                        </IconButton>
+                      </form>
                     </div>
                   )}
                   <FileList

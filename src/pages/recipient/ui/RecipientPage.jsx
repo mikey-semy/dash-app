@@ -300,13 +300,13 @@ export function Recipient({ token, api }) {
                       </p>
                     )
                   )}
-                  <RecipientShare
-                    url={
-                      info.shareUrl ||
-                      new URL(location.pathname, location.origin).href
-                    }
-                  />
                 </div>
+                <RecipientShare
+                  url={
+                    info.shareUrl ||
+                    new URL(location.pathname, location.origin).href
+                  }
+                />
               </AnimatedDetails>
               <Expiry value={info.expires} oneTime={info.oneTime} />
             </>

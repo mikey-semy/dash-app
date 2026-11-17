@@ -92,6 +92,16 @@
   overflow-anchor: none;
   max-height: calc(50dvh - var(--size-95));
 }
+.recipient .transfer-information {
+  max-height: calc(50dvh - var(--size-95) - var(--size-48));
+}
+.recipient .transfer-details .recipient-share {
+  height: var(--size-48);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface);
+}
 .qr-popover.qr-dropdown {
   position: fixed;
   right: auto;

@@ -71,6 +71,10 @@ for (const width of [390, 1280, 1920])
       await expect(list).toBeVisible();
       if (width >= 1280)
         expect((await list.boundingBox()).width).toBeGreaterThan(900);
+      const share = page.locator(".recipient-share-actions");
+      const shareBefore = (await share.count())
+        ? await share.boundingBox()
+        : null;
       await body.evaluate(
         (element) => (element.scrollTop = element.scrollHeight),
       );
@@ -78,6 +82,13 @@ for (const width of [390, 1280, 1920])
         await body.evaluate((element) => element.scrollTop),
       ).toBeGreaterThan(100);
       expect(await name.boundingBox()).toEqual(before);
+      if (shareBefore) {
+        await expect(share).toBeInViewport();
+        expect(await share.boundingBox()).toEqual(shareBefore);
+        expect(
+          await share.evaluate((el) => !!el.closest(".transfer-information")),
+        ).toBe(false);
+      }
       expect(
         await page.evaluate(
           ({ x, y }) =>

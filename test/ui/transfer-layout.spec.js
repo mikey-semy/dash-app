@@ -74,6 +74,13 @@ for (const width of [390, 1280, 1920])
           ),
         )
         .toBe(96);
+      await page.locator(".transfer-details").evaluate(async (element) => {
+        await Promise.all(
+          element
+            .getAnimations({ subtree: true })
+            .map((animation) => animation.finished),
+        );
+      });
       const expanded = await name.boundingBox();
       expect(
         Math.abs(
@@ -142,6 +149,13 @@ for (const width of [390, 1280, 1920])
           ),
         )
         .toBe(422);
+      await page.locator(".transfer-details").evaluate(async (element) => {
+        await Promise.all(
+          element
+            .getAnimations({ subtree: true })
+            .map((animation) => animation.finished),
+        );
+      });
       expect(await name.boundingBox()).toEqual(before);
       expect(
         await page.evaluate(

@@ -1,5 +1,7 @@
 // English product copy. User-provided data is never translated.
 export const copy = Object.freeze({
+  fileNameColumn: "Name",
+  fileSizeColumn: "Size",
   couldNotConnectToTheServerTryAgain:
     "Could not connect to the server. Try again.",
   requestFailed: "Request failed",

@@ -250,30 +250,36 @@ export function Recipient({ token, api }) {
                   </div>
                 }
               >
-                <div className="transfer-information">
-                  {info.files.length > 1 && (
-                    <div className="file-selection-actions recipient-selection-actions">
-                      <form
-                        method="get"
-                        action={"/public/" + token + "/selection"}
-                      >
-                        <input
-                          type="hidden"
-                          name="indices"
-                          value={JSON.stringify([...fileSelection])}
-                        />
-                        <IconButton
-                          type="submit"
-
-                          disabled={!fileSelection.size}
-                          aria-label={copy.downloadSelectedFiles}
-                          title={copy.downloadSelection}
+                <div className="recipient-file-header">
+                  <span>{copy.fileNameColumn}</span>
+                  <span className="file-size">{copy.fileSizeColumn}</span>
+                  <div className="file-actions">
+                    {info.files.length > 1 && (
+                      <div className="file-selection-actions recipient-selection-actions">
+                        <form
+                          method="get"
+                          action={"/public/" + token + "/selection"}
                         >
-                          <Icon name="download" />
-                        </IconButton>
-                      </form>
-                    </div>
-                  )}
+                          <input
+                            type="hidden"
+                            name="indices"
+                            value={JSON.stringify([...fileSelection])}
+                          />
+                          <IconButton
+                            type="submit"
+
+                            disabled={!fileSelection.size}
+                            aria-label={copy.downloadSelectedFiles}
+                            title={copy.downloadSelection}
+                          >
+                            <Icon name="download" />
+                          </IconButton>
+                        </form>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="transfer-information">
                   <FileList
                     selection={
                       info.files.length > 1 ? fileSelection : undefined

@@ -75,12 +75,28 @@ for (const width of [390, 1280, 1920])
       const shareBefore = (await share.count())
         ? await share.boundingBox()
         : null;
+      const header = page.locator(".recipient-file-header");
+      const headerBefore = (await header.count())
+        ? await header.boundingBox()
+        : null;
       await body.evaluate(
         (element) => (element.scrollTop = element.scrollHeight),
       );
       expect(
         await body.evaluate((element) => element.scrollTop),
       ).toBeGreaterThan(100);
+      if (headerBefore) {
+        expect(await header.boundingBox()).toEqual(headerBefore);
+        await expect(header).toBeInViewport();
+        await expect(header.getByText("Name", { exact: true })).toBeVisible();
+        await expect(header.getByText("Size", { exact: true })).toBeVisible();
+        await expect(
+          header.getByRole("button", {
+            name: "Download selected files",
+            exact: true,
+          }),
+        ).toBeInViewport();
+      }
       expect(await name.boundingBox()).toEqual(before);
       if (shareBefore) {
         await expect(share).toBeInViewport();

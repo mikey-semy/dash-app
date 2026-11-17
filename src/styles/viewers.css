@@ -74,6 +74,7 @@
   left: 0;
   transform: none;
 }
+.recipient .recipient-file-header,
 .recipient .transfer-information,
 .owner .owner-details .transfer-information {
   padding-left: max(
@@ -93,7 +94,9 @@
   max-height: calc(50dvh - var(--size-95));
 }
 .recipient .transfer-information {
-  max-height: calc(50dvh - var(--size-95) - var(--size-48));
+  max-height: calc(50dvh - var(--size-95) - var(--size-48) - var(--size-40));
+  padding-top: 0;
+  scrollbar-gutter: stable;
 }
 .recipient .transfer-details .recipient-share {
   height: var(--size-48);
@@ -101,6 +104,38 @@
   align-items: center;
   justify-content: center;
   background: var(--color-surface);
+}
+.recipient .recipient-file-header,
+.recipient .transfer-information .files li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--size-80) var(--size-64);
+  gap: 0;
+}
+.recipient-file-header {
+  height: var(--size-40);
+  overflow-y: hidden;
+  scrollbar-gutter: stable;
+  border-bottom: var(--size-1) solid var(--color-divider);
+  font-size: var(--font-size-caption);
+  color: var(--color-muted);
+}
+.recipient .transfer-information .files li {
+  padding: 0;
+  align-items: stretch;
+}
+.recipient-file-header > span,
+.recipient .transfer-information .files li > :first-child {
+  padding: var(--size-10) var(--size-12) var(--size-10) 0;
+  align-content: center;
+}
+.recipient .recipient-file-header > .file-size,
+.recipient .transfer-information .file-size {
+  border-left: var(--size-1) solid var(--color-divider);
+  padding: var(--size-10) var(--size-12);
+  align-content: center;
+}
+.recipient-file-header .file-selection-actions {
+  margin: 0;
 }
 .qr-popover.qr-dropdown {
   position: fixed;

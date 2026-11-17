@@ -6,6 +6,7 @@
 :root {
   --transfer-frame-width: var(--size-1000);
   --transfer-action-offset: var(--size-48);
+  --transfer-expanded-title-offset: calc(var(--size-48) + var(--size-48));
   --color-text: #111;
   --color-surface: #fff;
   --color-divider: #eee;

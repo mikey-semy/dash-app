@@ -723,8 +723,7 @@ test("recipient sharing stays inside details and countdown ticks without moving 
   );
   await page.goto("/Test12");
   await expect(page.locator(".expiry-corner")).toHaveText("25:01:01");
-  const download = page.locator(".primary-action"),
-    before = await download.boundingBox();
+  const download = page.locator(".primary-action");
   await expect(page.locator(".recipient-share-actions")).toBeHidden();
   await page.locator(".transfer-details > button").click();
   await expect(page.locator(".recipient-share-actions")).toBeVisible();
@@ -742,6 +741,7 @@ test("recipient sharing stays inside details and countdown ticks without moving 
     "datetime",
     new Date(expires).toISOString(),
   );
+  const before = await download.boundingBox();
   await page.clock.runFor(2000);
   await expect(page.locator(".expiry-corner")).toHaveText("25:00:59");
   const after = await download.boundingBox();

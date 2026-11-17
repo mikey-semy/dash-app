@@ -91,10 +91,17 @@
 .owner .owner-details .transfer-information {
   overscroll-behavior: contain;
   overflow-anchor: none;
-  max-height: calc(50dvh - var(--size-95));
+  max-height: calc(
+    100dvh - var(--transfer-expanded-title-offset) -
+      env(safe-area-inset-top, var(--size-0)) - var(--size-95)
+  );
 }
 .recipient .transfer-information {
-  max-height: calc(50dvh - var(--size-95) - var(--size-48) - var(--size-40));
+  max-height: calc(
+    100dvh - var(--transfer-expanded-title-offset) -
+      env(safe-area-inset-top, var(--size-0)) - var(--size-95) -
+      var(--size-48) - var(--size-40)
+  );
   padding-top: 0;
   scrollbar-gutter: stable;
 }

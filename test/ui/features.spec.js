@@ -380,7 +380,7 @@ test("browser selection form downloads only checked files without leaving the tr
         .getByRole("button", { name: "Download selected files", exact: true })
         .boundingBox();
     expect(action.y).toBeGreaterThan(name.y + name.height);
-    expect(Math.abs(name.y + name.height / 2 - 844 / 2)).toBeLessThan(2);
+    expect(Math.abs(name.y + name.height / 2 - 96)).toBeLessThan(2);
   }
   const event = page.waitForEvent("download");
   await page

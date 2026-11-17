@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 for (const width of [390, 1280, 1920])
-  test(`transfer name stays centered and visible above scrolling files at ${width}px`, async ({
+  test(`transfer actions rise smoothly and stay visible above full-height scrolling files at ${width}px`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 844 });
@@ -66,9 +66,26 @@ for (const width of [390, 1280, 1920])
       });
       await expect(details).toHaveAttribute("aria-expanded", "false");
       await details.click();
+      await expect
+        .poll(async () =>
+          Math.round(
+            (await name.boundingBox()).y +
+              (await name.boundingBox()).height / 2,
+          ),
+        )
+        .toBe(96);
+      const expanded = await name.boundingBox();
+      expect(
+        Math.abs(
+          (await action.boundingBox()).y +
+            (await action.boundingBox()).height / 2 -
+            48,
+        ),
+      ).toBeLessThan(2);
       const body = page.locator(".transfer-information"),
         list = page.locator(".transfer-information > .files");
       await expect(list).toBeVisible();
+      expect((await body.boundingBox()).height).toBeGreaterThan(500);
       if (width >= 1280)
         expect((await list.boundingBox()).width).toBeGreaterThan(900);
       const share = page.locator(".recipient-share-actions");
@@ -97,7 +114,7 @@ for (const width of [390, 1280, 1920])
           }),
         ).toBeInViewport();
       }
-      expect(await name.boundingBox()).toEqual(before);
+      expect(await name.boundingBox()).toEqual(expanded);
       if (shareBefore) {
         await expect(share).toBeInViewport();
         expect(await share.boundingBox()).toEqual(shareBefore);
@@ -111,12 +128,20 @@ for (const width of [390, 1280, 1920])
             !!document
               .elementFromPoint(x, y)
               ?.closest(".files,.transfer-information"),
-          { x: width / 2, y: before.y - 3 },
+          { x: width / 2, y: expanded.y - 3 },
         ),
       ).toBe(false);
       await details.click();
       await expect(details).toHaveAttribute("aria-expanded", "false");
       await expect(name).toBeVisible();
+      await expect
+        .poll(async () =>
+          Math.round(
+            (await name.boundingBox()).y +
+              (await name.boundingBox()).height / 2,
+          ),
+        )
+        .toBe(422);
       expect(await name.boundingBox()).toEqual(before);
       expect(
         await page.evaluate(

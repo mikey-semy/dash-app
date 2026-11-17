@@ -256,10 +256,37 @@ button.unavailable {
   border: 0;
 }
 
+.owner,
+.recipient {
+  --transfer-title-position: 50dvh;
+}
+.owner:has(.owner-details[data-open="true"]),
+.recipient:has(.transfer-details[data-open="true"]) {
+  --transfer-title-position: calc(
+    var(--transfer-expanded-title-offset) +
+      env(safe-area-inset-top, var(--size-0))
+  );
+}
 .owner .content > .primary-action,
 .owner .content > .share-ready,
 .recipient .content > .primary-action {
-  translate: 0 calc(-1 * var(--transfer-action-offset));
+  translate: 0
+    calc(var(--transfer-title-position) - 50dvh - var(--transfer-action-offset));
+  transition: translate var(--duration-300) var(--easing-disclosure);
+}
+.owner .owner-details,
+.recipient .transfer-details {
+  top: calc(var(--transfer-title-position) + var(--size-28));
+  transition: top var(--duration-300) var(--easing-disclosure);
+}
+@media (prefers-reduced-motion: reduce) {
+  .owner .content > .primary-action,
+  .owner .content > .share-ready,
+  .recipient .content > .primary-action,
+  .owner .owner-details,
+  .recipient .transfer-details {
+    transition-duration: var(--duration-0);
+  }
 }
 .transfer-heading {
   position: absolute;

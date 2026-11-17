@@ -272,12 +272,15 @@ button.unavailable {
 .recipient .content > .primary-action {
   translate: 0
     calc(var(--transfer-title-position) - 50dvh - var(--transfer-action-offset));
-  transition: translate var(--duration-300) var(--easing-disclosure);
+  transition: translate var(--transfer-motion-duration)
+    var(--transfer-motion-easing);
 }
 .owner .owner-details,
 .recipient .transfer-details {
   top: calc(var(--transfer-title-position) + var(--size-28));
-  transition: top var(--duration-300) var(--easing-disclosure);
+  --disclosure-duration: var(--transfer-motion-duration);
+  --disclosure-easing: var(--transfer-motion-easing);
+  transition: top var(--transfer-motion-duration) var(--transfer-motion-easing);
 }
 @media (prefers-reduced-motion: reduce) {
   .owner .content > .primary-action,

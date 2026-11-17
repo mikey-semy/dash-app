@@ -185,3 +185,77 @@ test("a single received file shows its filename before opening details", async (
     page.getByRole("button", { name: "Transfer details", exact: true }),
   ).toHaveAttribute("aria-expanded", "false");
 });
+for (const width of [390, 1280])
+  test(`file list rises and unfolds in one synchronized motion at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.route("**/public/Mot123", (route) =>
+      route.fulfill({
+        json: {
+          locked: false,
+          title: "Motion fixture",
+          name: "files.zip",
+          expires: null,
+          size: 1000,
+          files: Array.from({ length: 100 }, (_, i) => ({
+            name: `file-${i}.txt`,
+            size: 10,
+          })),
+        },
+      }),
+    );
+    await page.goto("/Mot123");
+    await expect(page.locator(".transfer-details")).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+    async function sample() {
+      return page.evaluate(async () => {
+        const panel = document.querySelector(".transfer-details");
+        const body = panel.querySelector(".details-body");
+        const frames = [];
+        panel.querySelector(".details-toggle").click();
+        const start = performance.now();
+        await new Promise((resolve) => {
+          const frame = () => {
+            frames.push({
+              top: panel.getBoundingClientRect().top,
+              height: body.getBoundingClientRect().height,
+              opacity: getComputedStyle(body).opacity,
+            });
+            if (performance.now() - start < 550) requestAnimationFrame(frame);
+            else resolve();
+          };
+          requestAnimationFrame(frame);
+        });
+        return frames;
+      });
+    }
+    const opening = await sample(),
+      full = opening.at(-1).height;
+    expect(full).toBeGreaterThan(500);
+    const moving = opening.filter((f) => f.top > 126 && f.top < 448);
+    expect(moving.length).toBeGreaterThan(2);
+    for (const frame of moving) {
+      expect(
+        Math.abs((450 - frame.top) / 326 - frame.height / full),
+      ).toBeLessThan(0.12);
+      expect(frame.opacity).toBe("1");
+    }
+    const closing = await sample();
+    for (const frame of closing.filter((f) => f.top > 126 && f.top < 448))
+      expect(
+        Math.abs((450 - frame.top) / 326 - frame.height / full),
+      ).toBeLessThan(0.12);
+    expect(closing.at(-1).height).toBe(0);
+    expect(Math.abs(closing.at(-1).top - 450)).toBeLessThan(1);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.locator(".details-toggle").click();
+    await expect
+      .poll(async () =>
+        Math.round((await page.locator(".transfer-details").boundingBox()).y),
+      )
+      .toBe(124);
+    expect(
+      (await page.locator(".details-body").boundingBox()).height,
+    ).toBeGreaterThan(500);
+  });

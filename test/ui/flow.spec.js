@@ -707,6 +707,7 @@ test("recipient sharing stays inside details and countdown ticks without moving 
   const now = Date.now(),
     expires = now + 90061000;
   await page.clock.install({ time: new Date(now) });
+  await page.clock.setFixedTime(new Date(now));
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.addInitScript(() => {
     Object.defineProperty(navigator, "share", {
@@ -742,6 +743,7 @@ test("recipient sharing stays inside details and countdown ticks without moving 
     new Date(expires).toISOString(),
   );
   const before = await download.boundingBox();
+  await page.clock.setFixedTime(new Date(now + 2000));
   await page.clock.runFor(2000);
   await expect(page.locator(".expiry-corner")).toHaveText("25:00:59");
   const after = await download.boundingBox();

@@ -23,14 +23,25 @@ export function Disclosure({ open, children, className = "", id }) {
     };
     element.style.height = to + "px";
     element.style.visibility = open || from > 0 ? "visible" : "hidden";
-    if (!initialized.current || Math.abs(to - from) < 0.5) {
+    const style = getComputedStyle(element);
+    const durationValue = style
+      .getPropertyValue("--disclosure-duration")
+      .trim();
+    const duration =
+      parseFloat(durationValue) * (durationValue.endsWith("ms") ? 1 : 1000);
+    const easing = style.getPropertyValue("--disclosure-easing").trim();
+    if (
+      !initialized.current ||
+      Math.abs(to - from) < 0.5 ||
+      matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
       initialized.current = true;
       finish();
       return;
     }
     const current = element.animate(
       [{ height: from + "px" }, { height: to + "px" }],
-      { duration: 240, easing: "cubic-bezier(.25,.1,.25,1)" },
+      { duration, easing },
     );
     animation.current = current;
     current.onfinish = finish;

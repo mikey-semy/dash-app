@@ -13,7 +13,7 @@ export function CurrentTransferActions({
   onDelete,
   onSettings,
   onEdit,
-  settingsApi,
+  onPublish,
 }) {
   return (
     <Share
@@ -22,12 +22,7 @@ export function CurrentTransferActions({
         transfer.hasSite
           ? {
               published: transfer.published,
-              onToggle: (published) =>
-                settingsApi(
-                  "/api/transfers/" + transfer.id + "/settings",
-                  { published },
-                  "PATCH",
-                ),
+              onToggle: (published) => onPublish(transfer, published),
             }
           : undefined
       }
@@ -43,10 +38,11 @@ export function CurrentTransferActions({
 export function CurrentTransferDetails({
   transfer,
   renaming,
-  onRename,
+  onRenameTitle,
+  onRenameFile,
+  onGenerateTitle,
   onRemoveFiles,
   onPreview,
-  settingsApi,
 }) {
   return (
     <AnimatedDetails
@@ -60,33 +56,19 @@ export function CurrentTransferDetails({
             value={transfer.title || transfer.name || date(transfer.created)}
             label={copy.transferName}
             disabled={renaming}
-            onSave={(value) => onRename(transfer, { title: value })}
+            onSave={(value) => onRenameTitle(transfer, value)}
             onGenerate={
               transfer.hasSite
-                ? (current) =>
-                    settingsApi(
-                      "/api/transfers/" +
-                        transfer.id +
-                        "/title-suggestion?current=" +
-                        encodeURIComponent(current),
-                    ).then((result) => result.title)
+                ? (current) => onGenerateTitle(transfer, current)
                 : undefined
             }
           />
         </p>
         <FileList
           files={transfer.files}
-          onRemove={(index) =>
-            onRemoveFiles(transfer.id, [index], transfer.revision)
-          }
+          onRemove={(index) => onRemoveFiles(transfer, [index])}
           confirmationKey={transfer.revision}
-          onRename={(index, value) =>
-            onRename(transfer, {
-              names: transfer.files.map((file, i) =>
-                i === index ? value : file.name,
-              ),
-            })
-          }
+          onRename={(index, value) => onRenameFile(transfer, index, value)}
           disabled={renaming}
           onPreview={(index) => onPreview(transfer, index)}
         />

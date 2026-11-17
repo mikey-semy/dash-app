@@ -1,3 +1,4 @@
+import { SelectionCheckbox } from "#src/shared/ui/SelectionCheckbox.jsx";
 import { IconButton } from "#src/shared/ui/IconButton.jsx";
 
 import { copy } from "#common/copy.js";
@@ -22,8 +23,7 @@ export function FileList({
         <li key={i}>
           {selection ? (
             <SelectionRow className="file-choice">
-              <input
-                type="checkbox"
+              <SelectionCheckbox
                 checked={selection.has(i)}
                 disabled={disabled}
                 aria-label={copy.selectPrefix + f.name}

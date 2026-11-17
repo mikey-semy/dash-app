@@ -1,6 +1,8 @@
+import { useSelection } from "#src/shared/lib/useSelection.js";
+import { SelectionCheckbox } from "#src/shared/ui/SelectionCheckbox.jsx";
 import { Modal } from "#src/shared/ui/Modal.jsx";
 import { IconButton } from "#src/shared/ui/IconButton.jsx";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { copy } from "#common/copy.js";
 import { ErrorNotice } from "#src/shared/ui/Errors.jsx";
 import { Disclosure } from "#src/shared/ui/Disclosure.jsx";
@@ -42,23 +44,18 @@ function HistoryItem({
   onSelect,
   selectionDisabled,
 }) {
-  const [open, setOpen] = useState(false),
-    [selection, setSelection] = useState(new Set());
+  const [open, setOpen] = useState(false);
   const signature = JSON.stringify([t.revision, t.files]),
     busy = renaming || (t.appendState && t.appendState !== "failed");
-  useEffect(() => setSelection(new Set()), [signature]);
-  const toggle = (i) =>
-    setSelection((previous) => {
-      const next = new Set(previous);
-      next.has(i) ? next.delete(i) : next.add(i);
-      return next;
-    });
+  const { selection, toggle, toggleAll, clear, allSelected } = useSelection({
+    keys: t.files.map((file, index) => index),
+    resetKey: signature,
+  });
   return (
     <article className="history-item">
       <div className="history-row">
-        <input
+        <SelectionCheckbox
           className="history-select"
-          type="checkbox"
           aria-label={copy.selectTransferPrefix + date(t.created)}
           checked={selected}
           disabled={selectionDisabled}
@@ -169,23 +166,14 @@ function HistoryItem({
           {t.files.length > 0 && (
             <div className="file-selection-actions">
               <label className="select-all">
-                <input
-                  type="checkbox"
+                <SelectionCheckbox
                   aria-label={copy.selectAllFiles}
-                  checked={selection.size === t.files.length}
+                  checked={allSelected}
                   disabled={!!busy || ["deleted", "deleting"].includes(t.state)}
-                  ref={(el) => {
-                    if (el)
-                      el.indeterminate =
-                        selection.size > 0 && selection.size < t.files.length;
-                  }}
-                  onChange={() =>
-                    setSelection(
-                      selection.size === t.files.length
-                        ? new Set()
-                        : new Set(t.files.map((f, i) => i)),
-                    )
+                  indeterminate={
+                    selection.size > 0 && selection.size < t.files.length
                   }
+                  onChange={toggleAll}
                 />
               </label>
               <DeleteButton
@@ -197,8 +185,7 @@ function HistoryItem({
                 }
                 confirmationKey={JSON.stringify([t.revision, ...selection])}
                 onDelete={async () => {
-                  if (await onRemoveFiles(t.id, [...selection], t.revision))
-                    setSelection(new Set());
+                  if (await onRemoveFiles(t, [...selection])) clear();
                 }}
               />
             </div>
@@ -215,11 +202,7 @@ function HistoryItem({
             }
             selection={selection}
             onToggle={toggle}
-            onRemove={
-              t.url
-                ? (index) => onRemoveFiles(t.id, [index], t.revision)
-                : undefined
-            }
+            onRemove={t.url ? (index) => onRemoveFiles(t, [index]) : undefined}
             confirmationKey={t.revision}
             disabled={!!busy || ["deleted", "deleting"].includes(t.state)}
           />
@@ -284,19 +267,13 @@ export default function History({
           t.expires > Date.now() &&
           t.expires <= Date.now() + 86400000)),
   );
-  useEffect(() => setSelection(new Set()), [query, filter]);
-  const [selection, setSelection] = useState(new Set()),
-    [removing, setRemoving] = useState(false),
+  const { selection, toggle, toggleAll, clear, allSelected } = useSelection({
+    keys: visibleItems.map((item) => item.id),
+    resetKey: JSON.stringify([query, filter]),
+  });
+  const [removing, setRemoving] = useState(false),
     [error, setError] = useState("");
-  const selectedItems = items.filter((t) => selection.has(t.id));
-  const allSelected =
-    visibleItems.length > 0 && visibleItems.every((t) => selection.has(t.id));
-  const toggle = (id) =>
-    setSelection((previous) => {
-      const next = new Set(previous);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
+  const selectedItems = items.filter((item) => selection.has(item.id));
   return (
     <Modal
       className="history-dialog"
@@ -326,24 +303,13 @@ export default function History({
                 <Icon name="search" />
               </IconButton>
               <div className="dialog-header-actions history-bulk-actions">
-                <input
+                <SelectionCheckbox
                   className="history-select"
-                  type="checkbox"
                   aria-label={copy.selectAllTransfers}
                   checked={allSelected}
                   disabled={!visibleItems.length || removing}
-                  ref={(el) => {
-                    if (el)
-                      el.indeterminate =
-                        selectedItems.length > 0 && !allSelected;
-                  }}
-                  onChange={() =>
-                    setSelection(
-                      allSelected
-                        ? new Set()
-                        : new Set(visibleItems.map((t) => t.id)),
-                    )
-                  }
+                  indeterminate={selectedItems.length > 0 && !allSelected}
+                  onChange={toggleAll}
                 />
                 <DeleteButton
                   label={copy.deleteSelectedTransfers}
@@ -354,7 +320,7 @@ export default function History({
                     setError("");
                     try {
                       await onRemoveHistory(selectedItems.map((t) => t.id));
-                      setSelection(new Set());
+                      clear();
                     } catch (e) {
                       setError(e.message);
                     } finally {

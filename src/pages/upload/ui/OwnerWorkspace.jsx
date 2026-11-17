@@ -1,3 +1,4 @@
+import { createTransferCommands } from "#src/features/manage-transfer/commands.js";
 import { UploadMenu } from "./UploadMenu.jsx";
 import {
   CurrentTransferActions,
@@ -22,6 +23,11 @@ const TransferSettings = lazy(
 const TextViewer = lazy(() => import("#src/widgets/file-viewer/text.js"));
 import History from "#src/widgets/history/index.js";
 export function OwnerView(p) {
+  const commands = createTransferCommands({
+    rename: p.rename,
+    removeFiles: p.removeFiles,
+    api: p.settingsApi,
+  });
   const [draft, setDraft] = useState(null),
     [folders, setFolders] = useState(null),
     [config, setConfig] = useState(null),
@@ -230,7 +236,7 @@ export function OwnerView(p) {
                 onDelete={p.remove}
                 onSettings={setConfig}
                 onEdit={editText}
-                settingsApi={p.settingsApi}
+                onPublish={commands.setPublished}
               />
             </>
           ) : preparing ? (
@@ -258,10 +264,11 @@ export function OwnerView(p) {
             <CurrentTransferDetails
               transfer={latest}
               renaming={p.renaming}
-              onRename={p.rename}
-              onRemoveFiles={p.removeFiles}
+              onRenameTitle={commands.renameTitle}
+              onRenameFile={commands.renameFile}
+              onGenerateTitle={commands.suggestTitle}
+              onRemoveFiles={commands.removeFiles}
               onPreview={(record, index) => setViewing({ record, index })}
-              settingsApi={p.settingsApi}
             />
           )}
           {(p.error || latest?.appendError) &&
@@ -342,39 +349,18 @@ export function OwnerView(p) {
           suspended={!!config}
           onClose={() => setHistoryOpen(false)}
           onDelete={p.remove}
-          onRemoveFiles={p.removeFiles}
+          onRemoveFiles={commands.removeFiles}
           onRemoveHistory={p.removeHistory}
           onEdit={editText}
           renaming={p.renaming}
-          onRenameFile={(record, index, value) =>
-            p.rename(record, {
-              names: record.files.map((file, i) =>
-                i === index ? value : file.name,
-              ),
-            })
-          }
-          onRenameTitle={(record, value) => p.rename(record, { title: value })}
-          onGenerateTitle={(record, current) =>
-            p
-              .settingsApi(
-                "/api/transfers/" +
-                  record.id +
-                  "/title-suggestion?current=" +
-                  encodeURIComponent(current),
-              )
-              .then((result) => result.title)
-          }
+          onRenameFile={commands.renameFile}
+          onRenameTitle={commands.renameTitle}
+          onGenerateTitle={commands.suggestTitle}
           onView={(record, index) => setViewing({ record, index })}
           uploading={!!p.upload || p.preparingUpload}
           onOpen={(item) => p.setSelected(item.id)}
           onSettings={(item) => setConfig(item.id)}
-          onPublish={(item, published) =>
-            p.settingsApi(
-              "/api/transfers/" + item.id + "/settings",
-              { published },
-              "PATCH",
-            )
-          }
+          onPublish={commands.setPublished}
           onAdd={(id) => {
             appendTarget.current = id;
             input.current.click();

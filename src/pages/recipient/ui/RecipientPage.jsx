@@ -1,3 +1,4 @@
+import { useSelection } from "#src/shared/lib/useSelection.js";
 import { IconButton } from "#src/shared/ui/IconButton.jsx";
 import { copy } from "#common/copy.js";
 import { ErrorNotice, ErrorPage } from "#src/shared/ui/Errors.jsx";
@@ -23,13 +24,15 @@ export function Recipient({ token, api }) {
     [password, setPassword] = useState(""),
     [error, setError] = useState("");
   const [viewer, setViewer] = useState(null),
-    [blocked, setBlocked] = useState(new Set()),
-    [fileSelection, setFileSelection] = useState(new Set());
+    [blocked, setBlocked] = useState(new Set());
   const automatic = useRef(false);
   const composition = JSON.stringify([
     info?.etag,
     info?.files?.map((f) => [f.name, f.size]),
   ]);
+  const { selection: fileSelection, toggle: toggleFile } = useSelection({
+    resetKey: composition,
+  });
   const requestVersion = useRef(0);
   const [textUnavailable, setTextUnavailable] = useState(false);
   useEffect(() => setTextUnavailable(false), [token, info?.etag, info?.name]);
@@ -87,7 +90,6 @@ export function Recipient({ token, api }) {
   }, [load]);
   useEffect(() => {
     setBlocked(new Set());
-    setFileSelection(new Set());
   }, [composition]);
   useEffect(() => {
     setViewer(null);
@@ -271,13 +273,7 @@ export function Recipient({ token, api }) {
                     selection={
                       info.files.length > 1 ? fileSelection : undefined
                     }
-                    onToggle={(i) =>
-                      setFileSelection((previous) => {
-                        const next = new Set(previous);
-                        next.has(i) ? next.delete(i) : next.add(i);
-                        return next;
-                      })
-                    }
+                    onToggle={toggleFile}
                     downloadPath={(i) =>
                       "/public/" + token + "/files/" + i + "/download"
                     }

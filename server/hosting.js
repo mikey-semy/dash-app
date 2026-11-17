@@ -1,5 +1,5 @@
 import { statusPage, statusIcons } from "./status-page.js";
-import { copy } from "../shared/copy.js";
+import { copy } from "#common/copy.js";
 import { domainToASCII } from "node:url";
 import { Resolver } from "node:dns/promises";
 import { isIP } from "node:net";

@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { UI, LANGUAGE } from "../shared/config.js";
+import { UI, LANGUAGE } from "#common/config.js";
 
 const styles =
   readFileSync(new URL("../src/styles/tokens.css", import.meta.url), "utf8") +

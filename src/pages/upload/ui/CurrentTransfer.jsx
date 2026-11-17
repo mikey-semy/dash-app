@@ -1,11 +1,10 @@
-import React from "react";
-import { copy } from "../../../../shared/copy.js";
-import { AnimatedDetails } from "../../../shared/ui/Disclosure.jsx";
-import EditableName from "../../../shared/ui/EditableName.jsx";
-import { Icon } from "../../../shared/ui/Icons.jsx";
-import { FileList } from "../../../entities/transfer/index.js";
-import { bytes, date } from "../../../shared/lib/format.js";
-import { TransferActions as Share } from "../../../features/manage-transfer/actions.js";
+import { copy } from "#common/copy.js";
+import { AnimatedDetails } from "#src/shared/ui/Disclosure.jsx";
+import EditableName from "#src/shared/ui/EditableName.jsx";
+import { Icon } from "#src/shared/ui/Icons.jsx";
+import { FileList } from "#src/entities/transfer/index.js";
+import { bytes, date } from "#src/shared/lib/format.js";
+import { TransferActions as Share } from "#src/features/manage-transfer/actions.js";
 export function CurrentTransferActions({
   transfer,
   opening,

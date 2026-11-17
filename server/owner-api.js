@@ -1,10 +1,10 @@
 import express from "express";
-import { copy } from "../shared/copy.js";
+import { copy } from "#common/copy.js";
 import {
   DEFAULT_RETENTION,
   RETENTION_SECONDS,
   PIN_PATTERN,
-} from "../shared/config.js";
+} from "#common/config.js";
 import { hash, revision } from "./core.js";
 import { mediaType } from "./media.js";
 import { fileTextCandidate, textCandidate } from "./text.js";

@@ -3,14 +3,18 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "imports": {
+    "#src/*": "./src/*",
+    "#common/*": "./shared/*"
+  },
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
     "start": "node server/main.js",
     "test": "node --test test/*.test.js",
     "lint": "node tooling/check-architecture.mjs",
-    "format": "prettier --write \"src/**/*.{js,jsx,css,json}\" \"server/**/*.js\" \"shared/*.js\" \"tooling/*.mjs\" \"test/**/*.js\" \"vite.config.js\" \"*.md\" \"deploy/*.md\"",
-    "format:check": "prettier --check \"src/**/*.{js,jsx,css,json}\" \"server/**/*.js\" \"shared/*.js\" \"tooling/*.mjs\" \"test/**/*.js\" \"vite.config.js\" \"*.md\" \"deploy/*.md\""
+    "format": "prettier --write \"src/**/*.{js,jsx,css,json}\" \"server/**/*.js\" \"shared/*.js\" \"tooling/*.mjs\" \"test/**/*.js\" \"vite.config.js\" \"jsconfig.json\" \"package.json\" \"*.md\" \"deploy/*.md\"",
+    "format:check": "prettier --check \"src/**/*.{js,jsx,css,json}\" \"server/**/*.js\" \"shared/*.js\" \"tooling/*.mjs\" \"test/**/*.js\" \"vite.config.js\" \"jsconfig.json\" \"package.json\" \"*.md\" \"deploy/*.md\""
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.0.0",
@@ -47,6 +51,7 @@
   },
   "devDependencies": {
     "@babel/parser": "^8.1.2",
+    "@babel/traverse": "^8.1.2",
     "@playwright/test": "^1.65.1",
     "@vitejs/plugin-react": "^4.3.4",
     "fflate": "^0.8.2",

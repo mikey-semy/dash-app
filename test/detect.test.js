@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { detect } from "../src/shared/lib/code/detect.js";
+import { detect } from "#src/shared/lib/code/detect.js";
 test("automatic language identification uses filename, shebang, JSON and a plain-text fallback", () => {
   for (const [name, code, language] of [
     ["example.py", 'print("Привет")', "Python"],

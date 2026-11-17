@@ -1,9 +1,8 @@
-import React from "react";
-import { copy } from "../../../../shared/copy.js";
-import { FileList } from "../../../entities/transfer/index.js";
-import { IconButton } from "../../../shared/ui/IconButton.jsx";
-import { Icon } from "../../../shared/ui/Icons.jsx";
-import { bytes } from "../../../shared/lib/format.js";
+import { copy } from "#common/copy.js";
+import { FileList } from "#src/entities/transfer/index.js";
+import { IconButton } from "#src/shared/ui/IconButton.jsx";
+import { Icon } from "#src/shared/ui/Icons.jsx";
+import { bytes } from "#src/shared/lib/format.js";
 export function UploadProgress({
   upload,
   elapsed,

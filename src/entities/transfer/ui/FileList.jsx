@@ -1,9 +1,9 @@
-import { IconButton } from "../../../shared/ui/IconButton.jsx";
-import React from "react";
-import { copy } from "../../../../shared/copy.js";
-import EditableName from "../../../shared/ui/EditableName.jsx";
-import { Icon, DeleteButton } from "../../../shared/ui/Icons.jsx";
-import { bytes } from "../../../shared/lib/format.js";
+import { IconButton } from "#src/shared/ui/IconButton.jsx";
+
+import { copy } from "#common/copy.js";
+import EditableName from "#src/shared/ui/EditableName.jsx";
+import { Icon, DeleteButton } from "#src/shared/ui/Icons.jsx";
+import { bytes } from "#src/shared/lib/format.js";
 export function FileList({
   files,
   selection,

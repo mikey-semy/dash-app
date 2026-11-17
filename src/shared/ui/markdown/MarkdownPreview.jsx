@@ -1,5 +1,5 @@
-import { copy } from "../../../../shared/copy.js";
-import React, { lazy, Suspense } from "react";
+import { copy } from "#common/copy.js";
+import { lazy, Suspense } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";

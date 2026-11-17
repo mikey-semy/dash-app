@@ -1,8 +1,8 @@
-import { IconButton } from "../../../shared/ui/IconButton.jsx";
-import { copy } from "../../../../shared/copy.js";
-import React, { useState } from "react";
-import { Icon } from "../../../shared/ui/Icons.jsx";
-import { ErrorNotice } from "../../../shared/ui/Errors.jsx";
+import { IconButton } from "#src/shared/ui/IconButton.jsx";
+import { copy } from "#common/copy.js";
+import { useState } from "react";
+import { Icon } from "#src/shared/ui/Icons.jsx";
+import { ErrorNotice } from "#src/shared/ui/Errors.jsx";
 export default function PublicationButton({
   published,
   onToggle,

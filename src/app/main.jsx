@@ -1,11 +1,10 @@
-import React from "react";
 import { createRoot } from "react-dom/client";
-import api from "../shared/api/client.js";
-import { ErrorPage, ErrorBoundary } from "../shared/ui/Errors.jsx";
-import { Recipient } from "../pages/recipient/index.js";
-import { installFocusIndicators } from "../shared/lib/focus.js";
-import { UploadPage } from "../pages/upload/index.js";
-import "../styles/index.css";
+import api from "#src/shared/api/client.js";
+import { ErrorPage, ErrorBoundary } from "#src/shared/ui/Errors.jsx";
+import { Recipient } from "#src/pages/recipient/index.js";
+import { installFocusIndicators } from "#src/shared/lib/focus.js";
+import { UploadPage } from "#src/pages/upload/index.js";
+import "#src/styles/index.css";
 
 installFocusIndicators(document);
 

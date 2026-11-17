@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "jsx": "react-jsx",
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "paths": {
+      "#src/*": ["./src/*"],
+      "#common/*": ["./shared/*"]
+    }
+  },
+  "include": [
+    "src",
+    "shared",
+    "server",
+    "test",
+    "tooling",
+    "vite.config.js",
+    "playwright.config.js"
+  ],
+  "exclude": ["node_modules", "dist", "work", "outputs", "test-results"]
+}

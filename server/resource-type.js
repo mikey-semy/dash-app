@@ -1,5 +1,5 @@
 import mime from "mime-types";
-import { resourceName } from "../shared/resource-name.js";
+import { resourceName } from "#common/resource-name.js";
 export { resourceName };
 export function resourceType(name, destination = "") {
   const clean = resourceName(name),

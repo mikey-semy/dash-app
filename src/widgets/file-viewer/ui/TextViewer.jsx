@@ -1,7 +1,7 @@
-import { Modal } from "../../../shared/ui/Modal.jsx";
-import { copy } from "../../../../shared/copy.js";
-import React from "react";
-import { Expiry } from "../../../entities/transfer/index.js";
+import { Modal } from "#src/shared/ui/Modal.jsx";
+import { copy } from "#common/copy.js";
+
+import { Expiry } from "#src/entities/transfer/index.js";
 import TextPreview from "./TextPreview.jsx";
 export default function TextViewer({
   token,

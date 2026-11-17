@@ -14,7 +14,7 @@ test("FSD enforces downward dependencies and public slice entry points", () => {
   assert.equal(
     importViolation(
       "src/pages/upload/ui/Page.jsx",
-      "../../../features/upload-files/index.js",
+      "#src/features/upload-files/index.js",
     ),
     null,
   );
@@ -47,14 +47,66 @@ test("FSD enforces downward dependencies and public slice entry points", () => {
     importViolation(
       "src/shared/ui/code-editor/Editor.jsx",
       "../../lib/code/detect.worker.js",
+      { resource: true },
     ),
     null,
   );
   assert.equal(
+    importViolation("src/pages/upload/ui/Page.jsx", "#common/copy.js"),
+    null,
+  );
+});
+
+test("aliases preserve FSD boundaries and local import rules", () => {
+  assert.match(
+    importViolation(
+      "src/entities/transfer/ui/List.jsx",
+      "#src/pages/upload/index.js",
+    ),
+    /lower layer/,
+  );
+  assert.match(
+    importViolation(
+      "src/widgets/history/ui/History.jsx",
+      "#src/widgets/file-viewer/text.js",
+    ),
+    /same layer/,
+  );
+  assert.match(
     importViolation(
       "src/pages/upload/ui/Page.jsx",
-      "../../../../shared/copy.js",
+      "#src/features/upload-files/model/transport.js",
     ),
-    null,
+    /public entry point/,
+  );
+  assert.match(
+    importViolation("shared/config.js", "#src/shared/api/client.js"),
+    /independent/,
+  );
+  assert.match(
+    importViolation(
+      "src/pages/upload/ui/Page.jsx",
+      "../../../features/upload-files/index.js",
+    ),
+    /project alias/,
+  );
+  assert.match(
+    importViolation(
+      "src/pages/upload/ui/Page.jsx",
+      "#src/pages/upload/model/useFileIntake.js",
+    ),
+    /relative imports/,
+  );
+  assert.match(
+    importViolation("src/app/main.jsx", "#unknown/module.js"),
+    /Unknown/,
+  );
+  assert.match(
+    importViolation(
+      "src/shared/ui/code-editor/Editor.jsx",
+      "#src/shared/lib/code/detect.worker.js",
+      { resource: true },
+    ),
+    /Resource URLs/,
   );
 });

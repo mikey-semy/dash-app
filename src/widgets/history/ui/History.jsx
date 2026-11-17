@@ -1,15 +1,15 @@
-import { Modal } from "../../../shared/ui/Modal.jsx";
-import { IconButton } from "../../../shared/ui/IconButton.jsx";
-import React, { useEffect, useRef, useState } from "react";
-import { copy } from "../../../../shared/copy.js";
-import { ErrorNotice } from "../../../shared/ui/Errors.jsx";
-import { Disclosure } from "../../../shared/ui/Disclosure.jsx";
-import { Icon, DeleteButton } from "../../../shared/ui/Icons.jsx";
-import { Expiry, FileList } from "../../../entities/transfer/index.js";
-import { TransferActions as Share } from "../../../features/manage-transfer/actions.js";
-import EditableName from "../../../shared/ui/EditableName.jsx";
-import PublicationButton from "../../../features/manage-transfer/publication.js";
-import { bytes, date } from "../../../shared/lib/format.js";
+import { Modal } from "#src/shared/ui/Modal.jsx";
+import { IconButton } from "#src/shared/ui/IconButton.jsx";
+import { useEffect, useRef, useState } from "react";
+import { copy } from "#common/copy.js";
+import { ErrorNotice } from "#src/shared/ui/Errors.jsx";
+import { Disclosure } from "#src/shared/ui/Disclosure.jsx";
+import { Icon, DeleteButton } from "#src/shared/ui/Icons.jsx";
+import { Expiry, FileList } from "#src/entities/transfer/index.js";
+import { TransferActions as Share } from "#src/features/manage-transfer/actions.js";
+import EditableName from "#src/shared/ui/EditableName.jsx";
+import PublicationButton from "#src/features/manage-transfer/publication.js";
+import { bytes, date } from "#src/shared/lib/format.js";
 const states = {
   uploading: copy.upload,
   queued: copy.queued,

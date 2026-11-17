@@ -1,5 +1,4 @@
-import React from "react";
-import hljs from "../../lib/code/highlight.js";
+import hljs from "#src/shared/lib/code/highlight.js";
 export default function MarkdownCode({ source, className }) {
   const language = /\blanguage-([^\s]+)/.exec(className)?.[1];
   if (language && hljs.getLanguage(language)) {

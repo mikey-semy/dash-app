@@ -16,6 +16,8 @@
 - `src/entities/transfer/`: reusable transfer presentation and retention policy presentation.
 - `src/shared/`: generic UI, client API and utilities; no dependency on product screens or actions.
 - Follow FSD dependency direction: app → pages → widgets → features → entities → shared. Different slices on the same layer must not import each other. Import other slices through their root public entry points; use local implementation imports inside a slice. Keep lazy entry points separate when necessary.
+- Use native `#src/` and `#common/` aliases across client slices/shared segments and for root shared policy. Keep relative module imports inside a slice or shared segment. Keep resource URLs such as Worker `new URL(..., import.meta.url)` relative. Alias mappings in `package.json` drive Node and Vite; keep editor paths in `jsconfig.json` aligned.
+- JSX uses the automatic runtime: import named React APIs only when used. The architecture check rejects unused imports, including imports used only by shadowed names.
 - `src/styles/`: design tokens and styles grouped by responsibility. Preserve documented cascade order.
 - `server/`: storage, HTTP and domain services. Keep authorization and transfer validity checks on the server.
 - Keep component state and local variables next to their owner. Only shared configuration belongs in shared modules.

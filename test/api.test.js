@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createApi } from "../src/shared/api/client.js";
+import { createApi } from "#src/shared/api/client.js";
 const json = (status, value) =>
   new Response(JSON.stringify(value), {
     status,

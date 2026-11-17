@@ -1,4 +1,4 @@
-import { copy } from "../shared/copy.js";
+import { copy } from "#common/copy.js";
 import { DatabaseSync } from "node:sqlite";
 import {
   randomBytes,
@@ -14,7 +14,7 @@ import {
   MAX_FILES,
   RETENTION_SECONDS,
   TIME_ZONE,
-} from "../shared/config.js";
+} from "#common/config.js";
 export { PART, LIMIT, QUOTA };
 export const revision = (t) =>
   createHash("sha256")

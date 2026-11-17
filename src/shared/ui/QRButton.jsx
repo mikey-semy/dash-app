@@ -1,6 +1,6 @@
 import { IconButton } from "./IconButton.jsx";
-import { copy } from "../../../shared/copy.js";
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { copy } from "#common/copy.js";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import QRCode from "qrcode";
 import { Icon } from "./Icons.jsx";

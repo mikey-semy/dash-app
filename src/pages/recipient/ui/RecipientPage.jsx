@@ -1,10 +1,10 @@
-import { IconButton } from "../../../shared/ui/IconButton.jsx";
-import { copy } from "../../../../shared/copy.js";
-import { ErrorNotice, ErrorPage } from "../../../shared/ui/Errors.jsx";
-import { AnimatedDetails } from "../../../shared/ui/Disclosure.jsx";
-import { Icon } from "../../../shared/ui/Icons.jsx";
-import { PasswordInput } from "../../../shared/ui/PasswordInput.jsx";
-import React, {
+import { IconButton } from "#src/shared/ui/IconButton.jsx";
+import { copy } from "#common/copy.js";
+import { ErrorNotice, ErrorPage } from "#src/shared/ui/Errors.jsx";
+import { AnimatedDetails } from "#src/shared/ui/Disclosure.jsx";
+import { Icon } from "#src/shared/ui/Icons.jsx";
+import { PasswordInput } from "#src/shared/ui/PasswordInput.jsx";
+import {
   lazy,
   Suspense,
   useCallback,
@@ -12,12 +12,12 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Expiry, FileList } from "../../../entities/transfer/index.js";
-import { RecipientShare } from "../../../features/share-transfer/index.js";
-import { bytes, date } from "../../../shared/lib/format.js";
-const DemoView = lazy(() => import("../../../widgets/file-viewer/demo.js"));
-const MediaViewer = lazy(() => import("../../../widgets/file-viewer/media.js"));
-const TextViewer = lazy(() => import("../../../widgets/file-viewer/text.js"));
+import { Expiry, FileList } from "#src/entities/transfer/index.js";
+import { RecipientShare } from "#src/features/share-transfer/index.js";
+import { bytes, date } from "#src/shared/lib/format.js";
+const DemoView = lazy(() => import("#src/widgets/file-viewer/demo.js"));
+const MediaViewer = lazy(() => import("#src/widgets/file-viewer/media.js"));
+const TextViewer = lazy(() => import("#src/widgets/file-viewer/text.js"));
 export function Recipient({ token, api }) {
   const [info, setInfo] = useState(null),
     [password, setPassword] = useState(""),

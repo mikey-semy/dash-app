@@ -3,6 +3,7 @@ import path from "node:path";
 import { parse } from "@babel/parser";
 import postcss from "postcss";
 import { importViolation } from "./fsd.mjs";
+import { unusedImports } from "./unused-imports.mjs";
 
 const failures = [];
 const files = async (directory) =>
@@ -33,6 +34,8 @@ for (const directory of ["src", "server", "shared"]) {
     if (!/\.(js|jsx)$/.test(file)) continue;
     const source = await readFile(file, "utf8");
     const ast = parse(source, { sourceType: "module", plugins: ["jsx"] });
+    for (const identifier of unusedImports(ast))
+      fail(file, identifier, `Unused import ${identifier.name}.`);
     walk(ast, (node) => {
       if (
         file !== path.join("src", "shared", "ui", "Modal.jsx") &&
@@ -57,7 +60,9 @@ for (const directory of ["src", "server", "shared"]) {
           ? node.arguments[0]
           : null;
       if (dependency?.type === "StringLiteral") {
-        const violation = importViolation(file, dependency.value);
+        const violation = importViolation(file, dependency.value, {
+          resource: node.type === "NewExpression",
+        });
         if (violation) fail(file, node, violation);
       }
       if (node.type === "StringLiteral" && /[А-Яа-яЁё]/.test(node.value))
@@ -98,18 +103,22 @@ for (const directory of ["src", "server", "shared"]) {
         !file.endsWith("IconButton.jsx")
       )
         fail(file, node, "Use the shared IconButton component.");
-      if (
-        node.type === "ImportDeclaration" &&
-        directory === "shared" &&
-        /(?:src|server)\//.test(node.source.value)
-      )
-        fail(
-          file,
-          node,
-          "Shared policy must stay independent of client and server implementations.",
-        );
     });
   }
+}
+for (const file of [
+  ...(await files("test")),
+  ...(await files("tooling")),
+  "vite.config.js",
+  "playwright.config.js",
+]) {
+  if (!/\.(js|jsx|mjs)$/.test(file)) continue;
+  const ast = parse(await readFile(file, "utf8"), {
+    sourceType: "module",
+    plugins: ["jsx"],
+  });
+  for (const identifier of unusedImports(ast))
+    fail(file, identifier, `Unused import ${identifier.name}.`);
 }
 const cssFiles = (await files("src/styles")).filter((file) =>
   file.endsWith(".css"),
@@ -162,5 +171,5 @@ if (failures.length) {
   process.exitCode = 1;
 } else
   console.log(
-    "Architecture checks passed: English copy, shared controls, dependency boundaries and design tokens.",
+    "Architecture checks passed: imports, FSD boundaries, English copy, shared controls and design tokens.",
   );

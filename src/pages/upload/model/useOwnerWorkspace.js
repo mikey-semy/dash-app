@@ -4,16 +4,16 @@ import {
   RETENTION_SECONDS,
   MAX_FILES,
   LIMIT,
-} from "../../../../shared/config.js";
-import { copy } from "../../../../shared/copy.js";
-import api from "../../../shared/api/client.js";
+} from "#common/config.js";
+import { copy } from "#common/copy.js";
+import api from "#src/shared/api/client.js";
 import {
   rememberUpload,
   recoverUpload,
   forgetUpload,
   matchUpload,
   createUploadTransport,
-} from "../../../features/upload-files/index.js";
+} from "#src/features/upload-files/index.js";
 
 export function useOwnerWorkspace() {
   const [logged, setLogged] = useState(false),

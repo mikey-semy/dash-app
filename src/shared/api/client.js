@@ -1,4 +1,4 @@
-import { copy, formatCopy } from "../../../shared/copy.js";
+import { copy, formatCopy } from "#common/copy.js";
 const unavailable = copy.couldNotConnectToTheServerTryAgain;
 export function createApi({
   fetch: send = (...args) => globalThis.fetch(...args),

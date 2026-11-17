@@ -1,6 +1,6 @@
-import { copy } from "../../../../shared/copy.js";
-import { ErrorNotice, ErrorPage } from "../../../shared/ui/Errors.jsx";
-import React, {
+import { copy } from "#common/copy.js";
+import { ErrorNotice, ErrorPage } from "#src/shared/ui/Errors.jsx";
+import {
   lazy,
   Suspense,
   useEffect,
@@ -8,7 +8,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Icon } from "../../../shared/ui/Icons.jsx";
+import { Icon } from "#src/shared/ui/Icons.jsx";
 const TextPreview = lazy(() => import("./TextPreview.jsx"));
 const hashIndex = () => {
   const match = location.hash.match(/^#file=(\d+)$/);

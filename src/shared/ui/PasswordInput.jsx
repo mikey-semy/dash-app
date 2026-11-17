@@ -1,6 +1,6 @@
 import { IconButton } from "./IconButton.jsx";
-import { copy } from "../../../shared/copy.js";
-import React, { useState } from "react";
+import { copy } from "#common/copy.js";
+import { useState } from "react";
 import { Icon } from "./Icons.jsx";
 export function PasswordInput({
   label = copy.password,

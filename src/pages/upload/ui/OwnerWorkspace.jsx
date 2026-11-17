@@ -6,25 +6,21 @@ import {
 import { UploadProgress } from "./UploadProgress.jsx";
 import { DropZones } from "./DropZones.jsx";
 import { useFileIntake } from "../model/useFileIntake.js";
-import { IconButton } from "../../../shared/ui/IconButton.jsx";
-import { copy } from "../../../../shared/copy.js";
-import { ErrorNotice, connectionError } from "../../../shared/ui/Errors.jsx";
-import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
-import { captureFiles } from "../../../features/upload-files/index.js";
-const FolderUpload = lazy(
-  () => import("../../../features/upload-files/review.js"),
-);
-import { Icon } from "../../../shared/ui/Icons.jsx";
-import { Expiry } from "../../../entities/transfer/index.js";
-const TextComposer = lazy(
-  () => import("../../../features/compose-text/index.js"),
-);
-const MediaViewer = lazy(() => import("../../../widgets/file-viewer/media.js"));
+import { IconButton } from "#src/shared/ui/IconButton.jsx";
+import { copy } from "#common/copy.js";
+import { ErrorNotice, connectionError } from "#src/shared/ui/Errors.jsx";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { captureFiles } from "#src/features/upload-files/index.js";
+const FolderUpload = lazy(() => import("#src/features/upload-files/review.js"));
+import { Icon } from "#src/shared/ui/Icons.jsx";
+import { Expiry } from "#src/entities/transfer/index.js";
+const TextComposer = lazy(() => import("#src/features/compose-text/index.js"));
+const MediaViewer = lazy(() => import("#src/widgets/file-viewer/media.js"));
 const TransferSettings = lazy(
-  () => import("../../../features/manage-transfer/index.js"),
+  () => import("#src/features/manage-transfer/index.js"),
 );
-const TextViewer = lazy(() => import("../../../widgets/file-viewer/text.js"));
-import History from "../../../widgets/history/index.js";
+const TextViewer = lazy(() => import("#src/widgets/file-viewer/text.js"));
+import History from "#src/widgets/history/index.js";
 export function OwnerView(p) {
   const [draft, setDraft] = useState(null),
     [folders, setFolders] = useState(null),

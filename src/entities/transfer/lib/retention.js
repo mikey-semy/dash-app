@@ -1,4 +1,4 @@
-import { copy } from "../../../../shared/copy.js";
+import { copy } from "#common/copy.js";
 
 export const durations = Object.freeze([
   [3600, "1", copy.hourUnit, copy.retention1Hour],

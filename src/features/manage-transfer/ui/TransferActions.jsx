@@ -1,8 +1,8 @@
-import { IconButton } from "../../../shared/ui/IconButton.jsx";
-import React from "react";
-import { copy } from "../../../../shared/copy.js";
-import { Icon, CopyButton, DeleteButton } from "../../../shared/ui/Icons.jsx";
-import QRButton from "../../../shared/ui/QRButton.jsx";
+import { IconButton } from "#src/shared/ui/IconButton.jsx";
+
+import { copy } from "#common/copy.js";
+import { Icon, CopyButton, DeleteButton } from "#src/shared/ui/Icons.jsx";
+import QRButton from "#src/shared/ui/QRButton.jsx";
 import PublicationButton from "./PublicationButton.jsx";
 export function TransferActions({
   url,

@@ -6,6 +6,7 @@ import { copy } from "./shared/copy.js";
 import { LANGUAGE } from "./shared/config.js";
 import { manifest } from "./shared/manifest.js";
 import { readFileSync } from "node:fs";
+import { aliases } from "./tooling/imports.mjs";
 const themeColor = readFileSync(
   new URL("./src/styles/tokens.css", import.meta.url),
   "utf8",
@@ -21,6 +22,7 @@ export default defineConfig({
   // The DOM-free export also works in the language detector's Web Worker.
   resolve: {
     alias: {
+      ...aliases,
       "decode-named-character-reference": fileURLToPath(
         new URL(
           "./node_modules/decode-named-character-reference/index.js",
@@ -30,7 +32,7 @@ export default defineConfig({
     },
   },
   plugins: [
-    react(),
+    react({ jsxRuntime: "automatic" }),
     {
       name: "du-metadata",
       transformIndexHtml: (html) =>

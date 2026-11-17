@@ -1,6 +1,6 @@
-import { TEXT_LIMIT } from "../shared/config.js";
+import { TEXT_LIMIT } from "#common/config.js";
 import { statusPage, statusIcons } from "./status-page.js";
-import { copy } from "../shared/copy.js";
+import { copy } from "#common/copy.js";
 import { siteEntry, sitePublished } from "./site-policy.js";
 import { resourceType } from "./resource-type.js";
 import { createHmac, createHash, randomBytes } from "node:crypto";

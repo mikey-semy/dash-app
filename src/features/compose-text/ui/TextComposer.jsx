@@ -1,14 +1,14 @@
-import { Modal } from "../../../shared/ui/Modal.jsx";
-import { IconButton } from "../../../shared/ui/IconButton.jsx";
-import { copy } from "../../../../shared/copy.js";
-import { ErrorNotice } from "../../../shared/ui/Errors.jsx";
-import React, { lazy, Suspense, useState } from "react";
-import { Icon } from "../../../shared/ui/Icons.jsx";
-import languages from "../../../../shared/text-languages.json";
+import { Modal } from "#src/shared/ui/Modal.jsx";
+import { IconButton } from "#src/shared/ui/IconButton.jsx";
+import { copy } from "#common/copy.js";
+import { ErrorNotice } from "#src/shared/ui/Errors.jsx";
+import { lazy, Suspense, useState } from "react";
+import { Icon } from "#src/shared/ui/Icons.jsx";
+import languages from "#common/text-languages.json";
 const CodeEditor = lazy(
-  () => import("../../../shared/ui/code-editor/CodeEditor.jsx"),
+  () => import("#src/shared/ui/code-editor/CodeEditor.jsx"),
 );
-import { TEXT_LIMIT } from "../../../../shared/config.js";
+import { TEXT_LIMIT } from "#common/config.js";
 export { TEXT_LIMIT };
 export default function TextComposer({
   initial = "",

@@ -1,4 +1,4 @@
-import React, { forwardRef } from "react";
+import { forwardRef } from "react";
 
 export const IconButton = forwardRef(function IconButton(
   { className = "", type = "button", ...props },

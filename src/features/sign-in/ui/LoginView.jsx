@@ -1,6 +1,6 @@
-import React, { useState } from "react";
-import { PIN_DIGITS } from "../../../../shared/config.js";
-import { PasswordInput } from "../../../shared/ui/PasswordInput.jsx";
+import { useState } from "react";
+import { PIN_DIGITS } from "#common/config.js";
+import { PasswordInput } from "#src/shared/ui/PasswordInput.jsx";
 
 export function LoginView({ error, onChange, onSubmit }) {
   const [password, setPassword] = useState("");

@@ -1,7 +1,7 @@
 import { IconButton } from "./IconButton.jsx";
-import { UI, TIMING } from "../../../shared/config.js";
-import { copy } from "../../../shared/copy.js";
-import React, { useState, useEffect, useRef } from "react";
+import { UI, TIMING } from "#common/config.js";
+import { copy } from "#common/copy.js";
+import { useState, useEffect, useRef } from "react";
 import {
   Presentation,
   Globe,

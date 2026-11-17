@@ -1,5 +1,7 @@
 # Deployment
 
+`assets-cache/` retains hashed resources for the ten latest local DU images so already-open tabs can load lazy modules after a release. The release script populates and prunes this dedicated cache before switching containers; the app mounts it read-only. Keep it separate from transfer data and exclude it from source archives and Docker build contexts.
+
 The established GitHub Actions workflow builds and deploys the `holder` Compose service after checks pass. Runtime configuration is kept in the server `.env`; use `.env.example` as the complete neutral template.
 
 S3 configuration is shared infrastructure. Read existing CORS, lifecycle, policy and versioning settings before merging changes. Restrict this application's object access and multipart cleanup to its configured prefix; preserve other applications' rules and credentials. The JSON files in this directory are templates to review and merge, not replacement commands.

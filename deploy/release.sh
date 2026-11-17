@@ -42,6 +42,39 @@ fi
 if test -f compose.yaml; then cp compose.yaml compose.previous.yaml; fi
 cp "$release/compose.yaml" compose.yaml
 export FLASH_IMAGE="s3-flash-drive:$sha"
+# Keep complete hashed asset graphs for the ten most recent local builds.
+# An already-open browser may import one of their lazy modules after release.
+install -d -o 1000 -g 1000 -m 0755 assets-cache
+mapfile -t available_images < <(docker image ls s3-flash-drive --format '{{.Repository}}:{{.Tag}}')
+asset_images=()
+for asset_image in "${available_images[@]}"; do
+  if [[ "$asset_image" =~ ^s3-flash-drive:[0-9a-f]{40}$ ]] && (( ${#asset_images[@]} < 10 )); then
+    asset_images+=("$asset_image")
+  fi
+done
+asset_stage="$(mktemp -d /tmp/du-assets.XXXXXX)"
+[[ "$asset_stage" == /tmp/du-assets.* && -d "$asset_stage" ]] || exit 1
+asset_container=""
+cleanup_assets() {
+  if test -n "$asset_container"; then docker rm "$asset_container" >/dev/null 2>&1 || true; fi
+  rm -rf -- "$asset_stage"
+}
+trap cleanup_assets EXIT
+chmod 0755 "$asset_stage"
+for (( asset_index=${#asset_images[@]}-1; asset_index>=0; asset_index-- )); do
+  asset_image="${asset_images[$asset_index]}"
+  asset_container="$(docker create --network none --entrypoint true "$asset_image")"
+  docker cp "$asset_container:/app/dist/assets/." "$asset_stage/"
+  docker rm "$asset_container" >/dev/null
+  asset_container=""
+  docker run --rm --network none --read-only --user 1000:1000 \
+    -v "$asset_stage:/incoming:ro" -v "$PWD/assets-cache:/asset-cache" \
+    --entrypoint node "$FLASH_IMAGE" server/asset-cache.js /incoming /asset-cache "${asset_image#*:}"
+  # Only public build assets are staged; user data is never mounted here.
+  find "$asset_stage" -mindepth 1 -maxdepth 1 -type f -delete
+done
+cleanup_assets
+trap - EXIT
 docker compose -p holder up -d --no-build --wait --wait-timeout 90 flash || {
   systemctl stop holder-sites.service
   python3 sync-sites.py --disable

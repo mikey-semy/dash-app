@@ -1,4 +1,4 @@
-import { copy } from "../../../../shared/copy.js";
+import { copy } from "#common/copy.js";
 const key = "du.upload.v1";
 function database() {
   return new Promise((resolve, reject) => {

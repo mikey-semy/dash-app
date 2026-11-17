@@ -1,4 +1,4 @@
-import { copy } from "../shared/copy.js";
+import { copy } from "#common/copy.js";
 import { hash, verify, token } from "./core.js";
 
 export function installAuthentication(

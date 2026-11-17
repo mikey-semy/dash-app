@@ -1,8 +1,8 @@
-import { IconButton } from "../../../shared/ui/IconButton.jsx";
-import { copy } from "../../../../shared/copy.js";
-import React, { useState } from "react";
-import QRButton from "../../../shared/ui/QRButton.jsx";
-import { CopyButton, Icon } from "../../../shared/ui/Icons.jsx";
+import { IconButton } from "#src/shared/ui/IconButton.jsx";
+import { copy } from "#common/copy.js";
+import { useState } from "react";
+import QRButton from "#src/shared/ui/QRButton.jsx";
+import { CopyButton, Icon } from "#src/shared/ui/Icons.jsx";
 export function RecipientShare({ url }) {
   const [failed, setFailed] = useState(false);
   return (

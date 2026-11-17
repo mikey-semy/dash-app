@@ -12,6 +12,7 @@ services:
     volumes:
       - flash-data:/app/data
       - ./sites-export:/app/sites-export
+      - ./assets-cache:/app/assets-cache:ro
     networks:
       - proxy
     cpus: 1

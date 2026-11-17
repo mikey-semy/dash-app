@@ -1,5 +1,5 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { TIMING } from "../../../shared/config.js";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { TIMING } from "#common/config.js";
 
 export function Modal({
   children,

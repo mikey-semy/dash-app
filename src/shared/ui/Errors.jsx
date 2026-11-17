@@ -1,6 +1,6 @@
 import { IconButton } from "./IconButton.jsx";
-import { copy } from "../../../shared/copy.js";
-import React, { useEffect } from "react";
+import { copy } from "#common/copy.js";
+import { Component, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "./Icons.jsx";
 export const connectionError = (error) =>
@@ -75,7 +75,7 @@ export function ErrorPage({ error, status }) {
     </main>
   );
 }
-export class ErrorBoundary extends React.Component {
+export class ErrorBoundary extends Component {
   state = { error: null };
   static getDerivedStateFromError(error) {
     return { error };

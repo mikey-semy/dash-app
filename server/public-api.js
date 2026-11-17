@@ -1,4 +1,3 @@
-import { copy } from "../shared/copy.js";
 import { fileTextCandidate, textCandidate } from "./text.js";
 import { mediaType } from "./media.js";
 import { siteEntry, sitePublished } from "./site-policy.js";

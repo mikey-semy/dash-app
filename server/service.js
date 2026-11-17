@@ -1,4 +1,4 @@
-import { copy } from "../shared/copy.js";
+import { copy } from "#common/copy.js";
 import { ZipArchive } from "archiver";
 import { Parse } from "unzipper";
 import { Readable, PassThrough } from "node:stream";

@@ -1,4 +1,4 @@
-import { PIN_DIGITS } from "../../../shared/config.js";
+import { PIN_DIGITS } from "#common/config.js";
 
 export function generatePin() {
   const bytes = new Uint32Array(1),

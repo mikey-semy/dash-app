@@ -1,5 +1,5 @@
-import { copy } from "../../../shared/copy.js";
-import { LOCALE, TIME_ZONE } from "../../../shared/config.js";
+import { copy } from "#common/copy.js";
+import { LOCALE, TIME_ZONE } from "#common/config.js";
 
 const number = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 1 });
 export const bytes = (value) =>

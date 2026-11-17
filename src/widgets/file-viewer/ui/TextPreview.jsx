@@ -1,13 +1,13 @@
-import { IconButton } from "../../../shared/ui/IconButton.jsx";
-import { copy } from "../../../../shared/copy.js";
-import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
-import QRButton from "../../../shared/ui/QRButton.jsx";
-import { CopyButton, Icon } from "../../../shared/ui/Icons.jsx";
+import { IconButton } from "#src/shared/ui/IconButton.jsx";
+import { copy } from "#common/copy.js";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import QRButton from "#src/shared/ui/QRButton.jsx";
+import { CopyButton, Icon } from "#src/shared/ui/Icons.jsx";
 const CodeEditor = lazy(
-  () => import("../../../shared/ui/code-editor/CodeEditor.jsx"),
+  () => import("#src/shared/ui/code-editor/CodeEditor.jsx"),
 );
 const MarkdownPreview = lazy(
-  () => import("../../../shared/ui/markdown/MarkdownPreview.jsx"),
+  () => import("#src/shared/ui/markdown/MarkdownPreview.jsx"),
 );
 const markdownFile = (name) => /\.(?:md|markdown|mkd)$/i.test(name || "");
 export default function TextPreview({

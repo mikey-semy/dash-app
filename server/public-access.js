@@ -1,4 +1,4 @@
-import { copy } from "../shared/copy.js";
+import { copy } from "#common/copy.js";
 import { verify, token, archiveName, safeNames } from "./core.js";
 import { siteEntry } from "./site-policy.js";
 

@@ -1,10 +1,10 @@
-import { copy } from "../shared/copy.js";
-import { resourceName } from "../shared/resource-name.js";
-import languages from "../shared/text-languages.json" with { type: "json" };
+import { copy } from "#common/copy.js";
+import { resourceName } from "#common/resource-name.js";
+import languages from "#common/text-languages.json" with { type: "json" };
 import { mediaType } from "./media.js";
 import { archiveTextObject } from "./archive-text.js";
 import { TextDecoder } from "node:util";
-import { TEXT_LIMIT } from "../shared/config.js";
+import { TEXT_LIMIT } from "#common/config.js";
 export { TEXT_LIMIT };
 const extensions = new Set([
   ...languages.flatMap((language) =>

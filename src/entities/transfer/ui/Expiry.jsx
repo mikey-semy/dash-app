@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
-import { copy } from "../../../../shared/copy.js";
-import { date } from "../../../shared/lib/format.js";
+import { useState, useEffect } from "react";
+import { copy } from "#common/copy.js";
+import { date } from "#src/shared/lib/format.js";
 export function Expiry({
   value,
   oneTime = false,

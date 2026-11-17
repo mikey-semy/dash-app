@@ -1,7 +1,6 @@
-import React from "react";
-import { UI } from "../../../../shared/config.js";
-import { copy } from "../../../../shared/copy.js";
-import { Icon } from "../../../shared/ui/Icons.jsx";
+import { UI } from "#common/config.js";
+import { copy } from "#common/copy.js";
+import { Icon } from "#src/shared/ui/Icons.jsx";
 export function DropZones({ active, zone, canAppend }) {
   return active ? (
     <div className="drop-zones" aria-label={copy.whereToUploadFiles}>

@@ -32,6 +32,18 @@ The manage-transfer feature exposes separate `actions.js` and `publication.js` e
 
 The root `shared/` is environment-independent policy used by both server and client; it is distinct from client-only `src/shared/`. Resource name parsing and language metadata live there, so server code does not depend on client JavaScript. `src/styles/` remains the documented shared design system location and is imported globally only from app startup.
 
+## Import conventions
+
+`#src/` resolves to the client source root; `#common/` resolves to root `shared/`. The native package import mappings in `package.json` also drive Vite through `tooling/imports.mjs`; `jsconfig.json` supplies matching editor paths, checked by tests. Node tests and production server imports use these mappings without a loader. Keep explicit file extensions.
+
+Use aliases between FSD slices or shared segments, and relative imports inside the same slice/segment. Resource URLs are different from module specifiers: Worker URLs stay relative to `import.meta.url` so Vite can discover and build their separate bundle. FSD checks resolve aliases before validating layer direction and public entry points.
+
+JSX uses the automatic React runtime. Import named APIs such as `useState` or `Component` only where referenced. The lint command uses Babel scope bindings to reject unused imports in application code, server code, tooling and tests; JSX component references and re-exports count as uses, while shadowed names do not.
+
+## Release assets
+
+An open tab can request a lazy module from an earlier build after deployment. The release script seeds `assets-cache/` from the ten most recent local DU images before switching containers. Complete build manifests retain every hashed dependency and shared asset; pruning removes only unreferenced hashed files from this dedicated cache. The app serves current `dist` files first, then retained `/assets/` resources with their original MIME type and immutable caching. The cache is mounted read-only into the app; it contains no HTML entry pages, configuration or user files. Deployment helpers run without network access or user-data mounts.
+
 ## Identity
 
 Transfer ID and share token identify the transfer. Its editable title identifies it to a person. Filenames identify members within the transfer. Renaming one never implicitly renames another. A verified custom domain is a sharing address; the canonical DU URL remains available for management.

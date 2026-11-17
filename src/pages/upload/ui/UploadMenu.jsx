@@ -1,10 +1,10 @@
-import React, { forwardRef, useImperativeHandle, useRef } from "react";
-import { UI } from "../../../../shared/config.js";
-import { copy } from "../../../../shared/copy.js";
-import { AnimatedDetails } from "../../../shared/ui/Disclosure.jsx";
-import { IconButton } from "../../../shared/ui/IconButton.jsx";
-import { Icon } from "../../../shared/ui/Icons.jsx";
-import { durations } from "../../../entities/transfer/index.js";
+import { forwardRef, useImperativeHandle, useRef } from "react";
+import { UI } from "#common/config.js";
+import { copy } from "#common/copy.js";
+import { AnimatedDetails } from "#src/shared/ui/Disclosure.jsx";
+import { IconButton } from "#src/shared/ui/IconButton.jsx";
+import { Icon } from "#src/shared/ui/Icons.jsx";
+import { durations } from "#src/entities/transfer/index.js";
 import { useUploadPassword } from "../model/useUploadPassword.js";
 function Gear() {
   return <Icon name="settings" size={UI.settingsIconSize} />;

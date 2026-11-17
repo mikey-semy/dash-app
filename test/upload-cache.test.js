@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   fingerprint,
   matchUpload,
-} from "../src/features/upload-files/model/upload-cache.js";
+} from "#src/features/upload-files/model/upload-cache.js";
 test("resume checks every byte and matches duplicate filenames by content rather than selection order", async () => {
   const bytes = new Uint8Array(8 * 1024 * 1024 + 1).fill(7),
     changed = bytes.slice();

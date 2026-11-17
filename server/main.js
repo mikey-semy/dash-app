@@ -1,4 +1,4 @@
-import { PIN_PATTERN } from "../shared/config.js";
+import { PIN_PATTERN } from "#common/config.js";
 import { mkdirSync } from "node:fs";
 import { openDB } from "./core.js";
 import { Store } from "./s3.js";

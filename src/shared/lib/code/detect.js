@@ -2,8 +2,8 @@ import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
 import hljs from "./highlight.js";
-import { resourceName } from "../../../../shared/resource-name.js";
-import languages from "../../../../shared/text-languages.json" with { type: "json" };
+import { resourceName } from "#common/resource-name.js";
+import languages from "#common/text-languages.json" with { type: "json" };
 const subset = [...new Set(languages.map((l) => l.id))];
 const parser = unified().use(remarkParse).use(remarkGfm);
 function markdownEvidence(text) {

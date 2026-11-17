@@ -5,7 +5,7 @@ import {
   scanFolders,
   folderZip,
   defaultExcluded,
-} from "../src/features/upload-files/model/folders.js";
+} from "#src/features/upload-files/model/folders.js";
 const file = (name, text = "x") => ({
   name,
   isFile: true,

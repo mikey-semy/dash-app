@@ -1,14 +1,14 @@
-import { Modal } from "../../../shared/ui/Modal.jsx";
-import { TIMING } from "../../../../shared/config.js";
-import { IconButton } from "../../../shared/ui/IconButton.jsx";
-import { copy } from "../../../../shared/copy.js";
-import { ErrorNotice } from "../../../shared/ui/Errors.jsx";
-import React, { useEffect, useRef, useState } from "react";
-import { Icon } from "../../../shared/ui/Icons.jsx";
-import { Expiry } from "../../../entities/transfer/index.js";
+import { Modal } from "#src/shared/ui/Modal.jsx";
+import { TIMING } from "#common/config.js";
+import { IconButton } from "#src/shared/ui/IconButton.jsx";
+import { copy } from "#common/copy.js";
+import { ErrorNotice } from "#src/shared/ui/Errors.jsx";
+import { useEffect, useRef, useState } from "react";
+import { Icon } from "#src/shared/ui/Icons.jsx";
+import { Expiry } from "#src/entities/transfer/index.js";
 import PublicationButton from "./PublicationButton.jsx";
-import { durations } from "../../../entities/transfer/index.js";
-import { generatePin } from "../../../shared/lib/password.js";
+import { durations } from "#src/entities/transfer/index.js";
+import { generatePin } from "#src/shared/lib/password.js";
 export default function TransferSettings({ transfer, api, onClose }) {
   const clickTimer = useRef();
   const [password, setPassword] = useState(null),

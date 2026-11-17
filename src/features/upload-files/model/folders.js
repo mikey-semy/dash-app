@@ -1,5 +1,5 @@
-import { MAX_FILES, LIMIT } from "../../../../shared/config.js";
-import { copy } from "../../../../shared/copy.js";
+import { MAX_FILES, LIMIT } from "#common/config.js";
+import { copy } from "#common/copy.js";
 import ignore from "ignore";
 
 const directories =

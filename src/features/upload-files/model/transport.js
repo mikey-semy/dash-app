@@ -1,4 +1,4 @@
-import { copy } from "../../../../shared/copy.js";
+import { copy } from "#common/copy.js";
 
 export function createUploadTransport({
   api,

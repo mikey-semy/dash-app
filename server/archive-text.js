@@ -1,4 +1,4 @@
-import { copy } from "../shared/copy.js";
+import { copy } from "#common/copy.js";
 import { Open } from "unzipper";
 import { PassThrough, Readable } from "node:stream";
 export async function archiveTextObject(store, t, index, range) {

@@ -1,6 +1,6 @@
-import { TIMING } from "../../../../shared/config.js";
-import { copy } from "../../../../shared/copy.js";
-import React, { useEffect, useRef, useState } from "react";
+import { TIMING } from "#common/config.js";
+import { copy } from "#common/copy.js";
+import { useEffect, useRef, useState } from "react";
 import { EditorState, Compartment } from "@codemirror/state";
 import {
   EditorView,

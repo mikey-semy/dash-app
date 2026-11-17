@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { TIMING } from "../../../../shared/config.js";
-import { generatePin } from "../../../shared/lib/password.js";
+import { TIMING } from "#common/config.js";
+import { generatePin } from "#src/shared/lib/password.js";
 export function useUploadPassword({ upload, setSecret }) {
   const [passwordState, setPasswordState] = useState("idle"),
     passwordClick = useRef(),

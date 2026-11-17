@@ -1,19 +1,25 @@
 import express from "express";
 import cookieParser from "cookie-parser";
 import { rateLimit } from "express-rate-limit";
-import { copy } from "../shared/copy.js";
+import { copy } from "#common/copy.js";
 import { installAuthentication } from "./auth.js";
 import { createOwnerApi } from "./owner-api.js";
 import { registerPublicApi } from "./public-api.js";
 import { installHttpPolicy } from "./http-policy.js";
 import { createPageRenderer } from "./pages.js";
+import { legacyAssets } from "./asset-cache.js";
 import { hosting as createHosting } from "./hosting.js";
 import { passwordVault } from "./password-vault.js";
 import { textReader } from "./text.js";
 export function createApp(
   service,
   env,
-  { authLimit = 15, indexHTML, hostingOptions } = {},
+  {
+    authLimit = 15,
+    indexHTML,
+    hostingOptions,
+    assetDirectory = "assets-cache",
+  } = {},
 ) {
   const app = express(),
     db = service.db,
@@ -72,6 +78,7 @@ export function createApp(
   app.get(["/", "/index.html", "/t/:token"], html);
   app.get(/^\/[A-Za-z0-9]{6}$/, html);
   app.use(express.static("dist", { index: false }));
+  app.use("/assets", legacyAssets(assetDirectory));
   app.use((req, res) => res.status(404).json({ error: copy.pageNotFound }));
   app.use((err, req, res, next) => {
     if (res.headersSent) return res.destroy();

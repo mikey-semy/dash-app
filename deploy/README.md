@@ -20,14 +20,16 @@ SQLite lives in a persistent Docker volume. S3 object data, SQLite metadata and 
 
 ## GitHub Actions
 
-Checks run on pushes and pull requests. The deployment job runs on a push to `main` only when these repository variables are configured:
+Checks run on pushes and pull requests. To enable deployment on pushes to `main`, set the repository variable `DEPLOY_ENABLED=true` and configure these repository secrets:
 
-| Variable            | Example                      |
-| ------------------- | ---------------------------- |
-| `DEPLOY_TARGET`     | `deploy@server.example.com`  |
-| `DEPLOY_HEALTH_URL` | `https://files.example.com/` |
+| Secret               | Purpose / example                                             |
+| -------------------- | ------------------------------------------------------------- |
+| `DEPLOY_TARGET`      | SSH destination, such as `deploy@server.example.com`          |
+| `DEPLOY_HEALTH_URL`  | Public health-check URL, such as `https://files.example.com/` |
+| `DEPLOY_SSH_KEY`     | Private SSH key for the deployment account                    |
+| `DEPLOY_KNOWN_HOSTS` | Verified SSH host keys for the server                         |
 
-Add `DEPLOY_SSH_KEY` and `DEPLOY_KNOWN_HOSTS` as repository secrets. The deployment account must have the privileges required by `deploy/release.sh`. Review that script before adopting it: the supplied Linux layout uses `/root/apps/s3-flash-drive` and `/root/infra/traefik/dynamic`. Prepare the application directory and its `.env` before the first release.
+Keep deployment addresses in secrets to avoid exposing infrastructure details in public workflow logs. The deployment account must have the privileges required by `deploy/release.sh`. Review that script before adopting it: the supplied Linux layout uses `/root/apps/s3-flash-drive` and `/root/infra/traefik/dynamic`. Prepare the application directory and its `.env` before the first release.
 
 The workflow builds the tested image, transfers it over SSH, then invokes the release script. The script preserves the database volume, checks container health and can restore the previous configuration on failure. An optional server-side `.env.pending` is applied during the next release; do not place it in the repository.
 

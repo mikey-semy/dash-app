@@ -22,6 +22,8 @@
 
 `src/app/main.jsx` selects the upload or recipient page. The upload page owns workspace state, recovery and action coordination; multipart transport, upload recovery persistence and folder scanning belong to the upload-files feature. Storage state transitions remain in `server/service.js`. Keep future extractions focused on a single responsibility and preserve their existing authorization and concurrency rules.
 
+Within the upload page, `OwnerWorkspace.jsx` composes the screen and modal transitions. `UploadMenu.jsx` owns default settings presentation and its password interaction hook; `useFileIntake.js` owns paste/drop routing and its busy/editor/history guards. `DropZones.jsx`, `UploadProgress.jsx` and `CurrentTransfer.jsx` render their own areas without adding layout wrappers. Current transfer actions and details remain separate so an expanded detail panel survives append preparation. All of these modules are private to the upload page slice.
+
 ## FSD imports
 
 Dependencies point downward: **app → pages → widgets → features → entities → shared**. Pages, widgets, features and entities contain independent slices. Different slices on the same layer cannot import each other. Cross-slice imports use a root public entry point, usually `index.js`; implementation files remain private. Internal imports stay relative to their own slice. App and shared use responsibility segments rather than independent business slices.

@@ -282,6 +282,7 @@ export const copy = Object.freeze({
   incorrectSitePassword: "Incorrect site password",
   files: "Files",
   raw: "Raw",
+  actions: "Actions",
   domainExample: "example.com",
   invalidJsonResponse: "HTTP {0}: server response is not JSON",
   excludedPrefix: "Excluded: ",

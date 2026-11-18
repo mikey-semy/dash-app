@@ -96,7 +96,9 @@ export default function QRButton({ url }) {
         disabled={!url}
         aria-expanded={open}
         onClick={() => {
-          setContainer(button.current.closest("dialog") || document.body);
+          setContainer(
+            button.current.closest("[popover], dialog") || document.body,
+          );
           setOpen(!open);
         }}
       >

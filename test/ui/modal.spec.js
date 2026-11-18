@@ -42,11 +42,16 @@ for (const width of [390, 1280]) {
         () => getComputedStyle(document.documentElement).overflow,
       ),
     ).toBe("hidden");
-    const settingsTrigger = history
-      .locator(".history-item")
-      .nth(18)
-      .getByRole("button", { name: "Transfer settings", exact: true });
-    await settingsTrigger.scrollIntoViewIfNeeded();
+    const row = history.locator(".history-item").nth(18);
+    const settingsTrigger = row.getByRole("button", {
+      name: "Transfer settings",
+      exact: true,
+    });
+    await row.scrollIntoViewIfNeeded();
+    const actionsTrigger = row
+      .locator(".history-actions")
+      .getByRole("button", { name: "Actions", exact: true });
+    if (width <= 760) await actionsTrigger.click();
     const top = await body.evaluate((element) => element.scrollTop);
     expect(top).toBeGreaterThan(100);
     await settingsTrigger.click();
@@ -71,7 +76,7 @@ for (const width of [390, 1280]) {
     await page.keyboard.press("Escape");
     await expect(settings).toHaveCount(0);
     await expect(history).toBeVisible();
-    await expect(settingsTrigger).toBeFocused();
+    await expect(width <= 760 ? actionsTrigger : settingsTrigger).toBeFocused();
     expect(await body.evaluate((element) => element.scrollTop)).toBe(top);
     await page.keyboard.press("Escape");
     await expect(history).toHaveCount(0);

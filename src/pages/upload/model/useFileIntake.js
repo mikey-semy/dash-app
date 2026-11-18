@@ -34,7 +34,7 @@ export function useFileIntake({
           return;
         const current = viewing?.record || latest;
         if (viewing) {
-          setViewing(null);
+          setViewing(null, { replace: true });
           setHistoryOpen(false);
           setSelected(current.id);
         }
@@ -133,7 +133,7 @@ export function useFileIntake({
           e.stopPropagation();
           setDrag(false);
           const current = viewing.record;
-          setViewing(null);
+          setViewing(null, { replace: true });
           setHistoryOpen(false);
           setSelected(current.id);
           receiveFiles(e.dataTransfer, current.id);
@@ -151,7 +151,7 @@ export function useFileIntake({
           !config
         ) {
           const current = viewing.record;
-          setViewing(null);
+          setViewing(null, { replace: true });
           setHistoryOpen(false);
           setSelected(current.id);
           receiveFiles(e.dataTransfer, current.id);

@@ -14,6 +14,7 @@ Current phase: bounded parallel multipart uploads. The default is four requests 
 - [ ] Measure end-to-end uploads at concurrency 1/2/4/6 with isolated fixtures. Record preparation, signing, transfer and archive time separately, plus memory usage and failures. Synthetic scheduling tests are not network throughput measurements.
 - [ ] Add adaptive concurrency only after those measurements, with conservative behavior on slow or unreliable connections.
 - [ ] Investigate startup latency from full-file fingerprinting and IndexedDB persistence. Overlap work only while preserving changed-file detection and closed-tab recovery.
+- [x] Overlap IndexedDB source persistence with full-content fingerprinting; reuse fingerprints only for the same immutable File/Blob object. Keep recovery metadata unpublished until hashing finishes. Full-file preparation latency still needs measurement and further optimization.
 - [ ] Benchmark larger part sizes; persist per-upload sizing before changing defaults so old uploads remain resumable.
 - [x] Pipeline ZIP multipart writes with two concurrent requests, bounded part buffers and ordered completion. Drain active writes before aborting failed/cancelled multipart uploads; preserve uncompressed ZIP bytes. Real-storage throughput measurements remain pending.
 - [ ] Benchmark bounded parallel S3 Range reads behind one browser download stream. Preserve the application domain, backpressure, ETags, passwords, expiry, cancellation and one-time download semantics.

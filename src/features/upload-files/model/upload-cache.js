@@ -1,5 +1,6 @@
 import { copy } from "#common/copy.js";
 const key = "du.upload.v1";
+const fingerprints = new WeakMap();
 function database() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open("du-uploads", 1);
@@ -21,7 +22,18 @@ async function stored(mode, operation) {
     db.close();
   }
 }
-export async function fingerprint(file) {
+export function fingerprint(file) {
+  // File/Blob bytes are immutable. Reuse only the exact object, never name/size.
+  if (!fingerprints.has(file)) {
+    const pending = hashFile(file).catch((error) => {
+      fingerprints.delete(file);
+      throw error;
+    });
+    fingerprints.set(file, pending);
+  }
+  return fingerprints.get(file);
+}
+async function hashFile(file) {
   const hashes = [];
   for (let offset = 0; offset < file.size; offset += 8 * 1024 * 1024)
     hashes.push(
@@ -38,6 +50,13 @@ export async function fingerprint(file) {
   ).join("");
 }
 export async function rememberUpload(upload) {
+  // Persist the immutable sources while hashing instead of doing both serially.
+  const persisted = stored("readwrite", (store) =>
+    store.put({ id: upload.id, files: upload.files }, "active"),
+  ).then(
+    () => true,
+    () => false,
+  );
   const files = [];
   for (const file of upload.files)
     files.push({
@@ -48,14 +67,7 @@ export async function rememberUpload(upload) {
     });
   const metadata = { ...upload, files };
   localStorage.setItem(key, JSON.stringify(metadata));
-  try {
-    await stored("readwrite", (store) =>
-      store.put({ id: upload.id, files: upload.files }, "active"),
-    );
-    return true;
-  } catch {
-    return false;
-  }
+  return persisted;
 }
 export async function recoverUpload() {
   let metadata;

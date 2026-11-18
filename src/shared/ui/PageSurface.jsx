@@ -24,12 +24,13 @@ export function PageSurface({
   }, [suspended]);
   useLayoutEffect(() => () => restoreFocus(opener.current), []);
   useLayoutEffect(() => {
-    if (!suspended)
-      (
-        lastFocus.current ||
-        ref.current.querySelector("h2") ||
-        ref.current
-      ).focus({ preventScroll: true });
+    if (suspended) {
+      for (const popup of ref.current.querySelectorAll(":popover-open"))
+        popup.hidePopover();
+    } else
+      restoreFocus(
+        lastFocus.current || ref.current.querySelector("h2") || ref.current,
+      );
   }, [suspended]);
   useEffect(() => {
     const previous = document.title;

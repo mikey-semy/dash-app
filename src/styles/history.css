@@ -81,18 +81,28 @@ html:has(.history-page) {
 }
 @media (--compact-table) {
   .history-page {
-    --table-actions-width: var(--size-0);
+    --table-actions-width: var(--size-64);
+    --table-size-width: var(--size-48);
+  }
+  .history-page > .dialog-body,
+  .history-page > .history-table-header,
+  .history-page > .history-search {
+    padding-inline: var(--size-12);
+  }
+  .history-page .history-size,
+  .history-page .history-table-header > .file-size {
+    padding-inline: var(--size-4);
   }
   .history-page .history-table-header > .file-actions {
     display: none;
   }
   .history-page .history-row {
-    grid-template-columns: minmax(0, 1fr) var(--table-size-width);
+    grid-template-columns: minmax(0, 1fr) var(--table-size-width) var(
+        --table-actions-width
+      );
   }
   .history-page .history-actions {
-    grid-column: 1 / -1;
     justify-content: flex-end;
-    padding-bottom: var(--size-8);
   }
   .history-page .history-actions .icon-button {
     padding: var(--size-8);
@@ -102,8 +112,8 @@ html:has(.history-page) {
   }
   .history-page .history-identity {
     grid-template-columns: var(--size-12) var(--size-16) minmax(0, 1fr);
-    gap: var(--size-8);
-    padding-right: var(--size-8);
+    gap: var(--size-4);
+    padding-right: var(--size-4);
     padding-bottom: var(--size-8);
   }
 }

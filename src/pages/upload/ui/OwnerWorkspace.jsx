@@ -7,6 +7,7 @@ import {
 import { UploadProgress } from "./UploadProgress.jsx";
 import { DropZones } from "./DropZones.jsx";
 import { useHistoryPage } from "../model/useHistoryPage.js";
+import { useHistoryOverlay } from "#src/shared/lib/useHistoryOverlay.js";
 import { useFileIntake } from "../model/useFileIntake.js";
 import { IconButton } from "#src/shared/ui/IconButton.jsx";
 import { copy } from "#common/copy.js";
@@ -34,7 +35,7 @@ export function OwnerView(p) {
     [config, setConfig] = useState(null),
     [opening, setOpening] = useState(false),
     [editorError, setEditorError] = useState(""),
-    [viewing, setViewing] = useState(null),
+    [viewing, setViewing] = useHistoryOverlay(),
     [historyOpen, setHistoryOpen] = useHistoryPage(),
     input = useRef(),
     appendTarget = useRef(null),
@@ -347,7 +348,7 @@ export function OwnerView(p) {
       {historyOpen && (
         <History
           items={p.history}
-          suspended={!!config}
+          suspended={!!config || !!viewing || !!draft || !!folders}
           onClose={() => setHistoryOpen(false)}
           onDelete={p.remove}
           onRemoveFiles={commands.removeFiles}

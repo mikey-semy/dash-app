@@ -80,4 +80,20 @@ test("editable drafts block file uploads; read-only preview closes and appends t
   await expect(page.locator(".share-ready")).toBeVisible();
   expect((await current()).url).toBe(original.url);
   expect(writes).toBe(1);
+  await page.getByLabel("Settings", { exact: true }).click();
+  await page.getByRole("button", { name: "History", exact: true }).click();
+  const row = page.locator(".history-item").first();
+  await row.locator(".history-toggle").click();
+  await row
+    .getByRole("button", { name: "Preview original.txt", exact: true })
+    .click();
+  await expect(viewer.locator(".cm-content")).toHaveText("original");
+  await pasteFiles(".viewer-dialog .cm-content");
+  await expect(viewer).toHaveCount(0);
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.locator(".history-page")).toHaveCount(0);
+  await expect.poll(async () => (await current()).files.length).toBe(3);
+  await expect(page.locator(".share-ready")).toBeVisible();
+  expect((await current()).url).toBe(original.url);
+  expect(writes).toBe(2);
 });

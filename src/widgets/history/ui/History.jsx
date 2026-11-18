@@ -414,7 +414,6 @@ export default function History({
                 onGenerateTitle={onGenerateTitle}
                 renaming={renaming}
                 onView={(record, index) => {
-                  dismiss();
                   onView(record, index);
                 }}
                 onOpen={

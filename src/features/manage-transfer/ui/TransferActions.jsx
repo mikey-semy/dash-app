@@ -4,6 +4,7 @@ import { copy } from "#common/copy.js";
 import { Icon, CopyButton, DeleteButton } from "#src/shared/ui/Icons.jsx";
 import QRButton from "#src/shared/ui/QRButton.jsx";
 import PublicationButton from "./PublicationButton.jsx";
+import { ResponsiveActions } from "#src/shared/ui/ResponsiveActions.jsx";
 export function TransferActions({
   url,
   onAdd,
@@ -18,6 +19,7 @@ export function TransferActions({
   deleteLabel = copy.delete,
   confirmationKey,
 }) {
+  const Controls = compact ? ResponsiveActions : "div";
   return (
     <div className={onAdd && !compact ? "share share-ready" : "share"}>
       {onAdd && !compact && (
@@ -30,7 +32,7 @@ export function TransferActions({
           <Icon name="add" />
         </button>
       )}
-      <div className="share-controls">
+      <Controls className="share-controls">
         {publication && <PublicationButton {...publication} />}
         {(onOpen || compact) && (
           <IconButton
@@ -83,7 +85,7 @@ export function TransferActions({
           onDelete={onDelete}
           confirmationKey={confirmationKey || url}
         />
-      </div>
+      </Controls>
     </div>
   );
 }

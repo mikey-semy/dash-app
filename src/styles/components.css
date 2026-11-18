@@ -133,6 +133,42 @@
 .history-row .share-controls {
   gap: var(--size-2);
 }
+.responsive-actions {
+  display: contents;
+}
+.action-popup {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: var(--size-4);
+  border: var(--size-1) solid var(--color-border-soft);
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: 0 var(--size-4) var(--size-16) var(--color-shadow);
+  max-height: 100dvh;
+  overflow: auto;
+}
+.action-popup:popover-open {
+  display: flex;
+  flex-direction: column;
+  animation: appear var(--duration-180) var(--ease-out);
+}
+.action-popup:not(:popover-open) {
+  display: none;
+}
+.action-popup .icon-button {
+  width: var(--size-40);
+  height: var(--size-40);
+  padding: var(--size-8);
+}
+.action-popup .qr-dropdown {
+  overflow: visible;
+}
+@media (--compact-table) {
+  .files:has(.file-actions .icon-button) .file-actions {
+    min-width: var(--size-40);
+  }
+}
 .demo-image {
   width: auto;
   height: auto;

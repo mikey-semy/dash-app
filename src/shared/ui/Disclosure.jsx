@@ -14,6 +14,7 @@ export function Disclosure({ open, children, className = "", id }) {
   useLayoutEffect(() => {
     const element = container.current;
     const from = element.getBoundingClientRect().height;
+    const opacity = getComputedStyle(element).opacity;
     animation.current?.cancel();
     const to = open ? inner.current.getBoundingClientRect().height : 0;
     const finish = () => {
@@ -29,19 +30,28 @@ export function Disclosure({ open, children, className = "", id }) {
       .trim();
     const duration =
       parseFloat(durationValue) * (durationValue.endsWith("ms") ? 1 : 1000);
+    const reducedValue = style
+      .getPropertyValue("--disclosure-reduced-duration")
+      .trim();
+    const reducedDuration =
+      parseFloat(reducedValue) * (reducedValue.endsWith("ms") ? 1 : 1000);
     const easing = style.getPropertyValue("--disclosure-easing").trim();
-    if (
-      !initialized.current ||
-      Math.abs(to - from) < 0.5 ||
-      matchMedia("(prefers-reduced-motion: reduce)").matches
-    ) {
+    if (!initialized.current || Math.abs(to - from) < 0.5) {
       initialized.current = true;
       finish();
       return;
     }
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // Reduced motion retains a brief fade instead of removing all feedback.
+    if (reduced) element.style.height = (open ? to : from) + "px";
     const current = element.animate(
-      [{ height: from + "px" }, { height: to + "px" }],
-      { duration, easing },
+      reduced
+        ? [
+            { opacity: open && from === 0 ? 0 : opacity },
+            { opacity: open ? 1 : 0 },
+          ]
+        : [{ height: from + "px" }, { height: to + "px" }],
+      { duration: reduced ? reducedDuration : duration, easing },
     );
     animation.current = current;
     current.onfinish = finish;

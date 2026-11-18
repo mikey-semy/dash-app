@@ -1,5 +1,6 @@
 import { FileTableHeader } from "#src/shared/ui/FileTableHeader.jsx";
 import { useSelection } from "#src/shared/lib/useSelection.js";
+import { useHistoryOverlay } from "#src/shared/lib/useHistoryOverlay.js";
 import { IconButton } from "#src/shared/ui/IconButton.jsx";
 import { copy } from "#common/copy.js";
 import { ErrorNotice, ErrorPage } from "#src/shared/ui/Errors.jsx";
@@ -24,7 +25,7 @@ export function Recipient({ token, api }) {
   const [info, setInfo] = useState(null),
     [password, setPassword] = useState(""),
     [error, setError] = useState("");
-  const [viewer, setViewer] = useState(null),
+  const [viewer, setViewer] = useHistoryOverlay(),
     [blocked, setBlocked] = useState(new Set());
   const automatic = useRef(false);
   const composition = JSON.stringify([

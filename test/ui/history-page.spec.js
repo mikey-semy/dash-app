@@ -42,11 +42,15 @@ for (const width of [320, 390, 560, 760, 1280])
     const row = history.locator(".history-row").first(),
       name = row.getByRole("textbox", { name: "Transfer name", exact: true });
     expect((await name.boundingBox()).width).toBeGreaterThan(125);
-    if (width <= 760)
-      expect(
-        (await row.locator(".history-actions").boundingBox()).y,
-      ).toBeGreaterThan((await name.boundingBox()).y);
-    else
+    if (width <= 760) {
+      await expect(
+        row.getByRole("button", { name: "Actions", exact: true }),
+      ).toBeVisible();
+      await expect(row.locator(".history-toggle")).toBeVisible();
+      await expect(
+        row.getByRole("button", { name: "Copy link", exact: true }),
+      ).not.toBeVisible();
+    } else
       await expect(
         history
           .locator(".file-table-header")

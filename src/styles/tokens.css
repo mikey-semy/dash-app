@@ -6,6 +6,7 @@
 @custom-media --no-hover (hover: none);
 
 :root {
+  --compact-table-width: 760px;
   --transfer-toggle-space: var(--size-32);
   --transfer-bottom-space: max(
     var(--size-24),
@@ -19,6 +20,7 @@
   --transfer-motion-duration: 0.42s;
   --transfer-motion-easing: cubic-bezier(0.4, 0, 0.2, 1);
   --disclosure-duration: var(--duration-240);
+  --disclosure-reduced-duration: var(--duration-180);
   --disclosure-easing: var(--ease);
   --transfer-expanded-title-offset: calc(var(--size-48) + var(--size-48));
   --color-text: #111;

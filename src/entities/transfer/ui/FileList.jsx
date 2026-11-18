@@ -5,6 +5,7 @@ import { copy } from "#common/copy.js";
 import EditableName from "#src/shared/ui/EditableName.jsx";
 import { Icon, DeleteButton } from "#src/shared/ui/Icons.jsx";
 import { bytes } from "#src/shared/lib/format.js";
+import { ResponsiveActions } from "#src/shared/ui/ResponsiveActions.jsx";
 export function FileList({
   files,
   selection,
@@ -69,32 +70,34 @@ export function FileList({
           )}
           <small className="file-size">{bytes(f.size)}</small>
           <div className="file-actions">
-            {onRename && onPreview && (f.preview || f.media) && (
-              <IconButton
-                aria-label={copy.previewPrefix + f.name}
-                onClick={() => onPreview(i)}
-              >
-                <Icon name="eye" />
-              </IconButton>
-            )}
-            {downloadPath && !f.name.endsWith("/") && (
-              <a
-                className="icon-button"
-                href={downloadPath(i)}
-                aria-label={copy.downloadPrefix + f.name}
-              >
-                <Icon name="download" />
-              </a>
-            )}
-            {onRemove && (
-              <DeleteButton
-                icon="cancel"
-                label={copy.deletePrefix + f.name}
-                disabled={disabled}
-                confirmationKey={confirmationKey || f.name}
-                onDelete={() => onRemove(i)}
-              />
-            )}
+            <ResponsiveActions className="file-actions">
+              {onRename && onPreview && (f.preview || f.media) && (
+                <IconButton
+                  aria-label={copy.previewPrefix + f.name}
+                  onClick={() => onPreview(i)}
+                >
+                  <Icon name="eye" />
+                </IconButton>
+              )}
+              {downloadPath && !f.name.endsWith("/") && (
+                <a
+                  className="icon-button"
+                  href={downloadPath(i)}
+                  aria-label={copy.downloadPrefix + f.name}
+                >
+                  <Icon name="download" />
+                </a>
+              )}
+              {onRemove && (
+                <DeleteButton
+                  icon="cancel"
+                  label={copy.deletePrefix + f.name}
+                  disabled={disabled}
+                  confirmationKey={confirmationKey || f.name}
+                  onDelete={() => onRemove(i)}
+                />
+              )}
+            </ResponsiveActions>
           </div>
         </li>
       ))}

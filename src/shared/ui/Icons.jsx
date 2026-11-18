@@ -4,6 +4,7 @@ import { copy } from "#common/copy.js";
 import { useState, useEffect, useRef } from "react";
 import {
   Presentation,
+  Ellipsis,
   Globe,
   Route,
   RotateCw,
@@ -38,6 +39,7 @@ import {
   Settings,
 } from "lucide-react";
 const glyphs = {
+  more: Ellipsis,
   globe: Globe,
   route: Route,
   reload: RotateCw,

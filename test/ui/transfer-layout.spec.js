@@ -47,6 +47,11 @@ for (const width of [390, 1280, 1920])
     ).toBeLessThan(2);
     await page.getByLabel("Settings", { exact: true }).click();
     await page.getByRole("button", { name: "History", exact: true }).click();
+    if (width <= 760)
+      await page
+        .locator(".history-actions")
+        .getByRole("button", { name: "Actions", exact: true })
+        .click();
     await page
       .getByRole("region", { name: "History", exact: true })
       .getByRole("button", { name: "Open transfer", exact: true })

@@ -108,6 +108,10 @@ test("history hides deleted and expired entries and toggles a website without ex
     .click();
   expect(site.published).toBe(false);
   await page
+    .locator(".history-actions")
+    .getByRole("button", { name: "Actions", exact: true })
+    .click();
+  await page
     .getByRole("button", { name: "Transfer settings", exact: true })
     .click();
   await expect(page.getByPlaceholder("example.com")).toBeVisible();

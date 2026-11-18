@@ -3,7 +3,7 @@ import { SelectionCheckbox } from "#src/shared/ui/SelectionCheckbox.jsx";
 import { PageSurface } from "#src/shared/ui/PageSurface.jsx";
 import { FileTableHeader } from "#src/shared/ui/FileTableHeader.jsx";
 import { IconButton } from "#src/shared/ui/IconButton.jsx";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { copy } from "#common/copy.js";
 import { ErrorNotice } from "#src/shared/ui/Errors.jsx";
 import { Disclosure } from "#src/shared/ui/Disclosure.jsx";
@@ -13,6 +13,7 @@ import { TransferActions as Share } from "#src/features/manage-transfer/actions.
 import EditableName from "#src/shared/ui/EditableName.jsx";
 import PublicationButton from "#src/features/manage-transfer/publication.js";
 import { bytes, date } from "#src/shared/lib/format.js";
+import { useHistoryAccordion } from "../model/useHistoryAccordion.js";
 const states = {
   uploading: copy.upload,
   queued: copy.queued,
@@ -44,8 +45,10 @@ function HistoryItem({
   selected,
   onSelect,
   selectionDisabled,
+  open,
+  onToggleDetails,
 }) {
-  const [open, setOpen] = useState(false);
+  const row = useRef();
   const signature = JSON.stringify([t.revision, t.files]),
     busy = renaming || (t.appendState && t.appendState !== "failed");
   const { selection, toggle, toggleAll, clear, allSelected } = useSelection({
@@ -53,7 +56,7 @@ function HistoryItem({
     resetKey: signature,
   });
   return (
-    <article className="history-item">
+    <article ref={row} className="history-item">
       <div className="history-row">
         <div className="history-identity">
           <SelectionCheckbox
@@ -149,7 +152,7 @@ function HistoryItem({
             aria-label={copy.transferPrefix + date(t.created)}
             aria-expanded={open}
             aria-controls={"history-" + t.id}
-            onClick={() => setOpen(!open)}
+            onClick={() => onToggleDetails(t.id, row.current)}
           >
             <span className={open ? "chevron expanded" : "chevron"}>
               <Icon name="chevron" />
@@ -253,6 +256,7 @@ export default function History({
   suspended,
 }) {
   const searchInput = useRef();
+  const accordion = useHistoryAccordion();
   const [query, setQuery] = useState(""),
     [filter, setFilter] = useState("all"),
     [searchOpen, setSearchOpen] = useState(false);
@@ -279,6 +283,13 @@ export default function History({
     keys: visibleItems.map((item) => item.id),
     resetKey: JSON.stringify([query, filter]),
   });
+  useEffect(() => {
+    if (
+      accordion.openId &&
+      !visibleItems.some((item) => item.id === accordion.openId)
+    )
+      accordion.reset();
+  }, [accordion, visibleItems]);
   const [removing, setRemoving] = useState(false),
     [error, setError] = useState("");
   const selectedItems = items.filter((item) => selection.has(item.id));
@@ -303,6 +314,7 @@ export default function History({
                 aria-expanded={searchOpen}
                 onClick={() => {
                   setSearchOpen(!searchOpen);
+                  accordion.reset();
                   setQuery("");
                   setFilter("all");
                 }}
@@ -353,7 +365,10 @@ export default function History({
                   aria-label={copy.searchFilenamesOrTransfers}
                   placeholder={copy.search}
                   value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  onChange={(e) => {
+                    accordion.reset();
+                    setQuery(e.target.value);
+                  }}
                 />
                 {query && (
                   <IconButton
@@ -361,6 +376,7 @@ export default function History({
                     aria-label={copy.clearSearch}
                     title={copy.clear}
                     onClick={() => {
+                      accordion.reset();
                       setQuery("");
                       searchInput.current.focus();
                     }}
@@ -380,7 +396,10 @@ export default function History({
                   aria-label={label}
                   title={label}
                   aria-pressed={filter === value}
-                  onClick={() => setFilter(filter === value ? "all" : value)}
+                  onClick={() => {
+                    accordion.reset();
+                    setFilter(filter === value ? "all" : value);
+                  }}
                 >
                   {icon ? <Icon name={icon} /> : "∞"}
                 </IconButton>
@@ -389,6 +408,9 @@ export default function History({
           )}
           <FileTableHeader className="history-table-header" showActionsLabel />
           <div
+            ref={accordion.body}
+            onWheel={accordion.stop}
+            onTouchStart={accordion.stop}
             className={
               visibleItems.length ? "dialog-body" : "dialog-body is-empty"
             }
@@ -406,6 +428,8 @@ export default function History({
             {visibleItems.map((t) => (
               <HistoryItem
                 key={t.id}
+                open={accordion.openId === t.id}
+                onToggleDetails={accordion.toggle}
                 transfer={t}
                 onSettings={onSettings}
                 onPublish={onPublish}
@@ -443,6 +467,7 @@ export default function History({
                 }
               />
             ))}
+            <div ref={accordion.spacer} aria-hidden="true" />
           </div>
         </>
       )}

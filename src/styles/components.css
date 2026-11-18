@@ -89,6 +89,11 @@
 }
 .file-size {
   text-align: right;
+  white-space: nowrap;
+}
+.history-information .files > li > :first-child,
+.recipient .transfer-information .files > li > :first-child {
+  margin-inline-start: var(--file-list-detail-indent);
 }
 .history-row {
   grid-template-columns: var(--size-14) var(--size-18) minmax(0, 1fr) auto var(

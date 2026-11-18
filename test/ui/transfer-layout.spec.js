@@ -16,9 +16,9 @@ for (const width of [390, 1280, 1920])
       name: "files.zip",
       files: Array.from({ length: 50 }, (_, index) => ({
         name: "file-" + index + ".txt",
-        size: 5,
+        size: index === 0 ? 999_950_000 : 5,
       })),
-      size: 250,
+      size: 999_950_245,
       url: "http://127.0.0.1:3001/Lay123",
     };
     await page.route("**/api/**", (route) => {
@@ -108,6 +108,17 @@ for (const width of [390, 1280, 1920])
       const headerBefore = (await header.count())
         ? await header.boundingBox()
         : null;
+      if (headerBefore) {
+        const firstFile = body.locator(".files > li").first();
+        const name = await firstFile
+          .locator(":scope > :first-child")
+          .boundingBox();
+        expect(name.x).toBeGreaterThan(headerBefore.x);
+        await expect(firstFile.locator(".file-size")).toHaveCSS(
+          "white-space",
+          "nowrap",
+        );
+      }
       await body.evaluate(
         (element) => (element.scrollTop = element.scrollHeight),
       );

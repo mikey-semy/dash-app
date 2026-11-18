@@ -95,3 +95,46 @@ for (const width of [320, 390, 560, 760, 1280])
     await page.goForward();
     await expect(history).toHaveCount(0);
   });
+
+test("history raises a transfer near the end and restores scroll when closed", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const items = Array.from({ length: 35 }, (_, index) => ({
+    id: "scroll-" + index,
+    title: "Transfer " + index,
+    created: Date.now(),
+    state: "ready",
+    expires: null,
+    size: 100_000_000,
+    files: [{ name: "archive.bin", size: 100_000_000 }],
+  }));
+  await page.route("**/api/session", (route) =>
+    route.fulfill({ json: { ok: true } }),
+  );
+  await page.route("**/api/transfers", (route) =>
+    route.fulfill({ json: items }),
+  );
+  await page.goto("/history");
+  const row = page.locator(".history-item").last(),
+    body = page.locator(".history-page > .dialog-body"),
+    toggle = row.locator(".history-toggle"),
+    info = row.locator(".history-information");
+  await row.scrollIntoViewIfNeeded();
+  const initial = await body.evaluate((element) => element.scrollTop);
+  const offset = async () =>
+    (await row.boundingBox()).y - (await body.boundingBox()).y;
+  expect(await offset()).toBeGreaterThan(50);
+  await toggle.click();
+  await expect.poll(offset).toBeCloseTo(0, 0);
+  await expect(info).toBeInViewport({ ratio: 1 });
+  await expect(info).toHaveCSS("border-bottom-width", "1px");
+  expect(
+    (await info.locator(".files li > :first-child").boundingBox()).x,
+  ).toBeGreaterThan((await info.boundingBox()).x);
+  await toggle.click();
+  await expect
+    .poll(() => body.evaluate((element) => element.scrollTop))
+    .toBe(initial);
+  await expect(info).toBeHidden();
+});

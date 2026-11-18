@@ -37,6 +37,7 @@ export const TIMING = Object.freeze({
   multiClick: 350,
   confirmation: 4000,
   dialogClose: 180,
+  historyScroll: 240,
   detectionDebounce: 300,
   detectionTimeout: 2000,
   workerStartup: 15000,

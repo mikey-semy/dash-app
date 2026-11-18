@@ -39,6 +39,9 @@ html:has(.history-page) {
   padding: 0;
   border: 0;
 }
+.history-page .history-information {
+  border-block: var(--size-1) solid var(--color-divider);
+}
 .history-page .history-row {
   grid-template-columns: minmax(0, 1fr) var(--table-size-width) var(
       --table-actions-width
@@ -63,9 +66,6 @@ html:has(.history-page) {
   align-content: center;
   color: var(--color-muted);
   font-size: var(--font-size-caption);
-}
-.history-page .file-size {
-  white-space: nowrap;
 }
 .history-actions {
   display: flex;

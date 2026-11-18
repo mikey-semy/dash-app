@@ -14,6 +14,7 @@
   );
   --table-size-width: var(--size-80);
   --table-actions-width: var(--size-40);
+  --file-list-detail-indent: var(--size-16);
   --history-actions-width: var(--size-250);
   --transfer-frame-width: var(--size-1000);
   --transfer-action-offset: var(--size-48);

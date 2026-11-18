@@ -1,4 +1,4 @@
-# Roadmap
+# Dash roadmap
 
 This file tracks remaining work; unchecked items are planned, not implemented. The application already supports file sharing, text/code and media previews, static-site publication, custom domains, a standalone history page and responsive file lists.
 

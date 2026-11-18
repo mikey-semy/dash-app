@@ -1,4 +1,4 @@
-# Validation
+# Dash validation
 
 Run `npm run lint`, `npm run format:check`, `npm test`, `npm run build`, then `npx playwright test` before publishing.
 

@@ -1,4 +1,4 @@
-# Deployment
+# Dash deployment
 
 ## Prerequisites
 
@@ -29,7 +29,7 @@ Checks run on pushes and pull requests. To enable deployment on pushes to `main`
 | `DEPLOY_SSH_KEY`     | Private SSH key for the deployment account                    |
 | `DEPLOY_KNOWN_HOSTS` | Verified SSH host keys for the server                         |
 
-Keep deployment addresses in secrets to avoid exposing infrastructure details in public workflow logs. The deployment account must have the privileges required by `deploy/release.sh`. Review that script before adopting it: the supplied Linux layout uses `/root/apps/s3-flash-drive` and `/root/infra/traefik/dynamic`. Prepare the application directory and its `.env` before the first release.
+Keep deployment addresses in secrets to avoid exposing infrastructure details in public workflow logs. The deployment account must have the privileges required by `deploy/release.sh`. Review that script before adopting it: server and proxy directories are defined in that script and the workflow. Prepare the application directory and its `.env` before the first release.
 
 The workflow builds the tested image, transfers it over SSH, then invokes the release script. The script preserves the database volume, checks container health and can restore the previous configuration on failure. An optional server-side `.env.pending` is applied during the next release; do not place it in the repository.
 

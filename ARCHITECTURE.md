@@ -1,4 +1,4 @@
-# Architecture
+# Dash architecture
 
 ## Boundaries
 
@@ -44,11 +44,11 @@ JSX uses the automatic React runtime. Import named APIs such as `useState` or `C
 
 ## Release assets
 
-An open tab can request a lazy module from an earlier build after deployment. The release script seeds `assets-cache/` from the ten most recent local DU images before switching containers. Complete build manifests retain every hashed dependency and shared asset; pruning removes only unreferenced hashed files from this dedicated cache. The app serves current `dist` files first, then retained `/assets/` resources with their original MIME type and immutable caching. The cache is mounted read-only into the app; it contains no HTML entry pages, configuration or user files. Deployment helpers run without network access or user-data mounts.
+An open tab can request a lazy module from an earlier build after deployment. The release script seeds `assets-cache/` from the ten most recent local Dash images before switching containers. Complete build manifests retain every hashed dependency and shared asset; pruning removes only unreferenced hashed files from this dedicated cache. The app serves current `dist` files first, then retained `/assets/` resources with their original MIME type and immutable caching. The cache is mounted read-only into the app; it contains no HTML entry pages, configuration or user files. Deployment helpers run without network access or user-data mounts.
 
 ## Identity
 
-Transfer ID and share token identify the transfer. Its editable title identifies it to a person. Filenames identify members within the transfer. Renaming one never implicitly renames another. A verified custom domain is a sharing address; the canonical DU URL remains available for management.
+Transfer ID and share token identify the transfer. Its editable title identifies it to a person. Filenames identify members within the transfer. Renaming one never implicitly renames another. A verified custom domain is a sharing address; the canonical Dash URL remains available for management.
 
 ## Design system
 

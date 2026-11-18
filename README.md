@@ -1,4 +1,6 @@
-# S3 Flash Drive
+# Dash
+
+Source repository: `dash-app`.
 
 A self-hosted file-sharing and static-site publishing application backed by S3-compatible storage. Minimal white interface, short links and icon actions.
 

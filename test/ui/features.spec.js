@@ -81,14 +81,14 @@ test("history searches and filters filenames and reopens a saved transfer as cur
     records = [
       {
         id: "one",
-        title: "Python project",
+        title: "Python [Q] project",
         hasPassword: true,
         ttl: 0,
         files: [{ name: "main.py", size: 1 }],
       },
       {
         id: "two",
-        title: "Another",
+        name: "Other transfer.zip",
         hasPassword: false,
         ttl: 3600,
         files: [{ name: "other.py", size: 1 }],
@@ -116,13 +116,33 @@ test("history searches and filters filenames and reopens a saved transfer as cur
   await page
     .getByRole("button", { name: "Search history", exact: true })
     .click();
-  await page.getByLabel("Search filenames or transfers").fill(".py");
+  const search = page.getByLabel("Search filenames or transfers");
+  await search.fill("[q]");
+  await expect(page.locator(".history-item")).toHaveCount(1);
+  const title = page.getByRole("textbox", {
+    name: "Transfer name",
+    exact: true,
+  });
+  await expect(title.locator("mark")).toHaveText("[Q]");
+  await expect(title.locator("mark")).toHaveCSS("color", "rgb(204, 34, 34)");
+  await title.click();
+  await expect(title.locator("mark")).toHaveCount(0);
+  await expect(title).toHaveText("Python [Q] project");
+  await title.press("Escape");
+  await expect(title.locator("mark")).toHaveText("[Q]");
+  await search.fill("transfer.zip");
+  await expect(page.locator(".history-item")).toHaveCount(1);
+  await expect(title.locator("mark")).toHaveText("transfer.zip");
+  await search.fill(".py");
   await expect(page.locator(".history-item")).toHaveCount(2);
   await page
     .getByRole("button", { name: "Password protected", exact: true })
     .click();
   await expect(page.locator(".history-item")).toHaveCount(1);
   await page.locator(".history-toggle").click();
+  await expect(page.locator(".history-information .files mark")).toHaveText(
+    ".py",
+  );
   await page
     .getByRole("button", { name: "Open transfer", exact: true })
     .click();

@@ -6,6 +6,7 @@ import EditableName from "#src/shared/ui/EditableName.jsx";
 import { Icon, DeleteButton } from "#src/shared/ui/Icons.jsx";
 import { bytes } from "#src/shared/lib/format.js";
 import { ResponsiveActions } from "#src/shared/ui/ResponsiveActions.jsx";
+import { HighlightedText } from "#src/shared/ui/HighlightedText.jsx";
 export function FileList({
   files,
   selection,
@@ -16,6 +17,7 @@ export function FileList({
   onRemove,
   confirmationKey,
   disabled = false,
+  highlight,
 }) {
   const SelectionRow = onPreview || onRename ? "div" : "label";
   return (
@@ -33,6 +35,7 @@ export function FileList({
               {onRename ? (
                 <EditableName
                   value={f.name}
+                  highlight={highlight}
                   label={copy.filenamePrefix + (i + 1)}
                   disabled={disabled}
                   onSave={(name) => onRename(i, name)}
@@ -43,15 +46,18 @@ export function FileList({
                   className="file-preview-link"
                   onClick={() => onPreview(i)}
                 >
-                  {f.name}
+                  <HighlightedText value={f.name} pattern={highlight} />
                 </button>
               ) : (
-                <span>{f.name}</span>
+                <span>
+                  <HighlightedText value={f.name} pattern={highlight} />
+                </span>
               )}
             </SelectionRow>
           ) : onRename ? (
             <EditableName
               value={f.name}
+              highlight={highlight}
               label={copy.filenamePrefix + (i + 1)}
               disabled={disabled}
               onSave={(name) => onRename(i, name)}
@@ -63,10 +69,12 @@ export function FileList({
               onClick={() => onPreview(i)}
               title={copy.previewFile}
             >
-              {f.name}
+              <HighlightedText value={f.name} pattern={highlight} />
             </button>
           ) : (
-            <span>{f.name}</span>
+            <span>
+              <HighlightedText value={f.name} pattern={highlight} />
+            </span>
           )}
           <small className="file-size">{bytes(f.size)}</small>
           <div className="file-actions">

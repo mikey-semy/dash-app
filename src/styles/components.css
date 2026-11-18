@@ -12,6 +12,10 @@
   color: var(--color-text);
   flex-shrink: 0;
 }
+.search-match {
+  color: var(--color-danger-strong);
+  background: transparent;
+}
 .editable-name {
   display: inline-block;
   min-width: 1ch;

@@ -3,7 +3,7 @@ import { SelectionCheckbox } from "#src/shared/ui/SelectionCheckbox.jsx";
 import { PageSurface } from "#src/shared/ui/PageSurface.jsx";
 import { FileTableHeader } from "#src/shared/ui/FileTableHeader.jsx";
 import { IconButton } from "#src/shared/ui/IconButton.jsx";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { copy } from "#common/copy.js";
 import { ErrorNotice } from "#src/shared/ui/Errors.jsx";
 import { Disclosure } from "#src/shared/ui/Disclosure.jsx";
@@ -14,6 +14,9 @@ import EditableName from "#src/shared/ui/EditableName.jsx";
 import PublicationButton from "#src/features/manage-transfer/publication.js";
 import { bytes, date } from "#src/shared/lib/format.js";
 import { useHistoryAccordion } from "../model/useHistoryAccordion.js";
+import { HighlightedText } from "#src/shared/ui/HighlightedText.jsx";
+const transferName = (transfer) =>
+  transfer.title || transfer.name || transfer.files[0]?.name || "—";
 const states = {
   uploading: copy.upload,
   queued: copy.queued,
@@ -47,6 +50,7 @@ function HistoryItem({
   selectionDisabled,
   open,
   onToggleDetails,
+  highlight,
 }) {
   const row = useRef();
   const signature = JSON.stringify([t.revision, t.files]),
@@ -117,7 +121,8 @@ function HistoryItem({
           <div className="history-middle">
             {t.url ? (
               <EditableName
-                value={t.title || t.name || t.files[0]?.name || "—"}
+                value={transferName(t)}
+                highlight={highlight}
                 label={copy.transferName}
                 disabled={!!busy}
                 onSave={(value) => onRenameTitle(t, value)}
@@ -128,7 +133,9 @@ function HistoryItem({
                 }
               />
             ) : (
-              <span>{t.title || t.name || t.files[0]?.name || "—"}</span>
+              <span>
+                <HighlightedText value={transferName(t)} pattern={highlight} />
+              </span>
             )}
           </div>
         </div>
@@ -203,6 +210,7 @@ function HistoryItem({
           )}
           <FileList
             files={t.files}
+            highlight={highlight}
             onRename={
               t.url
                 ? (index, value) => onRenameFile(t, index, value)
@@ -260,16 +268,21 @@ export default function History({
   const [query, setQuery] = useState(""),
     [filter, setFilter] = useState("all"),
     [searchOpen, setSearchOpen] = useState(false);
+  const highlight = useMemo(() => {
+    const text = query.trim();
+    return text
+      ? new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "giu")
+      : null;
+  }, [query]);
   const visibleItems = items.filter(
     (t) =>
       !["deleted", "deleting"].includes(t.state) &&
       (t.expires === undefined ||
         t.expires === null ||
         t.expires > Date.now()) &&
-      (!query ||
-        [t.title || "", ...t.files.map((file) => file.name)].some((value) =>
-          value.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
-        )) &&
+      (!highlight ||
+        transferName(t).search(highlight) !== -1 ||
+        t.files.some((file) => file.name.search(highlight) !== -1)) &&
       (filter === "all" ||
         (filter === "password" && t.hasPassword) ||
         (filter === "infinite" && t.ttl === 0 && !t.oneTime) ||
@@ -430,6 +443,7 @@ export default function History({
                 key={t.id}
                 open={accordion.openId === t.id}
                 onToggleDetails={accordion.toggle}
+                highlight={highlight}
                 transfer={t}
                 onSettings={onSettings}
                 onPublish={onPublish}

@@ -2,6 +2,7 @@ import { IconButton } from "./IconButton.jsx";
 import { copy } from "#common/copy.js";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Icon } from "./Icons.jsx";
+import { highlightedParts } from "./HighlightedText.jsx";
 export default function EditableName({
   value,
   label,
@@ -9,6 +10,7 @@ export default function EditableName({
   onGenerate,
   disabled = false,
   className = "",
+  highlight,
 }) {
   const ref = useRef(),
     active = useRef(false),
@@ -27,10 +29,20 @@ export default function EditableName({
   }, [failed]);
   latest.current = value;
   useLayoutEffect(() => {
-    if (!editing && ref.current) ref.current.textContent = value;
-  }, [value, editing, !!onGenerate]);
+    if (editing || !ref.current) return;
+    ref.current.replaceChildren(
+      ...highlightedParts(value, highlight).map(({ text, match }) => {
+        if (!match) return text;
+        const mark = document.createElement("mark");
+        mark.className = "search-match";
+        mark.textContent = text;
+        return mark;
+      }),
+    );
+  }, [value, highlight, editing, !!onGenerate]);
   useLayoutEffect(() => {
     if (editing) {
+      ref.current.textContent = latest.current;
       ref.current.focus({ preventScroll: true });
       const range = document.createRange();
       range.selectNodeContents(ref.current);

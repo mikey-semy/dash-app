@@ -6,7 +6,7 @@ A self-hosted file-sharing and static-site publishing application backed by S3-c
 
 ## Features
 
-- File and folder uploads, drag-and-drop, clipboard paste and resumable multipart uploads. Folder paths are preserved; dependency folders, caches and sensitive files can be excluded before upload.
+- File and folder uploads, drag-and-drop, clipboard paste and parallel, resumable multipart uploads. Folder paths are preserved; dependency folders, caches and sensitive files can be excluded before upload.
 - Original downloads, ZIP archives and selected-file downloads. Passwords, expiry, one-time downloads and reusable permanent links.
 - Full-screen text/code editor, automatic language detection, syntax highlighting, Markdown preview and protected Raw responses. UTF-8 preview limit: 5 MiB.
 - Image, audio, video and PDF previews, with an optional presentation mode that hides application controls.

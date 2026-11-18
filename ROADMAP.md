@@ -2,6 +2,26 @@
 
 This file tracks remaining work; unchecked items are planned, not implemented. The application already supports file sharing, text/code and media previews, static-site publication, custom domains, a standalone history page and responsive file lists.
 
+## Performance track
+
+Current phase: bounded parallel multipart uploads. The default is four requests per file, with the existing 8 MiB parts and sequential file finalization. No network speedup is claimed until representative measurements are available.
+
+- [x] Send independent parts concurrently with a bounded request pool.
+- [x] Aggregate byte progress without counting retries twice; reuse already accepted parts on resume.
+- [x] Abort every active PUT on pause/cancel and stop pending work after an unrecoverable error. Ignore late signing responses and progress events.
+- [x] Keep append indices, original file bytes, fresh signed URLs on retry and server-side completion validation.
+- [ ] Measure end-to-end uploads at concurrency 1/2/4/6 with isolated fixtures. Record preparation, signing, transfer and archive time separately, plus memory usage and failures. Synthetic scheduling tests are not network throughput measurements.
+- [ ] Add adaptive concurrency only after those measurements, with conservative behavior on slow or unreliable connections.
+- [ ] Investigate startup latency from full-file fingerprinting and IndexedDB persistence. Overlap work only while preserving changed-file detection and closed-tab recovery.
+- [ ] Benchmark larger part sizes; persist per-upload sizing before changing defaults so old uploads remain resumable.
+- [ ] Pipeline ZIP multipart writes with bounded buffers and ordered completion; ZIP currently stores files without compression.
+- [ ] Benchmark bounded parallel S3 Range reads behind one browser download stream. Preserve the application domain, backpressure, ETags, passwords, expiry, cancellation and one-time download semantics.
+- [ ] Consider a browser-side range downloader only with a compatible streaming-to-disk strategy and a normal-download fallback; avoid assembling large downloads in RAM.
+- [ ] Profile server CPU and allocation hotspots before considering native/Rust code. A language rewrite is not a measured network optimization.
+- [ ] Evaluate optional WebRTC transfers when both peers are online, retaining storage-backed permanent links as the fallback.
+
+Performance work must not add controls to the minimal interface or change existing transfer links and file bytes. Production checks use mocked APIs or isolated in-memory fixtures; real-storage measurements need a separate temporary test scope and explicit cleanup.
+
 ## Refactoring checkpoint
 
 Completed:

@@ -41,7 +41,7 @@ export function useOwnerWorkspace() {
     [selected, setSelected] = useState(null),
     [preparingUpload, setPreparingUpload] = useState(false),
     [renaming, setRenaming] = useState(false);
-  const control = useRef({ paused: false, cancel: false, xhr: null }),
+  const control = useRef({ paused: false, cancel: false, requests: new Set() }),
     start = useRef(0),
     active = useRef(false),
     choosing = useRef(false),
@@ -98,7 +98,11 @@ export function useOwnerWorkspace() {
           setUpload(value);
           setSelected(value.parentId || value.id);
           setPaused(true);
-          control.current = { paused: true, cancel: false, xhr: null };
+          control.current = {
+            paused: true,
+            cancel: false,
+            requests: new Set(),
+          };
           start.current = Date.now();
         } catch (error) {
           if ([404, 409].includes(error.status)) {
@@ -113,7 +117,11 @@ export function useOwnerWorkspace() {
           setUpload(value);
           setSelected(value.parentId || value.id);
           setPaused(true);
-          control.current = { paused: true, cancel: false, xhr: null };
+          control.current = {
+            paused: true,
+            cancel: false,
+            requests: new Set(),
+          };
           start.current = Date.now();
           setError(copy.uploadVerificationFailed);
         }
@@ -236,7 +244,7 @@ export function useOwnerWorkspace() {
       setSelected(parentId || id);
       setProgress(0);
       setElapsed(0);
-      control.current = { paused: false, cancel: false, xhr: null };
+      control.current = { paused: false, cancel: false, requests: new Set() };
       start.current = Date.now();
       run(u);
       return true;
@@ -285,12 +293,12 @@ export function useOwnerWorkspace() {
   }
   function pause() {
     control.current.paused = true;
-    control.current.xhr?.abort();
+    transport.abort();
     setPaused(true);
   }
   async function cancel() {
     control.current.cancel = true;
-    control.current.xhr?.abort();
+    transport.abort();
     try {
       await api("/api/transfers/" + upload.id, undefined, "DELETE");
       await forgetUpload(upload.id);

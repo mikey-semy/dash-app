@@ -29,8 +29,20 @@ test("closed-tab upload restores original bytes and never resends an already acc
     )
       firstParts++;
   });
+  let firstAccepted;
+  const accepted = new Promise((resolve) => {
+    firstAccepted = resolve;
+  });
+  page.on("response", (response) => {
+    if (
+      new URL(response.url()).pathname.match(/^\/fake\/.*\/1$/) &&
+      response.ok()
+    )
+      firstAccepted();
+  });
   await page.route("**/fake/**", async (r) => {
     if (new URL(r.request().url()).pathname.endsWith("/2")) {
+      await accepted;
       second++;
       await r.abort();
     } else await r.continue();

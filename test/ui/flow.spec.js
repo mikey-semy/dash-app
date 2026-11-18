@@ -203,7 +203,7 @@ test("browser multipart pause/resume and automatic retry in the open page", asyn
     mimeType: "application/octet-stream",
     buffer: Buffer.alloc(9 * 1024 * 1024, 7),
   });
-  await expect.poll(() => intercepted).toBe(1);
+  await expect.poll(() => intercepted).toBeGreaterThanOrEqual(2);
   await expect(page.locator(".upload-actions button")).toHaveCount(2);
   expect((await page.locator(".upload-actions").innerText()).trim()).toBe("");
   await expect(page.locator(".upload-times")).not.toContainText("Elapsed");

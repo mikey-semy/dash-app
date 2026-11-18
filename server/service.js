@@ -12,6 +12,7 @@ import {
 } from "./core.js";
 import { textCandidate, TEXT_LIMIT } from "./text.js";
 import { assignSiteTitle } from "./site-names.js";
+import { uploadMultipartStream } from "./multipart-stream.js";
 export class Service {
   constructor(db, store) {
     this.db = db;
@@ -589,36 +590,12 @@ export class Service {
       zip.destroy(e);
     });
     const consume = (async () => {
-      let buffer = Buffer.alloc(0),
-        parts = [],
-        size = 0;
-      for await (const chunk of zip) {
-        buffer = Buffer.concat([buffer, chunk]);
-        while (buffer.length >= PART) {
-          const data = buffer.subarray(0, PART);
-          const r = await this.store.send("UploadPart", {
-            Key: key,
-            UploadId: upload,
-            PartNumber: parts.length + 1,
-            Body: data,
-            ContentLength: data.length,
-          });
-          parts.push({ PartNumber: parts.length + 1, ETag: r.ETag });
-          size += data.length;
-          buffer = buffer.subarray(PART);
-        }
-      }
-      if (buffer.length) {
-        const r = await this.store.send("UploadPart", {
-          Key: key,
-          UploadId: upload,
-          PartNumber: parts.length + 1,
-          Body: buffer,
-          ContentLength: buffer.length,
-        });
-        parts.push({ PartNumber: parts.length + 1, ETag: r.ETag });
-        size += buffer.length;
-      }
+      const { parts, size } = await uploadMultipartStream(
+        zip,
+        this.store,
+        key,
+        upload,
+      );
       if (archiveError) throw archiveError;
       await this.store.complete(key, upload, parts);
       return size;

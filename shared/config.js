@@ -6,6 +6,7 @@ export const UPLOAD_TRANSFER = Object.freeze({
   idleTimeout: 120000,
 });
 export const PART = 8 * 1024 * 1024;
+export const ARCHIVE_TRANSFER = Object.freeze({ concurrency: 2 });
 export const LIMIT = 2_000_000_000;
 export const QUOTA = 20_000_000_000;
 export const TEXT_LIMIT = 5 * 1024 * 1024;

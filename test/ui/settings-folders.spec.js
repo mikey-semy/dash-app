@@ -210,6 +210,45 @@ test("current and history settings change their own retention and PIN through on
   await lock.dblclick();
   await expect.poll(async () => (await get()).hasPassword).toBe(false);
   expect((await get()).url).toBe(url);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const presentation = dialog.getByRole("button", {
+    name: "Presentation without controls",
+    exact: true,
+  });
+  await expect(presentation).toHaveAttribute(
+    "title",
+    "Show supported files without interface controls",
+  );
+  const controls = dialog.locator(".transfer-settings-controls > button");
+  const positions = () =>
+    controls.evaluateAll((buttons) =>
+      buttons.map((button) => [
+        button.offsetLeft,
+        button.offsetTop,
+        button.offsetWidth,
+        button.offsetHeight,
+      ]),
+    );
+  const initialPositions = await positions();
+  for (const [current, next] of [
+    ["3 days", "7 days"],
+    ["7 days", "Forever"],
+    ["Forever", "One-time"],
+  ]) {
+    await dialog
+      .getByRole("button", {
+        name: "Current retention: " + current,
+        exact: true,
+      })
+      .click();
+    await expect(
+      dialog.getByRole("button", {
+        name: "Current retention: " + next,
+        exact: true,
+      }),
+    ).toBeVisible();
+    expect(await positions()).toEqual(initialPositions);
+  }
   await dialog
     .getByRole("button", { name: "Close settings", exact: true })
     .click();

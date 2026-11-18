@@ -195,7 +195,7 @@ export function hosting(service, env, options = {}) {
                 !ips.length ||
                 ips.some((ip) => !target.includes(ip))
               )
-                next.error = copy.domainDnsMustPointOnlyToTheDuServer;
+                next.error = copy.domainDnsMustPointOnlyToThisServer;
               else {
                 accepted.push(t.site_domain);
                 let blocked = false;

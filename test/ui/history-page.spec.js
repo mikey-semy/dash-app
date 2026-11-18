@@ -14,7 +14,7 @@ for (const width of [320, 390, 560, 760, 1280])
       title: "A readable transfer title " + i,
       name: "image.png",
       files: [{ name: "image.png", size: 123 }],
-      size: 123,
+      size: 999_950_000,
       url: "http://127.0.0.1:3001/His123",
     }));
     await page.route("**/api/**", (route) => {
@@ -42,6 +42,17 @@ for (const width of [320, 390, 560, 760, 1280])
     const row = history.locator(".history-row").first(),
       name = row.getByRole("textbox", { name: "Transfer name", exact: true });
     expect((await name.boundingBox()).width).toBeGreaterThan(125);
+    expect(
+      await row.locator(".history-size").evaluate((cell) => {
+        const range = document.createRange();
+        range.selectNodeContents(cell);
+        const [text, wrapped] = range.getClientRects();
+        const bounds = cell.getBoundingClientRect();
+        return (
+          !wrapped && text.left >= bounds.left && text.right <= bounds.right
+        );
+      }),
+    ).toBe(true);
     if (width <= 760) {
       await expect(
         row.getByRole("button", { name: "Actions", exact: true }),

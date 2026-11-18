@@ -148,18 +148,18 @@ export default function TransferSettings({ transfer, api, onClose }) {
                   <small>{duration[2]}</small>
                 </span>
               </IconButton>
-              {!transfer.oneTime && transfer.expires !== null && (
-                <Expiry value={transfer.expires} className="expiry-inline" />
-              )}
               <IconButton
                 aria-label={copy.presentationWithoutControls}
-                title={copy.showMediaAndTextWithoutDuControls}
+                title={copy.presentationHint}
                 aria-pressed={!!transfer.demo}
                 disabled={busy}
                 onClick={() => update({ demo: !transfer.demo })}
               >
                 <Icon name="presentation" />
               </IconButton>
+              {!transfer.oneTime && transfer.expires !== null && (
+                <Expiry value={transfer.expires} className="expiry-inline" />
+              )}
             </div>
             <div className="password-field transfer-password">
               <input

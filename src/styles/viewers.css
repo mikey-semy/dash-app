@@ -238,6 +238,12 @@
   gap: var(--size-20);
   margin-bottom: var(--size-20);
 }
+.transfer-settings-controls .duration-button {
+  width: var(--size-40);
+  height: var(--size-32);
+  flex-shrink: 0;
+  justify-content: center;
+}
 .transfer-password,
 .domain-field {
   padding: 0 var(--size-8);

@@ -64,6 +64,9 @@ html:has(.history-page) {
   color: var(--color-muted);
   font-size: var(--font-size-caption);
 }
+.history-page .file-size {
+  white-space: nowrap;
+}
 .history-actions {
   display: flex;
   align-items: center;
@@ -82,7 +85,7 @@ html:has(.history-page) {
 @media (--compact-table) {
   .history-page {
     --table-actions-width: var(--size-64);
-    --table-size-width: var(--size-48);
+    --table-size-width: var(--size-56);
   }
   .history-page > .dialog-body,
   .history-page > .history-table-header,
@@ -91,7 +94,7 @@ html:has(.history-page) {
   }
   .history-page .history-size,
   .history-page .history-table-header > .file-size {
-    padding-inline: var(--size-4);
+    padding-inline: var(--size-2);
   }
   .history-page .history-table-header > .file-actions {
     display: none;

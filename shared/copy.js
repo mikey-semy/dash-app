@@ -126,7 +126,7 @@ export const copy = Object.freeze({
   currentRetentionPrefix: "Current retention: ",
   changeRetentionFromNow: "Change retention from now",
   presentationWithoutControls: "Presentation without controls",
-  showMediaAndTextWithoutDuControls: "Show media and text without DU controls",
+  presentationHint: "Show supported files without interface controls",
   currentTransferPassword: "Current transfer password",
   generateAndCopyTransferPassword: "Generate and copy transfer password",
   passwordActionHint: "Click to generate and copy; double-click to remove",
@@ -240,8 +240,8 @@ export const copy = Object.freeze({
   invalidDomain: "Invalid domain",
   enterADomainOnly: "Enter a domain only",
   domainFormatHint: "Enter a domain without a protocol, port or path",
-  domainDnsMustPointOnlyToTheDuServer:
-    "Domain DNS must point only to the DU server addresses",
+  domainDnsMustPointOnlyToThisServer:
+    "Domain DNS must point only to this server’s addresses",
   domainReserved:
     "Domain is already used by another application on this server",
   siteUnavailable: "Site unavailable",

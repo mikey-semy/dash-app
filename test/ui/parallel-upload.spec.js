@@ -40,3 +40,52 @@ test("parallel upload pauses every part, resumes and downloads exact original by
   expect((await response.body()).equals(bytes)).toBe(true);
   expect(parts).toBeGreaterThanOrEqual(4);
 });
+
+test("cancelled signing requests cannot block or pause the next upload", async ({
+  page,
+  context,
+}) => {
+  await page.goto("/");
+  await page.getByLabel("Password", { exact: true }).fill("123456");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  let first;
+  const waiting = [];
+  await page.route("**/api/transfers/*/files/0/parts/*", async (route) => {
+    const id = new URL(route.request().url()).pathname.split("/")[3];
+    first ||= id;
+    if (id !== first) return route.continue();
+    await new Promise((resolve) => waiting.push(resolve));
+    await route.abort().catch(() => {});
+  });
+  await page.locator("input[type=file]").setInputFiles({
+    name: "cancelled.bin",
+    mimeType: "application/octet-stream",
+    buffer: Buffer.alloc(25 * 1024 * 1024, 13),
+  });
+  await expect.poll(() => waiting.length).toBe(4);
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "UPLOAD", exact: true }),
+  ).toBeVisible();
+  const bytes = Buffer.from("the second upload stays independent");
+  await page.locator("input[type=file]").setInputFiles({
+    name: "next.bin",
+    mimeType: "application/octet-stream",
+    buffer: bytes,
+  });
+  await expect(page.locator(".share-ready")).toBeVisible();
+  waiting.splice(0).forEach((resolve) => resolve());
+  const record = await page.evaluate(async () =>
+    (await (await fetch("/api/transfers")).json()).find(
+      (t) => t.files[0]?.name === "next.bin",
+    ),
+  );
+  const response = await context.request.get(
+    "/public/" + record.url.split("/").at(-1) + "/download",
+  );
+  expect((await response.body()).equals(bytes)).toBe(true);
+  await expect(page.locator(".share-ready")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Resume", exact: true }),
+  ).toHaveCount(0);
+});

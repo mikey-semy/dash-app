@@ -7,14 +7,20 @@ export function createUploadTransport({
   onProgress,
   concurrency = UPLOAD_TRANSFER.concurrency,
   createXHR = () => new XMLHttpRequest(),
+  setTimer = (callback, delay) => setTimeout(callback, delay),
+  clearTimer = (timer) => clearTimeout(timer),
   sleep = (delay) => new Promise((resolve) => setTimeout(resolve, delay)),
 }) {
   function abort() {
+    control.current.abortController?.abort();
     for (const xhr of [...(control.current.requests || [])]) xhr.abort();
   }
   async function sendParts(u) {
     const state = control.current;
     state.requests = new Set();
+    state.abortController = new AbortController();
+    const request = (path, body) =>
+      api(path, body, "POST", { signal: state.abortController.signal });
     let done = 0,
       reported = 0,
       failure;
@@ -35,16 +41,20 @@ export function createUploadTransport({
       }
     };
     function stopRequests() {
+      state.abortController.abort();
       for (const xhr of [...state.requests]) xhr.abort();
     }
     function put(url, blob, part) {
       return new Promise((resolve, reject) => {
         check();
         const xhr = createXHR();
-        let settled = false;
+        let settled = false,
+          timer,
+          loaded = 0;
         const finish = (error) => {
           if (settled) return;
           settled = true;
+          clearTimer(timer);
           state.requests.delete(xhr);
           inFlight.delete(part);
           xhr.upload.onprogress = null;
@@ -52,10 +62,21 @@ export function createUploadTransport({
           if (error) reject(error);
           else resolve();
         };
+        const watch = () => {
+          clearTimer(timer);
+          timer = setTimer(() => {
+            finish(new Error(copy.partUploadTimedOut));
+            xhr.abort();
+          }, UPLOAD_TRANSFER.idleTimeout);
+        };
         state.requests.add(xhr);
         xhr.ontimeout = () => finish(new Error(copy.partUploadTimedOut));
         xhr.upload.onprogress = (event) => {
           if (settled || stopped()) return;
+          if (event.loaded > loaded) {
+            loaded = event.loaded;
+            watch();
+          }
           inFlight.set(part, Math.min(blob.size, event.loaded));
           report();
         };
@@ -69,7 +90,8 @@ export function createUploadTransport({
         xhr.onabort = () => finish(new Error(copy.pause));
         try {
           xhr.open("PUT", url);
-          xhr.timeout = UPLOAD_TRANSFER.partTimeout;
+          xhr.timeout = 0;
+          watch();
           xhr.send(blob);
         } catch (error) {
           finish(error);
@@ -81,7 +103,7 @@ export function createUploadTransport({
         check();
         const file = u.files[i];
         const path = `/api/transfers/${u.id}/files/${i + (u.offset || 0)}`;
-        const init = await api(path + "/init", {});
+        const init = await request(path + "/init", {});
         check();
         if (init.done) {
           done += file.size;
@@ -112,7 +134,7 @@ export function createUploadTransport({
               for (let attempt = 0; ; attempt++) {
                 check();
                 try {
-                  const { url } = await api(path + "/parts/" + part, {});
+                  const { url } = await request(path + "/parts/" + part, {});
                   check();
                   await put(url, blob, part);
                   check();
@@ -136,7 +158,7 @@ export function createUploadTransport({
           Array.from({ length: Math.min(concurrency, pending.length) }, worker),
         );
         check();
-        await api(path + "/complete", {});
+        await request(path + "/complete", {});
       }
     } finally {
       stopRequests();

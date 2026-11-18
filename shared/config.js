@@ -3,7 +3,7 @@ export const UPLOAD_TRANSFER = Object.freeze({
   concurrency: 4,
   retries: 2,
   retryDelay: 500,
-  partTimeout: 120000,
+  idleTimeout: 120000,
 });
 export const PART = 8 * 1024 * 1024;
 export const LIMIT = 2_000_000_000;

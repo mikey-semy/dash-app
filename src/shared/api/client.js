@@ -8,10 +8,14 @@ export function createApi({
     path,
     body,
     method = body === undefined ? "GET" : "POST",
+    { signal } = {},
   ) {
     for (let attempt = 0; ; attempt++) {
       try {
+        if (signal?.aborted)
+          throw signal.reason || new DOMException(copy.pause, "AbortError");
         const response = await send(path, {
+          ...(signal ? { signal } : {}),
           method,
           headers:
             body === undefined ? {} : { "Content-Type": "application/json" },
@@ -37,6 +41,7 @@ export function createApi({
           });
         return value;
       } catch (error) {
+        if (signal?.aborted) throw error;
         const transient =
           !error.status ||
           error.status >= 500 ||

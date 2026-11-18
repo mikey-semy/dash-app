@@ -43,7 +43,7 @@ export function useOwnerWorkspace() {
     [renaming, setRenaming] = useState(false);
   const control = useRef({ paused: false, cancel: false, requests: new Set() }),
     start = useRef(0),
-    active = useRef(false),
+    active = useRef(null),
     choosing = useRef(false),
     recoveryChecked = useRef(false);
   useEffect(() => {
@@ -180,7 +180,8 @@ export function useOwnerWorkspace() {
     if (current?.appendState) throw new Error(copy.updateIsStillInProgress);
   }
   async function choose(list, parentId = null, replacement = null) {
-    if (active.current || choosing.current) return false;
+    if ((active.current && !active.current.cancel) || choosing.current)
+      return false;
     if (upload?.missing) {
       try {
         const restored = await matchUpload(upload, Array.from(list));
@@ -261,34 +262,42 @@ export function useOwnerWorkspace() {
     }
   }
   async function run(u) {
-    if (active.current) return;
-    active.current = true;
+    if (active.current && !active.current.cancel) return;
+    const state = control.current;
+    active.current = state;
     setRunning(true);
     setPaused(false);
-    control.current.paused = false;
+    state.paused = false;
     try {
       await transport.sendParts(u);
-      if (!control.current.paused && !control.current.cancel) {
+      if (control.current !== state) return;
+      if (!state.paused && !state.cancel) {
         await api(`/api/transfers/${u.id}/complete`, {});
+        if (control.current !== state || state.cancel) return;
         await forgetUpload(u.id);
+        if (control.current !== state) return;
         setUpload(null);
         await reload();
       }
     } catch (e) {
-      if (!control.current.paused && !control.current.cancel) {
+      if (control.current !== state) return;
+      if (!state.paused && !state.cancel) {
         if ([404, 409].includes(e.status)) {
           await forgetUpload(u.id);
+          if (control.current !== state) return;
           setUpload(null);
           setError(e.message);
           return;
         }
         setError(e.message + copy.canBeResumedSuffix);
-        control.current.paused = true;
+        state.paused = true;
         setPaused(true);
       }
     } finally {
-      active.current = false;
-      setRunning(false);
+      if (active.current === state) {
+        active.current = null;
+        setRunning(false);
+      }
     }
   }
   function pause() {

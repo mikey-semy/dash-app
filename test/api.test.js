@@ -64,3 +64,32 @@ test("real JSON 404s and mutations are never replayed; network failures have a b
     console.error = original;
   }
 });
+
+test("aborted API requests forward the signal and never retry or dispatch again", async () => {
+  const controller = new AbortController();
+  let requests = 0;
+  const api = createApi({
+    fetch: async (path, options) => {
+      requests++;
+      assert.equal(options.signal, controller.signal);
+      return new Promise((resolve, reject) =>
+        options.signal.addEventListener(
+          "abort",
+          () => reject(options.signal.reason),
+          { once: true },
+        ),
+      );
+    },
+    sleep: async () => assert.fail("cancelled reads must not retry"),
+  });
+  const request = api("/api/session", undefined, "GET", {
+    signal: controller.signal,
+  });
+  controller.abort();
+  await assert.rejects(request, { name: "AbortError" });
+  await assert.rejects(
+    api("/api/session", undefined, "GET", { signal: controller.signal }),
+    { name: "AbortError" },
+  );
+  assert.equal(requests, 1);
+});

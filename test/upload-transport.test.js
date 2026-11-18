@@ -83,7 +83,12 @@ test("transient part failures retry with fresh URLs and stop after cancellation"
   assert.deepEqual(delays, [500]);
   assert.equal(completed, false);
 });
-function harness({ concurrency = 4, count = 5, deferSigning = false } = {}) {
+function harness({
+  concurrency = 4,
+  count = 5,
+  deferSigning = false,
+  clock,
+} = {}) {
   const requests = [],
     calls = [],
     progress = [],
@@ -92,6 +97,9 @@ function harness({ concurrency = 4, count = 5, deferSigning = false } = {}) {
   const control = { current: {} };
   const transport = createUploadTransport({
     control,
+    ...(clock
+      ? { setTimer: clock.setTimer, clearTimer: clock.clearTimer }
+      : {}),
     concurrency,
     onProgress: (value) => progress.push(value),
     sleep: async () => {},
@@ -242,4 +250,44 @@ test("cancel during signing cannot start a late PUT or complete the file", async
     h.calls.some((path) => path.endsWith("/complete")),
     false,
   );
+});
+
+test("idle timeout resets on advancing bytes and aborts a stalled part before retry", async () => {
+  let now = 0,
+    next = 0;
+  const timers = new Map();
+  const clock = {
+    setTimer(callback, delay) {
+      const id = ++next;
+      timers.set(id, { at: now + delay, callback });
+      return id;
+    },
+    clearTimer(id) {
+      timers.delete(id);
+    },
+  };
+  const advance = (ms) => {
+    now += ms;
+    for (const [id, timer] of [...timers])
+      if (timer.at <= now) {
+        timers.delete(id);
+        timer.callback();
+      }
+  };
+  const h = harness({ count: 1, clock });
+  const run = h.transport.sendParts(h.upload);
+  await h.settle();
+  advance(100000);
+  h.requests[0].upload.onprogress({ loaded: 1 });
+  advance(100000);
+  assert.equal(h.requests[0].aborted, undefined);
+  h.requests[0].upload.onprogress({ loaded: 2 });
+  advance(120001);
+  await h.settle();
+  assert.equal(h.requests[0].aborted, true);
+  assert.equal(h.requests.length, 2);
+  h.finish(h.requests[1]);
+  await run;
+  assert.equal(timers.size, 0);
+  assert.equal(h.progress.at(-1), 3);
 });

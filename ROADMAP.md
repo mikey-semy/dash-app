@@ -9,6 +9,7 @@ Current phase: bounded parallel multipart uploads. The default is four requests 
 - [x] Send independent parts concurrently with a bounded request pool.
 - [x] Aggregate byte progress without counting retries twice; reuse already accepted parts on resume.
 - [x] Abort every active PUT on pause/cancel and stop pending work after an unrecoverable error. Ignore late signing responses and progress events.
+- [x] Use progress-based idle timeouts so slow but advancing parallel requests are not cut off by a fixed total deadline.
 - [x] Keep append indices, original file bytes, fresh signed URLs on retry and server-side completion validation.
 - [ ] Measure end-to-end uploads at concurrency 1/2/4/6 with isolated fixtures. Record preparation, signing, transfer and archive time separately, plus memory usage and failures. Synthetic scheduling tests are not network throughput measurements.
 - [ ] Add adaptive concurrency only after those measurements, with conservative behavior on slow or unreliable connections.

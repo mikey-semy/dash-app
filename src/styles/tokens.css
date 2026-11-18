@@ -6,6 +6,8 @@
 @custom-media --no-hover (hover: none);
 
 :root {
+  --markdown-table-cell-min: 12ch;
+  --markdown-table-cell-max: 32ch;
   --compact-table-width: 760px;
   --transfer-toggle-space: var(--size-32);
   --transfer-bottom-space: max(

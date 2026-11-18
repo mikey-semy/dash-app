@@ -1,5 +1,7 @@
 // English product copy. User-provided data is never translated.
 export const copy = Object.freeze({
+  markdownTable: "Markdown table",
+  mermaidDiagram: "Mermaid diagram",
   uploadRecoveryUnverified:
     "The original file cache was lost before verification finished. Cancel and start a new upload.",
   fileNameColumn: "Name",

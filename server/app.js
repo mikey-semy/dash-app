@@ -77,6 +77,22 @@ export function createApp(
     readText,
   });
   app.get(["/", "/index.html", "/history", "/t/:token"], html);
+  app.get("/diagram-renderer.html", (_req, res, next) => {
+    res.set(
+      "Content-Security-Policy",
+      "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src data:; frame-ancestors 'self'; base-uri 'none'; form-action 'none'; sandbox allow-scripts",
+    );
+    next();
+  });
+  app.use("/assets", (req, res, next) => {
+    if (
+      req.headers.origin === "null" &&
+      req.headers["sec-fetch-dest"] === "script"
+    )
+      res.set("Access-Control-Allow-Origin", "null");
+    res.vary("Origin").vary("Sec-Fetch-Dest");
+    next();
+  });
   app.get(/^\/[A-Za-z0-9]{6}$/, html);
   app.use(express.static("dist", { index: false }));
   app.use("/assets", legacyAssets(assetDirectory));

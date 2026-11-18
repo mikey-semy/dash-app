@@ -56,5 +56,25 @@ export default defineConfig({
     },
   ],
   css: { postcss: { plugins: [postcssCustomMedia()] } },
-  server: { proxy: { "/api": "http://localhost:3000" } },
+  build: {
+    rollupOptions: {
+      input: {
+        index: fileURLToPath(new URL("./index.html", import.meta.url)),
+        diagramRenderer: fileURLToPath(
+          new URL("./diagram-renderer.html", import.meta.url),
+        ),
+      },
+    },
+  },
+  server: {
+    proxy: {
+      "/api": "http://localhost:3000",
+    },
+    cors: {
+      origin: [
+        "null",
+        /^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/,
+      ],
+    },
+  },
 });

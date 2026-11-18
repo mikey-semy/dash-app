@@ -188,16 +188,20 @@
   padding: var(--size-2) var(--size-4);
   background: var(--color-surface-subtle);
 }
-.markdown-document table {
-  display: block;
+.markdown-overflow {
   max-width: 100%;
-  width: max-content;
-  overflow: auto;
-  border-collapse: collapse;
+  overflow-x: auto;
   scrollbar-width: thin;
+}
+.markdown-document table {
+  width: max-content;
+  border-collapse: collapse;
 }
 .markdown-document th,
 .markdown-document td {
+  min-width: var(--markdown-table-cell-min);
+  max-width: var(--markdown-table-cell-max);
+  overflow-wrap: break-word;
   padding: var(--size-6) var(--size-12);
   border: var(--size-1) solid var(--color-border-soft);
   text-align: left;
@@ -210,6 +214,19 @@
 .markdown-document img {
   max-width: 100%;
   height: auto;
+}
+.markdown-document .markdown-diagram img {
+  display: block;
+  max-width: none;
+  margin-inline: auto;
+}
+.markdown-render-surface {
+  position: fixed;
+  visibility: hidden;
+  pointer-events: none;
+  width: var(--size-1000);
+  height: var(--size-1);
+  border: 0;
 }
 .markdown-document .task-list-item {
   list-style: none;

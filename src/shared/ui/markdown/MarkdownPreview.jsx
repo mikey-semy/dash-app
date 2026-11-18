@@ -1,9 +1,10 @@
 import { copy } from "#common/copy.js";
-import { lazy, Suspense } from "react";
+import { isValidElement, lazy, Suspense } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
 const HighlightedCode = lazy(() => import("./MarkdownCode.jsx"));
+const MermaidDiagram = lazy(() => import("./MermaidDiagram.jsx"));
 export default function MarkdownPreview({
   source,
   filename = "",
@@ -42,6 +43,37 @@ export default function MarkdownPreview({
           rehypePlugins={[rehypeSlug]}
           skipHtml
           components={{
+            table: ({ children }) => (
+              <div
+                className="markdown-overflow"
+                role="region"
+                aria-label={copy.markdownTable}
+                tabIndex={0}
+              >
+                <table>{children}</table>
+              </div>
+            ),
+            pre: ({ children }) => {
+              if (
+                isValidElement(children) &&
+                children.props.className
+                  ?.split(/\s+/)
+                  .includes("language-mermaid")
+              ) {
+                const diagram = String(children.props.children);
+                const fallback = (
+                  <pre>
+                    <code>{diagram}</code>
+                  </pre>
+                );
+                return (
+                  <Suspense fallback={fallback}>
+                    <MermaidDiagram source={diagram} fallback={fallback} />
+                  </Suspense>
+                );
+              }
+              return <pre>{children}</pre>;
+            },
             a: ({ href, children }) => (
               <a
                 href={resolve(href) || href}

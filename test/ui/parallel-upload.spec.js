@@ -1,4 +1,84 @@
 import { test, expect } from "@playwright/test";
+import { unzipSync } from "fflate";
+
+test("files start together before hashing and a closed tab resumes from the saved originals", async ({
+  page,
+  context,
+}) => {
+  await page.addInitScript(() => {
+    crypto.subtle.digest = () => new Promise(() => {});
+  });
+  await page.goto("/");
+  await page.getByLabel("Password", { exact: true }).fill("123456");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  let accepted = 0;
+  const waiting = [];
+  await page.route("**/fake/**", async (route) => {
+    if (route.request().method() !== "PUT") return route.continue();
+    await new Promise((resolve) => waiting.push(resolve));
+    await route.continue().catch(() => {});
+  });
+  page.on("response", (response) => {
+    if (response.ok() && response.url().includes("/fake/")) accepted++;
+  });
+  const files = ["first", "second", "third"].map((value) => ({
+    name: value + ".txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from(value),
+  }));
+  await page.locator("input[type=file]").setInputFiles(files);
+  await expect.poll(() => waiting.length).toBe(3);
+  waiting[0]();
+  await expect.poll(() => accepted).toBe(1);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          new Promise((resolve, reject) => {
+            const request = indexedDB.open("du-uploads", 1);
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => {
+              const db = request.result;
+              const read = db
+                .transaction("uploads")
+                .objectStore("uploads")
+                .get("active");
+              read.onsuccess = () => {
+                db.close();
+                resolve(read.result?.files.length);
+              };
+              read.onerror = () => {
+                db.close();
+                reject(read.error);
+              };
+            };
+          }),
+      ),
+    )
+    .toBe(3);
+  expect(
+    await page.evaluate(
+      () => performance.getEntriesByName("dash.upload.first-put").length,
+    ),
+  ).toBe(1);
+  await page.getByRole("button", { name: "Pause", exact: true }).click();
+  waiting.slice(1).forEach((release) => release());
+  await page.close();
+  const restored = await context.newPage();
+  await restored.goto("/");
+  await restored.getByRole("button", { name: "Resume", exact: true }).click();
+  await expect(restored.locator(".share-ready")).toBeVisible();
+  const record = await restored.evaluate(
+    async () => (await (await fetch("/api/transfers")).json())[0],
+  );
+  const response = await context.request.get(
+    "/public/" + record.url.split("/").pop() + "/download",
+  );
+  const zip = unzipSync(new Uint8Array(await response.body()));
+  for (const file of files)
+    expect(Buffer.from(zip[file.name])).toEqual(file.buffer);
+  await restored.close();
+});
 test("parallel upload pauses every part, resumes and downloads exact original bytes", async ({
   page,
   context,

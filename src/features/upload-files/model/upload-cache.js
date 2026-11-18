@@ -1,6 +1,7 @@
 import { copy } from "#common/copy.js";
 const key = "du.upload.v1";
 const fingerprints = new WeakMap();
+const savingSources = new Map();
 function database() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open("du-uploads", 1);
@@ -50,6 +51,15 @@ async function hashFile(file) {
   ).join("");
 }
 export async function rememberUpload(upload) {
+  const { files: sources, manifest, missing, ...transfer } = upload;
+  const files = sources.map((file, index) => ({
+    name: file.name,
+    size: file.size,
+    lastModified: file.lastModified,
+    fingerprint: manifest?.[index]?.fingerprint ?? null,
+  }));
+  const metadata = { ...transfer, files };
+  localStorage.setItem(key, JSON.stringify(metadata));
   // Persist the immutable sources while hashing instead of doing both serially.
   const persisted = stored("readwrite", (store) =>
     store.put({ id: upload.id, files: upload.files }, "active"),
@@ -57,15 +67,16 @@ export async function rememberUpload(upload) {
     () => true,
     () => false,
   );
-  const files = [];
-  for (const file of upload.files)
-    files.push({
-      name: file.name,
-      size: file.size,
-      lastModified: file.lastModified,
-      fingerprint: await fingerprint(file),
-    });
-  const metadata = { ...upload, files };
+  savingSources.set(upload.id, persisted);
+  persisted.then(() => {
+    if (savingSources.get(upload.id) === persisted)
+      savingSources.delete(upload.id);
+  });
+  for (let i = 0; i < files.length; i++) {
+    if (JSON.parse(localStorage.getItem(key))?.id !== upload.id) return false;
+    files[i].fingerprint ||= await fingerprint(sources[i]);
+  }
+  if (JSON.parse(localStorage.getItem(key))?.id !== upload.id) return false;
   localStorage.setItem(key, JSON.stringify(metadata));
   return persisted;
 }
@@ -86,7 +97,9 @@ export async function recoverUpload() {
       for (let i = 0; i < cache.files.length; i++)
         if (
           cache.files[i].size !== metadata.files[i].size ||
-          (await fingerprint(cache.files[i])) !== metadata.files[i].fingerprint
+          (metadata.files[i].fingerprint &&
+            (await fingerprint(cache.files[i])) !==
+              metadata.files[i].fingerprint)
         )
           throw new Error("Cache changed");
       return {
@@ -109,10 +122,14 @@ export async function forgetUpload(id) {
     const current = JSON.parse(localStorage.getItem(key));
     if (current?.id !== id) return;
     localStorage.removeItem(key);
+    await savingSources.get(id);
+    if (localStorage.getItem(key)) return;
     await stored("readwrite", (store) => store.delete("active"));
   } catch {}
 }
 export async function matchUpload(upload, files) {
+  if (upload.manifest.some((file) => !file.fingerprint))
+    throw new Error(copy.uploadRecoveryUnverified);
   if (files.length !== upload.manifest.length)
     throw new Error(copy.selectAllOriginalUploadFiles);
   const remaining = Array.from(files),

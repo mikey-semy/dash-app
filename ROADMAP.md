@@ -4,17 +4,18 @@ This file tracks remaining work; unchecked items are planned, not implemented. T
 
 ## Performance track
 
-Current phase: bounded parallel multipart uploads. The default is four requests per file, with the existing 8 MiB parts and sequential file finalization. No network speedup is claimed until representative measurements are available.
+Current phase: early upload start and a shared request pool across files. The default is four concurrent requests per transfer with the existing 8 MiB parts.
 
 - [x] Send independent parts concurrently with a bounded request pool.
 - [x] Aggregate byte progress without counting retries twice; reuse already accepted parts on resume.
 - [x] Abort every active PUT on pause/cancel and stop pending work after an unrecoverable error. Ignore late signing responses and progress events.
 - [x] Use progress-based idle timeouts so slow but advancing parallel requests are not cut off by a fixed total deadline.
 - [x] Keep append indices, original file bytes, fresh signed URLs on retry and server-side completion validation.
-- [ ] Measure end-to-end uploads at concurrency 1/2/4/6 with isolated fixtures. Record preparation, signing, transfer and archive time separately, plus memory usage and failures. Synthetic scheduling tests are not network throughput measurements.
+- [x] Compare concurrency 1/2/4/6 in the isolated HTTP benchmark (`node tooling/benchmark-upload.mjs`) for one large file and many small files, with an optional delayed response and transient failure profile. Record first PUT, transfer, publication and download timings.
+- [ ] Repeat with representative browser-to-S3 and recipient-to-server runs in dedicated test storage. Include mobile, memory, retry counts and the browser User Timing measures under `dash.upload.*`.
 - [ ] Add adaptive concurrency only after those measurements, with conservative behavior on slow or unreliable connections.
-- [ ] Investigate startup latency from full-file fingerprinting and IndexedDB persistence. Overlap work only while preserving changed-file detection and closed-tab recovery.
-- [x] Overlap IndexedDB source persistence with full-content fingerprinting; reuse fingerprints only for the same immutable File/Blob object. Keep recovery metadata unpublished until hashing finishes. Full-file preparation latency still needs measurement and further optimization.
+- [x] Start sending while IndexedDB persistence and fingerprinting run. A pending checkpoint can recover through the original cached files. If the cache is lost before fingerprints are saved, require a fresh upload rather than accepting unverifiable replacements.
+- [x] Share the request limit across file initialization, part transfers and file completion. New multipart uploads skip listing parts until a resume requires it.
 - [ ] Benchmark larger part sizes; persist per-upload sizing before changing defaults so old uploads remain resumable.
 - [x] Pipeline ZIP multipart writes with two concurrent requests, bounded part buffers and ordered completion. Drain active writes before aborting failed/cancelled multipart uploads; preserve uncompressed ZIP bytes. Real-storage throughput measurements remain pending.
 - [ ] Benchmark bounded parallel S3 Range reads behind one browser download stream. Preserve the application domain, backpressure, ETags, passwords, expiry, cancellation and one-time download semantics.
@@ -29,7 +30,7 @@ Performance work must not add controls to the minimal interface or change existi
 These references identify useful designs, not evidence of higher throughput under comparable conditions. Keep recipient URLs on the application domain and preserve existing transfers.
 
 - [ ] Establish reproducible small-file, many-file and large-file benchmarks, including mobile, high latency and interrupted connections. Measure time to first byte, preparation, transfer, finalization, peak memory and retries.
-- [ ] Bound concurrency across the entire upload, not only parts within one file. Compare fixed settings before adaptive scheduling; overlap hashing and persistence only while preserving recovery guarantees.
+- [ ] Compare fixed concurrency settings on representative network runs before adaptive scheduling.
 - [ ] Evaluate an authenticated download/CDN path under the application domain. Ordinary S3 redirects reveal storage URLs. Define cache behavior for passwords, revocation, expiry and single-use transfers before enabling caching.
 - [ ] Design content-addressed object reuse inspired by Gokapi. Physical objects, transfer identity, title, filename, password and retention remain independent.
 - [ ] Add reference accounting and race-safe garbage collection before deduplication. Deleting one transfer must not remove another transfer's bytes. Test concurrent upload/delete and failed finalization.

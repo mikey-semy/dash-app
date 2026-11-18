@@ -15,7 +15,7 @@ export function createUploadTransport({
     control.current.abortController?.abort();
     for (const xhr of [...(control.current.requests || [])]) xhr.abort();
   }
-  async function sendParts(u) {
+  async function sendParts(u, { onFirstSend = () => {} } = {}) {
     const state = control.current;
     state.requests = new Set();
     state.abortController = new AbortController();
@@ -23,7 +23,8 @@ export function createUploadTransport({
       api(path, body, "POST", { signal: state.abortController.signal });
     let done = 0,
       reported = 0,
-      failure;
+      failure,
+      started = false;
     const inFlight = new Map();
     const stopped = () =>
       failure || state.paused || state.cancel || control.current !== state;
@@ -44,7 +45,7 @@ export function createUploadTransport({
       state.abortController.abort();
       for (const xhr of [...state.requests]) xhr.abort();
     }
-    function put(url, blob, part) {
+    function put(url, blob, partKey) {
       return new Promise((resolve, reject) => {
         check();
         const xhr = createXHR();
@@ -56,7 +57,7 @@ export function createUploadTransport({
           settled = true;
           clearTimer(timer);
           state.requests.delete(xhr);
-          inFlight.delete(part);
+          inFlight.delete(partKey);
           xhr.upload.onprogress = null;
           xhr.onload = xhr.onerror = xhr.onabort = xhr.ontimeout = null;
           if (error) reject(error);
@@ -77,7 +78,7 @@ export function createUploadTransport({
             loaded = event.loaded;
             watch();
           }
-          inFlight.set(part, Math.min(blob.size, event.loaded));
+          inFlight.set(partKey, Math.min(blob.size, event.loaded));
           report();
         };
         xhr.onload = () =>
@@ -93,73 +94,109 @@ export function createUploadTransport({
           xhr.timeout = 0;
           watch();
           xhr.send(blob);
+          if (!started) {
+            started = true;
+            onFirstSend();
+          }
         } catch (error) {
           finish(error);
         }
       });
     }
-    try {
-      for (let i = 0; i < u.files.length; i++) {
+    const waiting = [];
+    let available = concurrency;
+    async function withSlot(task) {
+      if (available) available--;
+      else await new Promise((resolve) => waiting.push(resolve));
+      try {
         check();
-        const file = u.files[i];
-        const path = `/api/transfers/${u.id}/files/${i + (u.offset || 0)}`;
-        const init = await request(path + "/init", {});
-        check();
-        if (init.done) {
-          done += file.size;
-          report();
-          continue;
-        }
-        const saved = new Map(
-          init.parts.map((part) => [part.PartNumber, part.Size]),
-        );
-        const pending = [];
-        for (
-          let part = 1;
-          part <= Math.ceil(file.size / init.partSize);
-          part++
-        ) {
-          const from = (part - 1) * init.partSize;
-          const blob = file.slice(from, from + init.partSize);
-          if (saved.get(part) === blob.size) done += blob.size;
-          else pending.push({ part, blob });
-        }
-        if (done) report();
-        let next = 0;
-        async function worker() {
-          try {
-            while (next < pending.length) {
+        return await task();
+      } finally {
+        if (waiting.length) waiting.shift()();
+        else available++;
+      }
+    }
+    const limitedRequest = (path) => withSlot(() => request(path, {}));
+    const fail = (error) => {
+      failure ||= error;
+      stopRequests();
+    };
+    async function sendFile(i) {
+      check();
+      const file = u.files[i];
+      const path = `/api/transfers/${u.id}/files/${i + (u.offset || 0)}`;
+      const init = await limitedRequest(path + "/init");
+      check();
+      if (init.done) {
+        done += file.size;
+        report();
+        return;
+      }
+      const saved = new Map(
+        init.parts.map((part) => [part.PartNumber, part.Size]),
+      );
+      const pending = [];
+      for (let part = 1; part <= Math.ceil(file.size / init.partSize); part++) {
+        const from = (part - 1) * init.partSize;
+        const blob = file.slice(from, from + init.partSize);
+        if (saved.get(part) === blob.size) done += blob.size;
+        else pending.push({ part, blob });
+      }
+      if (done) report();
+      let next = 0;
+      async function worker() {
+        try {
+          while (next < pending.length) {
+            check();
+            const { part, blob } = pending[next++];
+            for (let attempt = 0; ; attempt++) {
               check();
-              const { part, blob } = pending[next++];
-              for (let attempt = 0; ; attempt++) {
-                check();
-                try {
+              try {
+                await withSlot(async () => {
                   const { url } = await request(path + "/parts/" + part, {});
                   check();
-                  await put(url, blob, part);
-                  check();
-                  done += blob.size;
-                  report();
-                  break;
-                } catch (error) {
-                  if (stopped() || attempt === UPLOAD_TRANSFER.retries)
-                    throw error;
-                  await sleep(UPLOAD_TRANSFER.retryDelay * 2 ** attempt);
-                }
+                  await put(url, blob, path + "/" + part);
+                });
+                check();
+                done += blob.size;
+                report();
+                break;
+              } catch (error) {
+                if (stopped() || attempt === UPLOAD_TRANSFER.retries)
+                  throw error;
+                await sleep(UPLOAD_TRANSFER.retryDelay * 2 ** attempt);
               }
             }
-          } catch (error) {
-            failure ||= error;
-            stopRequests();
-            throw error;
           }
+        } catch (error) {
+          fail(error);
         }
-        await Promise.allSettled(
-          Array.from({ length: Math.min(concurrency, pending.length) }, worker),
-        );
-        check();
-        await request(path + "/complete", {});
       }
+      await Promise.allSettled(
+        Array.from({ length: Math.min(concurrency, pending.length) }, worker),
+      );
+      check();
+      await limitedRequest(path + "/complete");
+    }
+    let nextFile = 0;
+    async function sendFiles() {
+      try {
+        while (nextFile < u.files.length) {
+          check();
+          await sendFile(nextFile++);
+        }
+      } catch (error) {
+        fail(error);
+      }
+    }
+    try {
+      await Promise.all(
+        Array.from(
+          { length: Math.min(concurrency, u.files.length) },
+          sendFiles,
+        ),
+      );
+      check();
     } finally {
       stopRequests();
       inFlight.clear();

@@ -15,6 +15,12 @@ import {
   createUploadTransport,
 } from "#src/features/upload-files/index.js";
 
+function measureUpload(phase, start, end = performance.now()) {
+  const name = "dash.upload." + phase;
+  performance.clearMeasures(name);
+  performance.measure(name, { start, end });
+}
+
 export function useOwnerWorkspace() {
   const [logged, setLogged] = useState(false),
     [checking, setChecking] = useState(true),
@@ -43,6 +49,7 @@ export function useOwnerWorkspace() {
     [renaming, setRenaming] = useState(false);
   const control = useRef({ paused: false, cancel: false, requests: new Set() }),
     start = useRef(0),
+    uploadTiming = useRef(null),
     active = useRef(null),
     choosing = useRef(false),
     recoveryChecked = useRef(false);
@@ -103,6 +110,7 @@ export function useOwnerWorkspace() {
             cancel: false,
             requests: new Set(),
           };
+          if (!value.missing) rememberUpload(value).catch(() => false);
           start.current = Date.now();
         } catch (error) {
           if ([404, 409].includes(error.status)) {
@@ -150,6 +158,21 @@ export function useOwnerWorkspace() {
     }
   }, [history, upload, running]);
   useEffect(() => {
+    const timing = uploadTiming.current;
+    if (!timing || timing.transferred === undefined) return;
+    const record = history.find((item) => item.id === timing.id);
+    if (
+      !record ||
+      record.state !== "ready" ||
+      record.appendState ||
+      (timing.parent && timing.baseRevision === record.revision)
+    )
+      return;
+    measureUpload("finalize-and-observe-ready", timing.transferred);
+    measureUpload("ready", timing.started);
+    uploadTiming.current = null;
+  }, [history]);
+  useEffect(() => {
     if (!running) return;
     const timer = setInterval(
       () => setElapsed((Date.now() - start.current) / 1000),
@@ -180,6 +203,7 @@ export function useOwnerWorkspace() {
     if (current?.appendState) throw new Error(copy.updateIsStillInProgress);
   }
   async function choose(list, parentId = null, replacement = null) {
+    const started = performance.now();
     if ((active.current && !active.current.cancel) || choosing.current)
       return false;
     if (upload?.missing) {
@@ -240,7 +264,19 @@ export function useOwnerWorkspace() {
         files,
         total: files.reduce((n, f) => n + f.size, 0),
       };
-      await rememberUpload(u).catch(() => false);
+      const timing = {
+        id: parentId || id,
+        parent: !!parentId,
+        baseRevision: u.baseRevision,
+        started,
+      };
+      uploadTiming.current = timing;
+      rememberUpload(u)
+        .then((saved) => {
+          if (saved && uploadTiming.current === timing)
+            measureUpload("recovery-preparation", started);
+        })
+        .catch(() => {});
       setUpload(u);
       setSelected(parentId || id);
       setProgress(0);
@@ -269,9 +305,22 @@ export function useOwnerWorkspace() {
     setPaused(false);
     state.paused = false;
     try {
-      await transport.sendParts(u);
+      const timing = uploadTiming.current;
+      await transport.sendParts(u, {
+        onFirstSend() {
+          if (timing && timing.firstSend === undefined) {
+            timing.firstSend = performance.now();
+            measureUpload("first-put", timing.started, timing.firstSend);
+          }
+        },
+      });
       if (control.current !== state) return;
       if (!state.paused && !state.cancel) {
+        if (timing) {
+          timing.transferred = performance.now();
+          if (timing.firstSend !== undefined)
+            measureUpload("transfer", timing.firstSend, timing.transferred);
+        }
         await api(`/api/transfers/${u.id}/complete`, {});
         if (control.current !== state || state.cancel) return;
         await forgetUpload(u.id);
@@ -306,6 +355,7 @@ export function useOwnerWorkspace() {
     setPaused(true);
   }
   async function cancel() {
+    uploadTiming.current = null;
     control.current.cancel = true;
     transport.abort();
     try {

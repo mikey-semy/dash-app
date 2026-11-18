@@ -48,7 +48,7 @@ test("fingerprints reuse immutable objects but never trust matching names and si
   assert.notEqual(await fingerprint(changed), first);
 });
 
-test("source persistence overlaps fingerprinting and metadata commits only after hashing", async (t) => {
+test("early recovery records the source identity before hashing and rejects unverified replacements", async (t) => {
   const previousDB = globalThis.indexedDB,
     previousStorage = globalThis.localStorage;
   t.after(() => {
@@ -72,6 +72,9 @@ test("source persistence overlaps fingerprinting and metadata commits only after
     },
   });
   globalThis.localStorage = {
+    getItem() {
+      return metadata ? JSON.stringify(metadata) : null;
+    },
     setItem(key, value) {
       metadata = JSON.parse(value);
     },
@@ -104,7 +107,11 @@ test("source persistence overlaps fingerprinting and metadata commits only after
   const pending = rememberUpload({ id: "fixture", files: [file] });
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(persisted, true);
-  assert.equal(metadata, undefined);
+  assert.equal(metadata.files[0].fingerprint, null);
+  await assert.rejects(
+    matchUpload({ manifest: metadata.files }, [file]),
+    /cache was lost before verification/,
+  );
   release();
   assert.equal(await pending, true);
   assert.equal(metadata.files[0].fingerprint, await fingerprint(file));

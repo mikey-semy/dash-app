@@ -18,6 +18,7 @@ export class Service {
     this.db = db;
     this.store = store;
     this.queue = Promise.resolve();
+    this.fileOperations = new Map();
   }
   locked(fn) {
     const result = this.queue.then(fn);
@@ -27,10 +28,27 @@ export class Service {
   get(id) {
     return row(this.db, id);
   }
-  saveFiles(t) {
+  saveFile(id, index, file) {
+    const t = this.get(id);
+    this.uploadable(t);
+    t.files[index] = file;
     this.db
       .prepare("UPDATE transfers SET files=?,error=NULL WHERE id=?")
       .run(JSON.stringify(t.files), t.id);
+  }
+  async withFile(id, index, action) {
+    const operations = this.fileOperations.get(id) || new Map();
+    this.fileOperations.set(id, operations);
+    const pending = (operations.get(index) || Promise.resolve())
+      .catch(() => {})
+      .then(action);
+    operations.set(index, pending);
+    try {
+      return await pending;
+    } finally {
+      if (operations.get(index) === pending) operations.delete(index);
+      if (!operations.size) this.fileOperations.delete(id);
+    }
   }
   create(files, ttl, password) {
     const id = insertTransfer(this.db, files, ttl, password);
@@ -380,21 +398,25 @@ export class Service {
     }
   }
   async init(id, index) {
+    return this.withFile(id, index, () => this.initializeFile(id, index));
+  }
+  async initializeFile(id, index) {
     const t = this.get(id);
     this.uploadable(t);
     const f = t.files[index];
     if (!f) throw Object.assign(new Error(copy.fileNotFound), { status: 404 });
+    const existing = !!f.upload;
     if (!f.upload && !f.done) {
       if (!f.size) {
         await this.store.empty(f.key);
         f.done = true;
       } else f.upload = await this.store.create(f.key);
-      this.saveFiles(t);
+      this.saveFile(id, index, f);
     }
     return {
       partSize: PART,
       done: f.done,
-      parts: f.done ? [] : await this.store.parts(f.key, f.upload),
+      parts: f.done || !existing ? [] : await this.store.parts(f.key, f.upload),
     };
   }
   uploadable(t) {
@@ -433,6 +455,9 @@ export class Service {
     };
   }
   async finishFile(id, index) {
+    return this.withFile(id, index, () => this.completeFile(id, index));
+  }
+  async completeFile(id, index) {
     const t = this.get(id);
     this.uploadable(t);
     const f = t.files[index];
@@ -470,7 +495,7 @@ export class Service {
         status: 409,
       });
     f.done = true;
-    this.saveFiles(t);
+    this.saveFile(id, index, f);
   }
   async finish(id) {
     const t = this.get(id);
@@ -698,7 +723,7 @@ export class Service {
           "SELECT id FROM transfers WHERE state='deleting' OR (state IN ('ready','empty') AND (reserved>0 OR output LIKE '%garbage%'))",
         )
         .all()) {
-        if (r.id === this.archiving) continue;
+        if (r.id === this.archiving || this.fileOperations.has(r.id)) continue;
         const t = this.get(r.id);
         try {
           if (t.state === "deleting") {

@@ -60,6 +60,19 @@ test("Markdown renders Mermaid as an image and keeps wide tables locally scrolla
     .poll(() => diagram.evaluate((image) => image.naturalWidth))
     .toBeGreaterThan(0);
   await expect(diagram).toHaveAttribute("src", /^data:image\/png;base64,/);
+  const original = await diagram.elementHandle();
+  const availableWidth = async () =>
+    diagram.evaluate((image) => {
+      const container = image.parentElement;
+      return {
+        image: image.getBoundingClientRect().width,
+        container: container.clientWidth,
+        overflow: container.scrollWidth > container.clientWidth,
+      };
+    });
+  const mobile = await availableWidth();
+  expect(mobile.image).toBeCloseTo(mobile.container, 0);
+  expect(mobile.overflow).toBe(false);
   expect(
     await page
       .locator(".markdown-render-surface")
@@ -79,6 +92,28 @@ test("Markdown renders Mermaid as an image and keeps wide tables locally scrolla
   expect(await table.evaluate((element) => element.scrollLeft)).toBeGreaterThan(
     0,
   );
+  const scrollLeft = await table.evaluate((element) => element.scrollLeft);
+  for (let i = 0; i < 2; i++) {
+    await Promise.all([
+      page.waitForResponse((response) =>
+        response.url().endsWith("/public/Diag12"),
+      ),
+      page.evaluate(() => window.dispatchEvent(new Event("focus"))),
+    ]);
+    await page.evaluate(
+      () =>
+        new Promise((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(resolve)),
+        ),
+    );
+    expect(await original.evaluate((element) => element.isConnected)).toBe(
+      true,
+    );
+    expect(await table.evaluate((element) => element.scrollLeft)).toBe(
+      scrollLeft,
+    );
+  }
+  await original.dispose();
   expect(
     await page
       .locator(".markdown-preview")

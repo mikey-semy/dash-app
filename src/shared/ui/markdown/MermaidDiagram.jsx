@@ -81,7 +81,7 @@ export default function MermaidDiagram({ source, fallback }) {
   }, [source]);
   if (rendered?.source !== source) return fallback;
   return (
-    <div className="markdown-overflow markdown-diagram" tabIndex={0}>
+    <div className="markdown-diagram">
       <img
         src={rendered.png}
         width={rendered.width}

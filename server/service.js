@@ -13,10 +13,16 @@ import {
 import { textCandidate, TEXT_LIMIT } from "./text.js";
 import { assignSiteTitle } from "./site-names.js";
 import { uploadMultipartStream } from "./multipart-stream.js";
+import { UPLOAD_TRANSFER } from "#common/config.js";
 export class Service {
-  constructor(db, store) {
+  constructor(
+    db,
+    store,
+    { concurrency = UPLOAD_TRANSFER.concurrency, partSize = PART } = {},
+  ) {
     this.db = db;
     this.store = store;
+    this.uploadConfig = { concurrency, partSize };
     this.queue = Promise.resolve();
     this.fileOperations = new Map();
   }
@@ -410,11 +416,14 @@ export class Service {
       if (!f.size) {
         await this.store.empty(f.key);
         f.done = true;
-      } else f.upload = await this.store.create(f.key);
+      } else {
+        f.upload = await this.store.create(f.key);
+        f.partSize = this.uploadConfig.partSize;
+      }
       this.saveFile(id, index, f);
     }
     return {
-      partSize: PART,
+      partSize: f.partSize ?? PART,
       done: f.done,
       parts: f.done || !existing ? [] : await this.store.parts(f.key, f.upload),
     };
@@ -438,11 +447,12 @@ export class Service {
     const t = this.get(id);
     this.uploadable(t);
     const f = t.files[index];
+    const partSize = f?.partSize ?? PART;
     if (
       !f?.upload ||
       !Number.isInteger(part) ||
       part < 1 ||
-      part > Math.ceil(f.size / PART)
+      part > Math.ceil(f.size / partSize)
     )
       throw Object.assign(new Error(copy.invalidPart), { status: 400 });
     return {
@@ -450,7 +460,7 @@ export class Service {
         f.key,
         f.upload,
         part,
-        Math.min(PART, f.size - (part - 1) * PART),
+        Math.min(partSize, f.size - (part - 1) * partSize),
       ),
     };
   }
@@ -475,13 +485,14 @@ export class Service {
           status: 409,
         });
       const parts = await this.store.parts(f.key, f.upload);
-      const count = Math.ceil(f.size / PART);
+      const partSize = f.partSize ?? PART;
+      const count = Math.ceil(f.size / partSize);
       if (
         parts.length !== count ||
         parts.some(
           (p, i) =>
             p.PartNumber !== i + 1 ||
-            p.Size !== Math.min(PART, f.size - i * PART),
+            p.Size !== Math.min(partSize, f.size - i * partSize),
         )
       )
         throw Object.assign(new Error(copy.missingPartsOrIncorrectUploadSize), {

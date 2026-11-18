@@ -16,7 +16,8 @@ Current phase: early upload start and a shared request pool across files. The de
 - [ ] Add adaptive concurrency only after those measurements, with conservative behavior on slow or unreliable connections.
 - [x] Start sending while IndexedDB persistence and fingerprinting run. A pending checkpoint can recover through the original cached files. If the cache is lost before fingerprints are saved, require a fresh upload rather than accepting unverifiable replacements.
 - [x] Share the request limit across file initialization, part transfers and file completion. New multipart uploads skip listing parts until a resume requires it.
-- [ ] Benchmark larger part sizes; persist per-upload sizing before changing defaults so old uploads remain resumable.
+- [x] Make upload concurrency and part size configurable per installation. Persist the part size when each multipart upload starts so it can resume after configuration changes.
+- [ ] Benchmark larger part sizes before changing the default.
 - [x] Pipeline ZIP multipart writes with two concurrent requests, bounded part buffers and ordered completion. Drain active writes before aborting failed/cancelled multipart uploads; preserve uncompressed ZIP bytes. Real-storage throughput measurements remain pending.
 - [ ] Benchmark bounded parallel S3 Range reads behind one browser download stream. Preserve the application domain, backpressure, ETags, passwords, expiry, cancellation and one-time download semantics.
 - [ ] Consider a browser-side range downloader only with a compatible streaming-to-disk strategy and a normal-download fallback; avoid assembling large downloads in RAM.

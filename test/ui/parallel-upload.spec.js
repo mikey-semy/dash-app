@@ -8,6 +8,13 @@ test("files start together before hashing and a closed tab resumes from the save
   await page.addInitScript(() => {
     crypto.subtle.digest = () => new Promise(() => {});
   });
+  await page.route("**/api/login", async (route) => {
+    const response = await route.fetch();
+    await route.fulfill({
+      response,
+      json: { ...(await response.json()), uploadConcurrency: 2 },
+    });
+  });
   await page.goto("/");
   await page.getByLabel("Password", { exact: true }).fill("123456");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
@@ -27,9 +34,10 @@ test("files start together before hashing and a closed tab resumes from the save
     buffer: Buffer.from(value),
   }));
   await page.locator("input[type=file]").setInputFiles(files);
-  await expect.poll(() => waiting.length).toBe(3);
+  await expect.poll(() => waiting.length).toBe(2);
   waiting[0]();
   await expect.poll(() => accepted).toBe(1);
+  await expect.poll(() => waiting.length).toBe(3);
   await expect
     .poll(() =>
       page.evaluate(

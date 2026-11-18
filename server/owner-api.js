@@ -22,7 +22,9 @@ export function createOwnerApi({
   const db = service.db;
   const api = express.Router();
   api.use(requireOwner);
-  api.get("/session", (req, res) => res.json({ ok: true }));
+  api.get("/session", (req, res) =>
+    res.json({ ok: true, uploadConcurrency: service.uploadConfig.concurrency }),
+  );
   function publicOwner(t) {
     const pending = db
       .prepare(

@@ -3,7 +3,7 @@ import { hash, verify, token } from "./core.js";
 
 export function installAuthentication(
   app,
-  { db, password, cookieOptions, limited },
+  { db, password, uploadConcurrency, cookieOptions, limited },
 ) {
   const adminHash = hash(password);
   const isOwner = (req) =>
@@ -28,7 +28,9 @@ export function installAuthentication(
       id,
       Date.now() + cookieOptions.maxAge,
     );
-    res.cookie("owner", id, cookieOptions).json({ ok: true });
+    res
+      .cookie("owner", id, cookieOptions)
+      .json({ ok: true, uploadConcurrency });
   });
   app.post("/api/logout", requireOwner, (req, res) => {
     db.prepare("DELETE FROM sessions WHERE id=?").run(req.cookies.owner);

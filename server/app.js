@@ -56,6 +56,7 @@ export function createApp(
   const { requireOwner, isOwner } = installAuthentication(app, {
     db,
     password: env.ADMIN_PASSWORD,
+    uploadConcurrency: service.uploadConfig.concurrency,
     cookieOptions: options,
     limited,
   });

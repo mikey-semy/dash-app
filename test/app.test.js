@@ -61,6 +61,52 @@ async function upload(service, store, contents, password = "") {
   await service.finish(id);
   return id;
 }
+test("multipart size survives changed instance settings and legacy records retain their offsets", async () => {
+  const db = openDB(":memory:"),
+    store = new FakeStore();
+  try {
+    const custom = 5 * 1024 * 1024;
+    const original = new Service(db, store, {
+      partSize: custom,
+      concurrency: 2,
+    });
+    const id = original.create(
+      [{ name: "custom.bin", size: custom + 1 }],
+      3600,
+      "",
+    );
+    assert.equal((await original.init(id, 0)).partSize, custom);
+    const { key, upload } = original.get(id).files[0];
+    await store.send("UploadPart", {
+      Key: key,
+      UploadId: upload,
+      PartNumber: 1,
+      Body: Buffer.alloc(custom, 7),
+    });
+    const restarted = new Service(db, store, { partSize: 16 * 1024 * 1024 });
+    const resumed = await restarted.init(id, 0);
+    assert.equal(resumed.partSize, custom);
+    assert.equal(resumed.parts[0].Size, custom);
+    store.sign = async (_key, _upload, _part, size) => size;
+    assert.deepEqual(await restarted.sign(id, 0, 2), { url: 1 });
+    await store.send("UploadPart", {
+      Key: key,
+      UploadId: upload,
+      PartNumber: 2,
+      Body: Buffer.from([8]),
+    });
+    await restarted.finishFile(id, 0);
+    assert.equal(store.objects.get(key).at(-1), 8);
+    const next = restarted.create([{ name: "new.bin", size: 1 }], 3600, "");
+    assert.equal((await restarted.init(next, 0)).partSize, 16 * 1024 * 1024);
+    const legacy = restarted.get(next).files[0];
+    delete legacy.partSize;
+    restarted.saveFile(next, 0, legacy);
+    assert.equal((await restarted.init(next, 0)).partSize, PART);
+  } finally {
+    db.close();
+  }
+});
 test("auth, origin protection and password privacy", async () => {
   const { app, agent, service, store } = await setup();
   await request(app).get("/api/transfers").expect(401);

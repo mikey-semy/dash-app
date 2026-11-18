@@ -35,6 +35,8 @@ For local use, set `PUBLIC_URL=http://localhost:3000`. Configure the bucket CORS
 
 Docker Compose and GitHub Actions deployment are provided for a Linux server with Traefik. Deployment is optional: configure repository variables and SSH secrets to enable it. See [deployment instructions](deploy/README.md) for prerequisites, storage templates and HTTPS setup.
 
+Uploads can be tuned per installation with `UPLOAD_CONCURRENCY` (1–8 requests per transfer, default 4) and `UPLOAD_PART_MIB` (5–64 MiB per part, default 8). Restart Dash to apply changes and reload open tabs. Multipart uploads already initialized keep their original part size.
+
 ## Development
 
 ```sh

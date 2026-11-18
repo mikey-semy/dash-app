@@ -4,6 +4,8 @@ import {
   RETENTION_SECONDS,
   MAX_FILES,
   LIMIT,
+  UPLOAD_TRANSFER,
+  UPLOAD_TUNING,
 } from "#common/config.js";
 import { copy } from "#common/copy.js";
 import api from "#src/shared/api/client.js";
@@ -50,6 +52,7 @@ export function useOwnerWorkspace() {
   const control = useRef({ paused: false, cancel: false, requests: new Set() }),
     start = useRef(0),
     uploadTiming = useRef(null),
+    uploadConcurrency = useRef(UPLOAD_TRANSFER.concurrency),
     active = useRef(null),
     choosing = useRef(false),
     recoveryChecked = useRef(false);
@@ -71,9 +74,21 @@ export function useOwnerWorkspace() {
       .catch((e) => {
         if (e.status === 401) setLogged(false);
       });
+  function applyUploadConfig(session) {
+    const value = session?.uploadConcurrency;
+    if (
+      Number.isInteger(value) &&
+      value >= UPLOAD_TUNING.minConcurrency &&
+      value <= UPLOAD_TUNING.maxConcurrency
+    )
+      uploadConcurrency.current = value;
+  }
   useEffect(() => {
     api("/api/session")
-      .then(() => setLogged(true))
+      .then((session) => {
+        applyUploadConfig(session);
+        setLogged(true);
+      })
       .catch((error) => {
         if (error.status !== 401) setError(error.message);
       })
@@ -372,10 +387,11 @@ export function useOwnerWorkspace() {
     api,
     control,
     onProgress: setProgress,
+    concurrency: uploadConcurrency.current,
   });
   async function signIn(password) {
     try {
-      await api("/api/login", { password });
+      applyUploadConfig(await api("/api/login", { password }));
       setLogged(true);
       setError("");
       return true;

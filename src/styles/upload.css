@@ -11,6 +11,14 @@
   width: var(--size-22);
   height: var(--size-22);
 }
+.new-transfer-actions {
+  display: flex;
+  justify-content: center;
+  gap: var(--size-24);
+}
+.new-transfer-actions > .primary-action {
+  margin: 0;
+}
 
 button,
 a {

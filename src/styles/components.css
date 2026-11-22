@@ -276,6 +276,29 @@
   opacity: 1;
   background: var(--color-fafafa);
 }
+.paste-destinations[open] {
+  position: fixed;
+  inset: 0;
+  margin: 0;
+  width: 100%;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+}
+.paste-destinations > .drop-zone {
+  flex-direction: column;
+  gap: var(--size-12);
+}
+.paste-destinations > .drop-zone:not(:disabled) {
+  opacity: 1;
+}
+.paste-destinations > .drop-zone:not(:disabled):is(:hover, :focus-visible) {
+  background: var(--color-fafafa);
+  outline-offset: var(--size-minus-1);
+}
 .current-close {
   position: fixed;
   top: var(--size-20);
@@ -312,7 +335,7 @@ button.unavailable {
       env(safe-area-inset-top, var(--size-0))
   );
 }
-.owner .content > .primary-action,
+.owner .content > .new-transfer-actions,
 .owner .content > .share-ready,
 .recipient .content > .primary-action {
   translate: 0
@@ -328,7 +351,7 @@ button.unavailable {
   transition: top var(--transfer-motion-duration) var(--transfer-motion-easing);
 }
 @media (prefers-reduced-motion: reduce) {
-  .owner .content > .primary-action,
+  .owner .content > .new-transfer-actions,
   .owner .content > .share-ready,
   .recipient .content > .primary-action,
   .owner .owner-details,

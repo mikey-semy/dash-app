@@ -10,6 +10,7 @@ export function CurrentTransferActions({
   opening,
   editFailed,
   onAdd,
+  onAddText,
   onDelete,
   onSettings,
   onEdit,
@@ -27,6 +28,7 @@ export function CurrentTransferActions({
           : undefined
       }
       onAdd={onAdd}
+      onAddText={onAddText}
       onDelete={() => onDelete(transfer.id)}
       onSettings={() => onSettings(transfer.id)}
       editFailed={editFailed}

@@ -241,9 +241,8 @@ test("Excel has no content editor and a mislabeled binary shows a brief red cros
   await expect(
     page.getByRole("button", { name: "Edit text", exact: true }),
   ).toHaveCount(0);
-  await page.getByLabel("Settings", { exact: true }).click();
   await page
-    .getByRole("button", { name: "New text transfer", exact: true })
+    .getByRole("button", { name: "Add text file", exact: true })
     .click();
   await page.getByRole("button", { name: "Close editor", exact: true }).click();
   // A fresh owner screen lets a separate file be uploaded, not appended to Excel.

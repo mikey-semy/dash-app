@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { captureFiles } from "#src/features/upload-files/index.js";
 export function useFileIntake({
   upload,
   preparingUpload,
@@ -18,32 +19,46 @@ export function useFileIntake({
   onText,
 }) {
   const [dropZone, setDropZone] = useState("new");
+  const [pendingPaste, setPendingPaste] = useState(null);
+  const canAppendPaste = !!completed && pendingPaste?.parentId === latest.id;
   useEffect(() => {
     const paste = (event) => {
-      if (event.clipboardData?.files.length) {
+      const data = event.clipboardData;
+      if (!data) return;
+      if (data.files.length) {
         event.preventDefault();
         event.stopPropagation();
         if (
           upload ||
           preparingUpload ||
+          pendingPaste ||
           draft !== null ||
           folders !== null ||
           config ||
           (historyOpen && !viewing)
         )
           return;
-        const current = viewing?.record || latest;
+        const source = captureFiles(data);
         if (viewing) {
+          const current = viewing.record;
           setViewing(null, { replace: true });
           setHistoryOpen(false);
           setSelected(current.id);
+          receiveFiles(source, current.id);
+        } else if (completed) {
+          setDrag(false);
+          setPendingPaste({ source, parentId: latest.id });
+        } else {
+          receiveFiles(source, latest?.url ? latest.id : null);
         }
-        receiveFiles(event.clipboardData, current?.url ? current.id : null);
         return;
       }
       if (
         event.defaultPrevented ||
         upload ||
+        preparingUpload ||
+        preparing ||
+        pendingPaste ||
         historyOpen ||
         viewing ||
         config ||
@@ -53,12 +68,13 @@ export function useFileIntake({
           event.target.closest("input,textarea,[contenteditable=true]"))
       )
         return;
-      {
-        const text = event.clipboardData.getData("text/plain");
-        if (text) {
-          event.preventDefault();
-          onText(text);
-        }
+      const text = data.getData("text/plain");
+      if (text) {
+        event.preventDefault();
+        if (completed) {
+          setDrag(false);
+          setPendingPaste({ text, parentId: latest.id });
+        } else onText(text);
       }
     };
     document.addEventListener("paste", paste, true);
@@ -66,6 +82,9 @@ export function useFileIntake({
   }, [
     upload,
     preparingUpload,
+    preparing,
+    pendingPaste,
+    completed,
     historyOpen,
     draft,
     folders,
@@ -77,10 +96,21 @@ export function useFileIntake({
     setSelected,
     setViewing,
     setHistoryOpen,
+    setDrag,
   ]);
 
   return {
     dropZone,
+    pendingPaste,
+    canAppendPaste,
+    cancelPaste: () => setPendingPaste(null),
+    choosePaste: (append) => {
+      if (!pendingPaste || (append && !canAppendPaste)) return;
+      const parentId = append ? pendingPaste.parentId : null;
+      setPendingPaste(null);
+      if (pendingPaste.source) receiveFiles(pendingPaste.source, parentId);
+      else onText(pendingPaste.text, parentId);
+    },
     dropHandlers: {
       onDragOver: (e) => {
         if (!Array.from(e.dataTransfer.types).includes("Files")) return;
@@ -89,6 +119,7 @@ export function useFileIntake({
           !upload &&
           !preparingUpload &&
           !preparing &&
+          !pendingPaste &&
           !folders &&
           !historyOpen &&
           !viewing &&
@@ -119,6 +150,7 @@ export function useFileIntake({
           return;
         if (
           draft ||
+          pendingPaste ||
           folders ||
           config ||
           (historyOpen && !viewing) ||
@@ -136,7 +168,7 @@ export function useFileIntake({
           setViewing(null, { replace: true });
           setHistoryOpen(false);
           setSelected(current.id);
-          receiveFiles(e.dataTransfer, current.id);
+          receiveFiles(captureFiles(e.dataTransfer), current.id);
         }
       },
       onDrop: (e) => {
@@ -154,7 +186,7 @@ export function useFileIntake({
           setViewing(null, { replace: true });
           setHistoryOpen(false);
           setSelected(current.id);
-          receiveFiles(e.dataTransfer, current.id);
+          receiveFiles(captureFiles(e.dataTransfer), current.id);
           return;
         }
         if (
@@ -172,7 +204,7 @@ export function useFileIntake({
           !draft
         )
           receiveFiles(
-            e.dataTransfer,
+            captureFiles(e.dataTransfer),
             completed && e.clientY >= innerHeight / 2 ? latest.id : null,
           );
       },

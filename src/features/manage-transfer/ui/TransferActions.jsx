@@ -8,6 +8,7 @@ import { ResponsiveActions } from "#src/shared/ui/ResponsiveActions.jsx";
 export function TransferActions({
   url,
   onAdd,
+  onAddText,
   onDelete,
   onEdit,
   onSettings,
@@ -33,6 +34,15 @@ export function TransferActions({
         </button>
       )}
       <Controls className="share-controls">
+        {onAddText && (
+          <IconButton
+            aria-label={copy.addTextFile}
+            title={copy.addTextFile}
+            onClick={onAddText}
+          >
+            <Icon name="code" />
+          </IconButton>
+        )}
         {publication && <PublicationButton {...publication} />}
         {(onOpen || compact) && (
           <IconButton

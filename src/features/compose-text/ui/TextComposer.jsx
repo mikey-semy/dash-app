@@ -4,7 +4,6 @@ import { copy } from "#common/copy.js";
 import { ErrorNotice } from "#src/shared/ui/Errors.jsx";
 import { lazy, Suspense, useState } from "react";
 import { Icon } from "#src/shared/ui/Icons.jsx";
-import languages from "#common/text-languages.json";
 const CodeEditor = lazy(
   () => import("#src/shared/ui/code-editor/CodeEditor.jsx"),
 );
@@ -18,11 +17,18 @@ export default function TextComposer({
   onSend,
 }) {
   const [text, setText] = useState(initial),
+    [name, setName] = useState(""),
+    [defaultName] = useState(textName),
     [language, setLanguage] = useState("?"),
     [error, setError] = useState(""),
     [sending, setSending] = useState(false);
   const send = async () => {
-    const file = new File([text], filename || textName(language), {
+    const uploadName = editing ? filename : name.trim() || defaultName;
+    if (!editing && /[\\/]/.test(uploadName)) {
+      setError(copy.invalidFilenames);
+      return;
+    }
+    const file = new File([text], uploadName, {
       type: "text/plain;charset=utf-8",
     });
     if (file.size > TEXT_LIMIT) {
@@ -64,7 +70,20 @@ export default function TextComposer({
           <header className="dialog-header">
             <span className="editor-context">
               <Icon name={editing ? "edit" : "code"} />
-              {editing && <span className="language-label">{filename}</span>}
+              {editing ? (
+                <span className="language-label">{filename}</span>
+              ) : (
+                <input
+                  className="text-filename"
+                  aria-label={copy.textFilename}
+                  placeholder={defaultName}
+                  value={name}
+                  maxLength={180}
+                  spellCheck={false}
+                  disabled={sending}
+                  onChange={(event) => setName(event.target.value)}
+                />
+              )}
             </span>
             <div className="text-actions">
               <span className="language-label">{language}</span>
@@ -101,6 +120,7 @@ export default function TextComposer({
               <CodeEditor
                 value={text}
                 onChange={setText}
+                filename={editing ? filename : name.trim()}
                 onLanguage={setLanguage}
               />
             </Suspense>
@@ -111,21 +131,7 @@ export default function TextComposer({
     </Modal>
   );
 }
-function textName(language) {
-  const preferred = {
-    Python: "py",
-    LaTeX: "tex",
-    PostgreSQL: "sql",
-    Nginx: "conf",
-    Dockerfile: "dockerfile",
-    EBNF: "ebnf",
-    HTTP: "http",
-    XQuery: "xq",
-  };
-  const extension =
-    preferred[language] ||
-    languages.find((item) => item.name === language)?.extensions[0] ||
-    "txt";
+function textName() {
   const now = new Date();
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat("en-GB", {
@@ -141,5 +147,5 @@ function textName(language) {
       .formatToParts(now)
       .map((p) => [p.type, p.value]),
   );
-  return `text-${parts.year}${parts.month}${parts.day}-${parts.hour}${parts.minute}${parts.second}${String(now.getMilliseconds()).padStart(3, "0")}.${extension}`;
+  return `text-${parts.year}${parts.month}${parts.day}-${parts.hour}${parts.minute}${parts.second}${String(now.getMilliseconds()).padStart(3, "0")}.txt`;
 }

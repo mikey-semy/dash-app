@@ -181,7 +181,7 @@ test("pasted code keeps original bytes, highlights immediately and supports prot
   await receiver.close();
 });
 
-test("mobile editor opens from menu, preserves pasted indentation inside field and cancels without upload", async ({
+test("mobile editor opens beside upload, preserves pasted indentation inside field and cancels without upload", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 650 });
@@ -191,10 +191,24 @@ test("mobile editor opens from menu, preserves pasted indentation inside field a
     if (r.method() === "POST" && new URL(r.url()).pathname === "/api/transfers")
       created++;
   });
-  await page.getByLabel("Settings", { exact: true }).click();
-  await page
-    .getByRole("button", { name: "New text transfer", exact: true })
-    .click();
+  const newText = page.getByRole("button", {
+    name: "New text transfer",
+    exact: true,
+  });
+  await expect(
+    page.locator(".settings").getByRole("button", {
+      name: "New text transfer",
+      exact: true,
+      includeHidden: true,
+    }),
+  ).toHaveCount(0);
+  const upload = await page
+    .getByRole("button", { name: "UPLOAD", exact: true })
+    .boundingBox();
+  const text = await newText.boundingBox();
+  expect(text.y + text.height / 2).toBeCloseTo(upload.y + upload.height / 2);
+  expect(text.x).toBeGreaterThan(upload.x + upload.width);
+  await newText.click();
   await expect(page.locator(".cm-content[contenteditable=true]")).toBeVisible();
   const screen = await page.locator(".text-dialog").boundingBox();
   expect(screen.x).toBe(0);
@@ -510,21 +524,21 @@ test("owner reopens uploaded text full screen, cancels or saves to the same link
   await recipient.close();
 });
 
-for (const [language, extension, source] of [
+for (const [language, source] of [
   [
     "Markdown",
-    "md",
     "# Heading\n\n## Section\n\n**Strong** and [link](https://example.com).\n\n- one\n- two\n\n> quote\n",
   ],
   [
     "Python",
-    "py",
     "#!/usr/bin/env python3\nimport json\n\ndef main():\n    print(json.dumps({'ok': True}))\n\nif __name__ == '__main__':\n    main()\n",
   ],
-  ["JSON", "json", '{"name":"example","enabled":true,"items":[1,2,3]}'],
-  ["?", "txt", "Just some ordinary words for a personal note."],
+  ["JSON", '{"name":"example","enabled":true,"items":[1,2,3]}'],
+  ["?", "Just some ordinary words for a personal note."],
 ]) {
-  test(`new ${language} text is saved with .${extension}`, async ({ page }) => {
+  test(`new ${language} text is saved with .txt by default`, async ({
+    page,
+  }) => {
     await login(page);
     await paste(page, source);
     await expect(page.locator(".code-editor")).toHaveAttribute(
@@ -537,8 +551,117 @@ for (const [language, extension, source] of [
     const transfer = await page.evaluate(
       async () => (await (await fetch("/api/transfers")).json())[0],
     );
-    expect(transfer.files[0].name).toMatch(
-      new RegExp("^text-\\d{8}-\\d{9}\\." + extension + "$"),
-    );
+    expect(transfer.files[0].name).toMatch(/^text-\d{8}-\d{9}\.txt$/);
   });
 }
+
+test("text can be added repeatedly and clipboard destinations preserve the current link", async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await login(page);
+  const transfers = () =>
+    page.evaluate(async () => (await fetch("/api/transfers")).json());
+  const transferById = async (id) =>
+    (await transfers()).find((item) => item.id === id);
+  const editor = page.getByRole("dialog", { name: "Text transfer" });
+  const send = async () => {
+    await editor
+      .getByRole("button", { name: "Send text", exact: true })
+      .click();
+    await expect(editor).toHaveCount(0);
+    await expect(page.locator(".share-ready")).toBeVisible();
+  };
+  await page.getByRole("button", { name: "New text transfer" }).click();
+  await editor.locator(".cm-content").fill("First note");
+  await send();
+  const [original] = await transfers();
+
+  await page
+    .getByRole("button", { name: "Add text file", exact: true })
+    .click();
+  await editor
+    .getByRole("textbox", { name: "Text filename" })
+    .fill("example.ps1");
+  const script = "Write-Output 'hello'";
+  await editor.locator(".cm-content").fill(script);
+  await expect(editor.locator(".code-editor")).toHaveAttribute(
+    "data-language",
+    "PowerShell",
+  );
+  await send();
+  await expect
+    .poll(async () => (await transferById(original.id)).files.length)
+    .toBe(2);
+  const appended = await transferById(original.id);
+  expect(appended.url).toBe(original.url);
+  expect(appended.files.map((file) => file.name)).toEqual([
+    original.files[0].name,
+    "example.ps1",
+  ]);
+  const response = await context.request.get(
+    `/api/transfers/${original.id}/text/1`,
+  );
+  expect(await response.text()).toBe(script);
+
+  const choice = page.getByRole("dialog", { name: "Where to paste" });
+  const newTransfer = choice.getByRole("button", {
+    name: "New transfer",
+    exact: true,
+  });
+  const addToCurrent = choice.getByRole("button", {
+    name: "Add to current transfer",
+  });
+  await page.evaluate(() => navigator.clipboard.writeText("Third note"));
+  await page.keyboard.press("Control+V");
+  await expect(choice).toBeVisible();
+  const top = await newTransfer.boundingBox();
+  const bottom = await addToCurrent.boundingBox();
+  expect(top.y).toBe(0);
+  expect(Math.abs(bottom.y - page.viewportSize().height / 2)).toBeLessThan(1);
+  await addToCurrent.click();
+  await expect(editor.locator(".cm-content")).toHaveText("Third note");
+  await send();
+  await expect
+    .poll(async () => (await transferById(original.id)).files.length)
+    .toBe(3);
+  await expect(page.locator(".share-ready")).toBeVisible();
+
+  await paste(page, "Cancelled note");
+  await expect(choice).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(choice).toHaveCount(0);
+  await expect(editor).toHaveCount(0);
+  expect((await transferById(original.id)).files).toHaveLength(3);
+
+  await paste(page, "Separate note");
+  await newTransfer.focus();
+  await page.keyboard.press("Enter");
+  await expect(editor.locator(".cm-content")).toHaveText("Separate note");
+  await send();
+  const [separate, preserved] = await transfers();
+  expect(separate.id).not.toBe(original.id);
+  expect(separate.files).toHaveLength(1);
+  expect(preserved.id).toBe(original.id);
+  expect(preserved.url).toBe(original.url);
+  expect(preserved.files).toHaveLength(3);
+
+  await page.evaluate(() => {
+    const data = new DataTransfer();
+    data.items.add(new File(["Write-Output 42"], "copied.ps1"));
+    document.querySelector("main").dispatchEvent(
+      new ClipboardEvent("paste", {
+        clipboardData: data,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+  });
+  await expect(choice).toBeVisible();
+  await addToCurrent.click();
+  await expect
+    .poll(async () => (await transferById(separate.id)).files[1]?.name)
+    .toBe("copied.ps1");
+  await expect(page.locator(".share-ready")).toBeVisible();
+});

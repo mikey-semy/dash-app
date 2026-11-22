@@ -122,7 +122,6 @@ test("text submission blocks Escape until the request finishes; cancelled draft 
     throw Error("Unexpected API " + path);
   });
   await page.goto("/");
-  await page.getByLabel("Settings", { exact: true }).click();
   await page
     .getByRole("button", { name: "New text transfer", exact: true })
     .click();

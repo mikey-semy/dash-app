@@ -10,17 +10,7 @@ function Gear() {
   return <Icon name="settings" size={UI.settingsIconSize} />;
 }
 export const UploadMenu = forwardRef(function UploadMenu(
-  {
-    ttl,
-    setTtl,
-    secret,
-    setSecret,
-    upload,
-    completed,
-    onHistory,
-    onNewText,
-    onLogout,
-  },
+  { ttl, setTtl, secret, setSecret, upload, completed, onHistory, onLogout },
   ref,
 ) {
   const settings = useRef();
@@ -117,17 +107,6 @@ export const UploadMenu = forwardRef(function UploadMenu(
                   ? copy.couldNotCopyThePassword
                   : ""}
           </span>
-        </IconButton>
-        <IconButton
-          aria-label={copy.newTextTransfer}
-          title={copy.newTextTransfer}
-          disabled={!!upload}
-          onClick={() => {
-            settings.current.open = false;
-            onNewText();
-          }}
-        >
-          <Icon name="code" />
         </IconButton>
         <IconButton
           aria-label={copy.signOut}

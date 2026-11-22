@@ -5,7 +5,7 @@ import {
   CurrentTransferDetails,
 } from "./CurrentTransfer.jsx";
 import { UploadProgress } from "./UploadProgress.jsx";
-import { DropZones } from "./DropZones.jsx";
+import { DropZones, PasteDestinations } from "./DropZones.jsx";
 import { useHistoryPage } from "../model/useHistoryPage.js";
 import { useHistoryOverlay } from "#src/shared/lib/useHistoryOverlay.js";
 import { useFileIntake } from "../model/useFileIntake.js";
@@ -13,7 +13,6 @@ import { IconButton } from "#src/shared/ui/IconButton.jsx";
 import { copy } from "#common/copy.js";
 import { ErrorNotice, connectionError } from "#src/shared/ui/Errors.jsx";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import { captureFiles } from "#src/features/upload-files/index.js";
 const FolderUpload = lazy(() => import("#src/features/upload-files/review.js"));
 import { Icon } from "#src/shared/ui/Icons.jsx";
 import { Expiry } from "#src/entities/transfer/index.js";
@@ -54,10 +53,13 @@ export function OwnerView(p) {
       window.visualViewport?.removeEventListener("resize", reset);
     };
   }, []);
-  const receiveFiles = (data, parentId = null) => {
-    const source = captureFiles(data);
+  const receiveFiles = (source, parentId = null) => {
     if (source.folders) setFolders({ ...source, parentId });
     else p.choose(source.files, parentId);
+  };
+  const openText = (text = "", parentId = null) => {
+    settings.current.close();
+    setDraft({ text, parentId });
   };
   useEffect(() => {
     if (config && !p.history.some((t) => t.id === config && t.url))
@@ -107,7 +109,14 @@ export function OwnerView(p) {
   const preparing =
     !p.upload &&
     (["queued", "archiving"].includes(latest?.state) || busyAppend);
-  const { dropZone, dropHandlers } = useFileIntake({
+  const {
+    dropZone,
+    dropHandlers,
+    pendingPaste,
+    canAppendPaste,
+    choosePaste,
+    cancelPaste,
+  } = useFileIntake({
     upload: p.upload,
     preparingUpload: p.preparingUpload,
     preparing,
@@ -123,14 +132,18 @@ export function OwnerView(p) {
     setSelected: p.setSelected,
     setDrag: p.setDrag,
     receiveFiles,
-    onText: (text) => {
-      settings.current.close();
-      setDraft({ text });
-    },
+    onText: openText,
   });
   return (
     <main {...dropHandlers} className={p.drag ? "owner dragging" : "owner"}>
       <DropZones active={p.drag} zone={dropZone} canAppend={!!completed} />
+      {pendingPaste && (
+        <PasteDestinations
+          canAppend={canAppendPaste}
+          onChoose={choosePaste}
+          onClose={cancelPaste}
+        />
+      )}
       {completed && (
         <IconButton
           className="icon-button current-close"
@@ -150,7 +163,6 @@ export function OwnerView(p) {
         upload={p.upload}
         completed={!!completed}
         onHistory={() => setHistoryOpen(true)}
-        onNewText={() => setDraft({ text: "" })}
         onLogout={p.logout}
       />
       {config && p.history.find((t) => t.id === config)?.url && (
@@ -182,7 +194,9 @@ export function OwnerView(p) {
             editing={!!draft.id}
             onClose={() => setDraft(null)}
             onSend={(files) =>
-              draft.id ? p.replaceText(files, draft) : p.choose(files)
+              draft.id
+                ? p.replaceText(files, draft)
+                : p.choose(files, draft.parentId)
             }
           />
         </Suspense>
@@ -235,6 +249,7 @@ export function OwnerView(p) {
                   appendTarget.current = latest.id;
                   input.current.click();
                 }}
+                onAddText={() => openText("", latest.id)}
                 onDelete={p.remove}
                 onSettings={setConfig}
                 onEdit={editText}
@@ -250,17 +265,27 @@ export function OwnerView(p) {
               <Icon name="archive" />
             </div>
           ) : (
-            <button
-              className="primary-action"
-              aria-label={copy.uploadAction}
-              title={copy.upload}
-              onClick={() => {
-                appendTarget.current = null;
-                input.current.click();
-              }}
-            >
-              <Icon name="upload" />
-            </button>
+            <div className="new-transfer-actions">
+              <button
+                className="primary-action"
+                aria-label={copy.uploadAction}
+                title={copy.upload}
+                onClick={() => {
+                  appendTarget.current = null;
+                  input.current.click();
+                }}
+              >
+                <Icon name="upload" />
+              </button>
+              <button
+                className="primary-action"
+                aria-label={copy.newTextTransfer}
+                title={copy.newTextTransfer}
+                onClick={() => openText()}
+              >
+                <Icon name="code" />
+              </button>
+            </div>
           )}
           {completed && !connectionError(p.error) && (
             <CurrentTransferDetails

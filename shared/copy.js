@@ -202,7 +202,6 @@ export const copy = Object.freeze({
     "Click to generate and copy a password; double-click to remove",
   couldNotCopyThePassword: "Could not copy the password",
   newTextTransfer: "New text transfer",
-  textFilename: "Text filename",
   signOut: "Sign out",
   preparingUpload: "Preparing upload",
   elapsed: "Elapsed",

@@ -581,19 +581,30 @@ test("text can be added repeatedly and clipboard destinations preserve the curre
   await page
     .getByRole("button", { name: "Add text file", exact: true })
     .click();
-  await editor
-    .getByRole("textbox", { name: "Text filename" })
-    .fill("example.ps1");
   const script = "Write-Output 'hello'";
   await editor.locator(".cm-content").fill(script);
-  await expect(editor.locator(".code-editor")).toHaveAttribute(
-    "data-language",
-    "PowerShell",
-  );
   await send();
   await expect
     .poll(async () => (await transferById(original.id)).files.length)
     .toBe(2);
+  await expect(page.locator(".share-ready")).toBeVisible();
+  await page
+    .getByRole("button", { name: "Transfer details", exact: true })
+    .click();
+  const filename = page.getByRole("textbox", {
+    name: "Filename 2",
+    exact: true,
+  });
+  await expect(filename).toHaveText(/^text-\d{8}-\d{9}\.txt$/);
+  await filename.click();
+  await filename.fill("example.ps1");
+  await filename.press("Enter");
+  await expect
+    .poll(async () => (await transferById(original.id)).files[1].name)
+    .toBe("example.ps1");
+  await expect(filename).toHaveAttribute("aria-readonly", "true");
+  await expect(filename).toHaveAttribute("aria-disabled", "false");
+  await expect(page.locator(".share-ready")).toBeVisible();
   const appended = await transferById(original.id);
   expect(appended.url).toBe(original.url);
   expect(appended.files.map((file) => file.name)).toEqual([
@@ -614,6 +625,7 @@ test("text can be added repeatedly and clipboard destinations preserve the curre
     name: "Add to current transfer",
   });
   await page.evaluate(() => navigator.clipboard.writeText("Third note"));
+  await page.mouse.click(30, 200);
   await page.keyboard.press("Control+V");
   await expect(choice).toBeVisible();
   const top = await newTransfer.boundingBox();

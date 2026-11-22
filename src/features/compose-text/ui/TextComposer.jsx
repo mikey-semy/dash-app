@@ -17,18 +17,11 @@ export default function TextComposer({
   onSend,
 }) {
   const [text, setText] = useState(initial),
-    [name, setName] = useState(""),
-    [defaultName] = useState(textName),
     [language, setLanguage] = useState("?"),
     [error, setError] = useState(""),
     [sending, setSending] = useState(false);
   const send = async () => {
-    const uploadName = editing ? filename : name.trim() || defaultName;
-    if (!editing && /[\\/]/.test(uploadName)) {
-      setError(copy.invalidFilenames);
-      return;
-    }
-    const file = new File([text], uploadName, {
+    const file = new File([text], filename || textName(), {
       type: "text/plain;charset=utf-8",
     });
     if (file.size > TEXT_LIMIT) {
@@ -70,20 +63,7 @@ export default function TextComposer({
           <header className="dialog-header">
             <span className="editor-context">
               <Icon name={editing ? "edit" : "code"} />
-              {editing ? (
-                <span className="language-label">{filename}</span>
-              ) : (
-                <input
-                  className="text-filename"
-                  aria-label={copy.textFilename}
-                  placeholder={defaultName}
-                  value={name}
-                  maxLength={180}
-                  spellCheck={false}
-                  disabled={sending}
-                  onChange={(event) => setName(event.target.value)}
-                />
-              )}
+              {editing && <span className="language-label">{filename}</span>}
             </span>
             <div className="text-actions">
               <span className="language-label">{language}</span>
@@ -120,7 +100,6 @@ export default function TextComposer({
               <CodeEditor
                 value={text}
                 onChange={setText}
-                filename={editing ? filename : name.trim()}
                 onLanguage={setLanguage}
               />
             </Suspense>

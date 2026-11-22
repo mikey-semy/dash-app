@@ -12,12 +12,16 @@
   height: var(--size-22);
 }
 .new-transfer-actions {
-  display: flex;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
   gap: var(--size-24);
 }
 .new-transfer-actions > .primary-action {
   margin: 0;
+}
+.new-transfer-actions > .primary-action:first-child {
+  grid-column: 2;
 }
 
 button,
@@ -275,7 +279,7 @@ body:has(.owner) {
   }
   .share-ready .share-controls {
     left: auto;
-    gap: var(--size-12);
+    gap: var(--size-6);
   }
 }
 

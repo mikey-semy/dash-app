@@ -240,7 +240,7 @@ test("icon controls generate and copy six-digit password; manifest and icons are
   const pin = await page.evaluate(() => navigator.clipboard.readText());
   expect(pin).toMatch(/^\d{6}$/);
   await expect(generate).toHaveAttribute("data-active", "true");
-  await expect(page.locator(".settings-toolbar>button")).toHaveCount(5);
+  await expect(page.locator(".settings-toolbar>button")).toHaveCount(4);
   await expect(
     page.locator(".settings-toolbar input,.settings-toolbar select"),
   ).toHaveCount(0);
@@ -987,7 +987,9 @@ test("failed delete closes QR and never leaks Safari JSON parser errors; retry r
   await retry.click();
   await expect(page.locator(".share-ready")).toHaveCount(0);
   await expect(page.getByRole("alert")).toHaveCount(0);
-  await expect(page.locator(".primary-action")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "UPLOAD", exact: true }),
+  ).toBeVisible();
 });
 
 test("delete confirmation is cancelled by blur, timeout and selection changes", async ({

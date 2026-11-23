@@ -216,6 +216,7 @@ export function useOwnerWorkspace() {
       if (!current) throw new Error(copy.transferDeleted);
     }
     if (current?.appendState) throw new Error(copy.updateIsStillInProgress);
+    return current;
   }
   async function choose(
     list,
@@ -463,8 +464,7 @@ export function useOwnerWorkspace() {
             "PATCH",
           );
           await reload();
-          await waitForChange(record.id, current);
-          return true;
+          return await waitForChange(record.id, current);
         } catch (error) {
           setError(error.message);
           throw error;

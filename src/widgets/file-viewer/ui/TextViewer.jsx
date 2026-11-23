@@ -14,6 +14,8 @@ export default function TextViewer({
   downloadPath,
   onEdit,
   shareUrl,
+  onRename,
+  renaming,
 }) {
   return (
     <Modal
@@ -34,6 +36,8 @@ export default function TextViewer({
             downloadPath={downloadPath}
             onEdit={onEdit}
             shareUrl={shareUrl}
+            onRename={onRename}
+            renaming={renaming}
           />
           <footer className="viewer-footer">
             <Expiry value={info.expires} oneTime={info.oneTime} />

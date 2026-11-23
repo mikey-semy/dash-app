@@ -1,3 +1,4 @@
+import EditableName from "#src/shared/ui/EditableName.jsx";
 import { Modal } from "#src/shared/ui/Modal.jsx";
 import { IconButton } from "#src/shared/ui/IconButton.jsx";
 import { copy } from "#common/copy.js";
@@ -16,12 +17,13 @@ export default function TextComposer({
   onClose,
   onSend,
 }) {
+  const [name, setName] = useState(() => filename || textName());
   const [text, setText] = useState(initial),
     [language, setLanguage] = useState("?"),
     [error, setError] = useState(""),
     [sending, setSending] = useState(false);
   const send = async () => {
-    const file = new File([text], filename || textName(), {
+    const file = new File([text], name, {
       type: "text/plain;charset=utf-8",
     });
     if (file.size > TEXT_LIMIT) {
@@ -54,6 +56,10 @@ export default function TextComposer({
         if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
           e.preventDefault();
           e.stopPropagation();
+          if (e.target.closest(".editable-name")) {
+            e.target.blur();
+            return;
+          }
           if (!sending && (editing || text.length)) send();
         }
       }}
@@ -63,7 +69,13 @@ export default function TextComposer({
           <header className="dialog-header">
             <span className="editor-context">
               <Icon name={editing ? "edit" : "code"} />
-              {editing && <span className="language-label">{filename}</span>}
+              <EditableName
+                value={name}
+                label={copy.filenamePrefix + 1}
+                onSave={setName}
+                disabled={sending}
+                className="media-name"
+              />
             </span>
             <div className="text-actions">
               <span className="language-label">{language}</span>
@@ -99,6 +111,7 @@ export default function TextComposer({
             >
               <CodeEditor
                 value={text}
+                filename={name}
                 onChange={setText}
                 onLanguage={setLanguage}
               />

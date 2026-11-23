@@ -169,7 +169,7 @@ export function siteRoutes(app, service, env, transfer) {
             text =
               text.slice(0, edit.start) + edit.value + text.slice(edit.end);
         } catch (error) {
-          console.error("[DU] static JavaScript parser", name, error.message);
+          console.error("[app] static JavaScript parser", name, error.message);
         }
         return text;
       };
@@ -333,7 +333,7 @@ export function siteRoutes(app, service, env, transfer) {
       await pipeline(object.Body, res);
     } catch (error) {
       console.error(
-        "[DU] static preview",
+        "[app] static preview",
         req.params.token,
         error.status || 503,
         error.message,
@@ -353,7 +353,7 @@ export function siteRoutes(app, service, env, transfer) {
             nonce,
             title: copy.siteUnavailable,
             body: `<a class="unavailable" href="${context ? origin + "/" : "/"}" target="_top" aria-label="${copy.backToUpload}">${statusIcons.cross}</a>`,
-            script: `console.error('[DU] Static preview HTTP ${error.status || 503}')`,
+            script: `console.error('[app] Static preview HTTP ${error.status || 503}')`,
           }),
         );
     }

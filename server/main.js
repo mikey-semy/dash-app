@@ -50,7 +50,7 @@ const timer = setInterval(tick, 60000);
 const refreshSites = () =>
   app.locals.hosting
     .refresh()
-    .catch((error) => console.error("[DU] domain refresh", error));
+    .catch((error) => console.error("[app] domain refresh", error));
 refreshSites();
 const sitesTimer = setInterval(refreshSites, 30000);
 process.on("SIGTERM", () => {

@@ -98,6 +98,7 @@ export const copy = Object.freeze({
   couldNotSaveTryAgain: "Could not save. Try again.",
   couldNotSendTryAgain: "Could not send. Try again.",
   editText: "Edit text",
+  editTextPrefix: "Edit text: ",
   textTransfer: "Text transfer",
   saveText: "Save text",
   sendText: "Send text",

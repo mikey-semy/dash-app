@@ -185,3 +185,43 @@ test("Back closes a recipient preview without leaving its short link", async ({
   await page.goForward();
   await expect(page.getByRole("dialog")).toBeVisible();
 });
+
+test("history edits the selected text file in a multi-file transfer", async ({
+  page,
+}) => {
+  await page.route("**/api/session", (route) =>
+    route.fulfill({ json: { ok: true } }),
+  );
+  await page.route("**/api/transfers", (route) =>
+    route.fulfill({
+      json: [
+        {
+          id: "multi",
+          state: "ready",
+          created: 1794770000000,
+          expires: null,
+          ttl: 0,
+          url: "http://127.0.0.1:3001/Abc123",
+          revision: "r1",
+          size: 10,
+          files: [
+            { name: "first.txt", size: 5, preview: true },
+            { name: "second.txt", size: 5, preview: true },
+          ],
+        },
+      ],
+    }),
+  );
+  await page.route("**/api/transfers/multi/text/1", (route) =>
+    route.fulfill({ body: "second file", contentType: "text/plain" }),
+  );
+  await page.goto("/history");
+  const row = page.locator(".history-item");
+  await row.locator(".history-toggle").click();
+  await row
+    .getByRole("button", { name: "Edit text: second.txt", exact: true })
+    .click();
+  const editor = page.getByRole("dialog", { name: "Edit text", exact: true });
+  await expect(editor.locator(".cm-content")).toHaveText("second file");
+  await expect(editor.getByText("second.txt", { exact: true })).toBeVisible();
+});

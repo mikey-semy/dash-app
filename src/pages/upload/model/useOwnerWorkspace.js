@@ -217,7 +217,12 @@ export function useOwnerWorkspace() {
     }
     if (current?.appendState) throw new Error(copy.updateIsStillInProgress);
   }
-  async function choose(list, parentId = null, replacement = null) {
+  async function choose(
+    list,
+    parentId = null,
+    replacement = null,
+    index = undefined,
+  ) {
     const started = performance.now();
     if ((active.current && !active.current.cancel) || choosing.current)
       return false;
@@ -265,7 +270,7 @@ export function useOwnerWorkspace() {
           ttl: ttl === -1 ? 0 : ttl,
           oneTime: ttl === -1,
           password: secret,
-          ...(replacement === null ? {} : { revision: replacement }),
+          ...(replacement === null ? {} : { revision: replacement, index }),
         },
       );
       const u = {
@@ -432,9 +437,9 @@ export function useOwnerWorkspace() {
       run,
       pause,
       cancel,
-      readText: async (transfer) => {
+      readText: async (transfer, index = 0) => {
         const response = await fetch(
-          "/api/transfers/" + transfer.id + "/text",
+          "/api/transfers/" + transfer.id + "/text/" + index,
           { headers: { "If-Match": `"${transfer.revision}"` } },
         );
         if (!response.ok) {
@@ -447,7 +452,7 @@ export function useOwnerWorkspace() {
         }).decode(await response.arrayBuffer());
       },
       replaceText: (files, transfer) =>
-        choose(files, transfer.id, transfer.revision),
+        choose(files, transfer.id, transfer.revision, transfer.index),
       rename: async (record, patch) => {
         setRenaming(true);
         setError("");

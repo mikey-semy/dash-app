@@ -1,6 +1,6 @@
 import { copy } from "#common/copy.js";
 import { ZipArchive } from "archiver";
-import { Parse } from "unzipper";
+import { archiveDirectory, archiveEntryObject } from "./archive-text.js";
 import { Readable, PassThrough } from "node:stream";
 import {
   PART,
@@ -10,7 +10,7 @@ import {
   revision,
   safeNames,
 } from "./core.js";
-import { textCandidate, TEXT_LIMIT } from "./text.js";
+import { fileTextCandidate, TEXT_LIMIT } from "./text.js";
 import { assignSiteTitle } from "./site-names.js";
 import { uploadMultipartStream } from "./multipart-stream.js";
 import { UPLOAD_TRANSFER } from "#common/config.js";
@@ -105,12 +105,15 @@ export class Service {
     );
     return { id: next, offset: parent.files.length };
   }
-  replaceText(id, file, expectedRevision) {
+  replaceText(id, file, expectedRevision, index = 0) {
     const parent = this.get(id);
     if (
       !parent ||
       parent.state !== "ready" ||
-      !textCandidate(parent) ||
+      parent.parent ||
+      !Number.isSafeInteger(index) ||
+      index < 0 ||
+      !fileTextCandidate(parent.files[index]) ||
       (parent.expires !== null && parent.expires <= Date.now())
     )
       throw Object.assign(new Error(copy.editingUnavailable), {
@@ -138,14 +141,20 @@ export class Service {
         status: 409,
       });
     }
+    const kept = parent.files.filter((_, i) => i !== index);
     const next = insertTransfer(
       this.db,
-      [{ name: parent.files[0].name, size: file.size }],
+      [...kept, { name: parent.files[index].name, size: file.size }],
       parent.ttl,
       "",
-      { ...parent, reuseFiles: [], baseFiles: parent.files },
+      { ...parent, reuseFiles: kept, baseFiles: parent.files },
     );
-    return { id: next, offset: 0 };
+    const files = this.get(next).files;
+    files.splice(index, 0, files.pop());
+    this.db
+      .prepare("UPDATE transfers SET files=? WHERE id=?")
+      .run(JSON.stringify(files), next);
+    return { id: next, offset: index };
   }
   rename(id, names, expectedRevision) {
     const parent = this.get(id);
@@ -223,16 +232,18 @@ export class Service {
       throw Object.assign(new Error(copy.invalidFileSelection), {
         status: 400,
       });
-    if (
-      this.db
-        .prepare(
-          "SELECT 1 FROM transfers WHERE parent=? AND state NOT IN ('deleted','merged','deleting')",
-        )
-        .get(id)
-    )
-      throw Object.assign(new Error(copy.waitForTheTransferUpdateToFinish), {
-        status: 409,
-      });
+    const pending = this.db
+      .prepare(
+        "SELECT id,state FROM transfers WHERE parent=? AND state NOT IN ('deleted','merged','deleting')",
+      )
+      .get(id);
+    if (pending) {
+      if (pending.state === "failed") this.delete(pending.id);
+      else
+        throw Object.assign(new Error(copy.waitForTheTransferUpdateToFinish), {
+          status: 409,
+        });
+    }
     const kept = parent.files.filter((f, i) => !indices.includes(i));
     if (!kept.length) {
       const output = {
@@ -270,50 +281,64 @@ export class Service {
     return { id: child };
   }
   async *sources(t, marker) {
+    const emitted = new Set();
     if (t.base?.files.length) {
-      const source = await this.store.get(t.base.output.key);
-      const stop = () => source.Body.destroy(new Error("Cancelled"));
+      const singleSource =
+        t.base.files.length === 1 && !t.base.files[0].directory;
+      const source = singleSource
+        ? await this.store.get(t.base.output.key)
+        : null;
+      const stop = () => source?.Body.destroy(new Error("Cancelled"));
       marker.once("close", stop);
       try {
         if (marker.destroyed) throw new Error("Cancelled");
-        if (t.base.files.length === 1 && !t.base.files[0].directory) {
+        if (singleSource) {
           const file = t.files.find(
             (f) => f.reused && f.key === t.base.files[0].key,
           );
           if (file) yield { body: source.Body, file };
         } else {
-          const parser = source.Body.pipe(Parse({ forceStream: true }));
-          source.Body.once("error", (e) => parser.destroy(e));
-          try {
-            let index = 0;
-            for await (const entry of parser) {
-              const original = t.base.files[index++];
-              if (
-                !original ||
-                entry.type !== (original.directory ? "Directory" : "File") ||
-                entry.path !== original.name
-              ) {
-                entry.autodrain();
-                throw new Error("Stored ZIP composition mismatch");
-              }
-              const file = t.files.find(
-                (f) => f.reused && f.key === original.key,
-              );
-              if (file) yield { body: entry, file };
-              else await entry.autodrain().promise();
+          // Stored entries may contain ZIP signatures themselves. Read exact
+          // central-directory ranges instead of scanning payload for descriptors.
+          const entries = await archiveDirectory(this.store, t.base);
+          for (let index = 0; index < t.base.files.length; index++) {
+            if (marker.destroyed) throw new Error("Cancelled");
+            const original = t.base.files[index];
+            const file = t.files.find(
+              (f) => f.reused && f.key === original.key,
+            );
+            const replacement = t.files[index];
+            const selected =
+              file ||
+              (replacement &&
+              !replacement.reused &&
+              t.files.length === t.base.files.length
+                ? replacement
+                : null);
+            if (!selected) continue;
+            const object = file
+              ? await archiveEntryObject(this.store, t.base, entries[index])
+              : await this.store.get(selected.key);
+            const stopEntry = () => object.Body.destroy(new Error("Cancelled"));
+            marker.once("close", stopEntry);
+            try {
+              if (marker.destroyed) throw new Error("Cancelled");
+              emitted.add(selected.key);
+              yield { body: object.Body, file: selected };
+            } finally {
+              marker.off("close", stopEntry);
+              object.Body.destroy();
             }
-            if (index !== t.base.files.length)
-              throw new Error("Stored ZIP incomplete");
-          } finally {
-            parser.destroy();
           }
         }
       } finally {
         marker.off("close", stop);
-        source.Body.destroy();
+        source?.Body.destroy();
       }
     }
-    for (const file of t.files.filter((f) => !f.reused)) {
+    for (const file of t.files.filter(
+      (f) => !f.reused && !emitted.has(f.key),
+    )) {
       if (marker.destroyed) throw new Error("Cancelled");
       const object = await this.store.get(file.key);
       try {
@@ -802,7 +827,8 @@ export class Service {
       if (job.parent && job.files.length === 1 && !job.files[0].directory)
         await this.single(job);
       else await this.zip(job);
-    } catch {
+    } catch (error) {
+      console.error("[app] ZIP", job.id, error);
       this.db
         .prepare(
           "UPDATE transfers SET state=CASE WHEN attempts>=3 THEN 'failed' ELSE 'queued' END,error=? WHERE id=? AND state='archiving'",

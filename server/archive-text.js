@@ -1,7 +1,7 @@
 import { copy } from "#common/copy.js";
 import { Open } from "unzipper";
 import { PassThrough, Readable } from "node:stream";
-export async function archiveTextObject(store, t, index, range) {
+export async function archiveDirectory(store, t) {
   const streams = new Set();
   let failure;
   const source = {
@@ -41,7 +41,6 @@ export async function archiveTextObject(store, t, index, range) {
       return output;
     },
   };
-  let entry;
   try {
     const directory = await Open.custom(source);
     if (directory.files.length !== t.files.length)
@@ -56,20 +55,20 @@ export async function archiveTextObject(store, t, index, range) {
       )
         throw new Error("Archive composition mismatch");
     }
-    entry = directory.files[index];
-    if (
-      entry.compressionMethod !== 0 ||
-      entry.compressedSize !== entry.uncompressedSize ||
-      entry.flags & 1
-    )
-      throw Object.assign(new Error(copy.unsupportedArchive), {
-        status: 415,
-      });
+    return directory.files;
   } catch (error) {
     throw failure || error;
   } finally {
     for (const stream of streams) stream.destroy();
   }
+}
+export async function archiveEntryObject(store, t, entry, range) {
+  if (
+    entry.compressionMethod !== 0 ||
+    entry.compressedSize !== entry.uncompressedSize ||
+    entry.flags & 1
+  )
+    throw Object.assign(new Error(copy.unsupportedArchive), { status: 415 });
   const headerObject = await store.get(t.output.key, {
     Range: `bytes=${entry.offsetToLocalFileHeader}-${entry.offsetToLocalFileHeader + 29}`,
     IfMatch: t.output.etag,
@@ -105,4 +104,9 @@ export async function archiveTextObject(store, t, index, range) {
         IfMatch: t.output.etag,
       })
     : { Body: Readable.from([]) };
+}
+
+export async function archiveTextObject(store, t, index, range) {
+  const entries = await archiveDirectory(store, t);
+  return archiveEntryObject(store, t, entries[index], range);
 }

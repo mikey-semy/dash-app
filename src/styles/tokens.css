@@ -37,6 +37,8 @@
   --color-danger-strong: #c22;
   --color-code-surface: #f5f5f5;
   --color-code-gutter: #8c959f;
+  --color-code-stripe: #fafafa;
+  --color-code-active-line: #f0f3f6;
   --color-subtle: #666;
   --color-surface-subtle: #f6f6f6;
   --color-syntax-keyword: #cf222e;

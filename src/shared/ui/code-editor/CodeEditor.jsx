@@ -8,11 +8,39 @@ import {
   highlightSpecialChars,
   drawSelection,
   keymap,
+  Decoration,
+  ViewPlugin,
+  highlightActiveLine,
+  highlightActiveLineGutter,
 } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { syntaxHighlighting, HighlightStyle } from "@codemirror/language";
 import { languages } from "@codemirror/language-data";
 import { tags } from "@lezer/highlight";
+const stripe = Decoration.line({ class: "cm-line-stripe" });
+const lineStripes = ViewPlugin.fromClass(
+  class {
+    constructor(view) {
+      this.decorations = this.build(view);
+    }
+    update(update) {
+      if (update.docChanged || update.viewportChanged)
+        this.decorations = this.build(update.view);
+    }
+    build(view) {
+      const ranges = [];
+      for (const { from, to } of view.visibleRanges) {
+        for (let pos = from; pos <= to;) {
+          const line = view.state.doc.lineAt(pos);
+          if (line.number % 2 === 0) ranges.push(stripe.range(line.from));
+          pos = line.to + 1;
+        }
+      }
+      return Decoration.set(ranges);
+    }
+  },
+  { decorations: (plugin) => plugin.decorations },
+);
 const colors = HighlightStyle.define([
   { tag: [tags.keyword, tags.operator], color: "var(--color-syntax-keyword)" },
   { tag: [tags.string, tags.regexp], color: "var(--color-syntax-string)" },
@@ -111,6 +139,10 @@ export default function CodeEditor({
             ...(readOnly ? { tabindex: "0" } : {}),
           }),
           lineNumbers(),
+          lineStripes,
+          ...(readOnly
+            ? []
+            : [highlightActiveLine(), highlightActiveLineGutter()]),
           highlightSpecialChars(),
           drawSelection(),
           history(),

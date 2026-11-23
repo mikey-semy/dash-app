@@ -210,6 +210,7 @@ function HistoryItem({
           )}
           <FileList
             files={t.files}
+            onEdit={t.url && onEdit ? (index) => onEdit(t, index) : undefined}
             highlight={highlight}
             onRename={
               t.url
@@ -462,9 +463,9 @@ export default function History({
                         onOpen(item);
                       }
                 }
-                onEdit={(item) => {
+                onEdit={(item, index) => {
                   dismiss();
-                  onEdit(item);
+                  onEdit(item, index);
                 }}
                 selected={selection.has(t.id)}
                 onSelect={() => toggle(t.id)}

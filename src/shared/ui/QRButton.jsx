@@ -34,7 +34,7 @@ export default function QRButton({ url }) {
         if (active) setQr(value);
       })
       .catch((error) => {
-        console.error("[DU] QR", error);
+        console.error("[dash-app] QR", error);
         setOpen(false);
       });
     return () => {

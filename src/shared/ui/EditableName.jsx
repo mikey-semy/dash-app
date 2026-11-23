@@ -189,7 +189,7 @@ export default function EditableName({
                 ref.current.textContent = next;
               }
             } catch (error) {
-              console.error("[DU] title generator", error);
+              console.error("[dash-app] title generator", error);
               setFailed(true);
             } finally {
               pending.current = false;

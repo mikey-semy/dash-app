@@ -9,7 +9,7 @@ export const connectionError = (error) =>
   ) || error?.status >= 500;
 export function ErrorNotice({ error, context = "interface" }) {
   useEffect(() => {
-    if (error) console.error("[DU]", context, error);
+    if (error) console.error("[dash-app]", context, error);
   }, [error, context]);
   const content =
     error && connectionError(error) ? (
@@ -38,7 +38,7 @@ export function ErrorPage({ error, status }) {
   useEffect(() => {
     document.title = copy.error;
     console.error(
-      "[DU]",
+      "[dash-app]",
       status || "Error",
       location.pathname,
       error || copy.pageUnavailable,
@@ -47,13 +47,13 @@ export function ErrorPage({ error, status }) {
       fetch(location.href, { headers: { Accept: "application/json" } })
         .then(async (response) =>
           console.error(
-            "[DU] HTTP",
+            "[dash-app] HTTP",
             response.status,
             location.pathname,
             await response.text(),
           ),
         )
-        .catch((error) => console.error("[DU]", error));
+        .catch((error) => console.error("[dash-app]", error));
   }, [error, status]);
   return (
     <main className="center">
@@ -81,7 +81,7 @@ export class ErrorBoundary extends Component {
     return { error };
   }
   componentDidCatch(error, info) {
-    console.error("[DU] render", error, info.componentStack);
+    console.error("[dash-app] render", error, info.componentStack);
   }
   componentDidMount() {
     this.failure = (event) =>

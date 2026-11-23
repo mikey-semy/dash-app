@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import request from "supertest";
-import { unzipSync } from "fflate";
+import { unzipSync, zipSync } from "fflate";
 import {
   archiveName,
   openDB,
@@ -2090,4 +2090,102 @@ test("editing individual text files preserves archive order and other bytes", as
     }).expect(409);
   }
   db.close();
+});
+
+for (const removed of [0, 1, 2, 3]) {
+  test(
+    `removing entry ${removed} from two ZIP files and two empty ZIP files preserves the others`,
+    { timeout: 10000 },
+    async () => {
+      const { service, store } = await setup();
+      const contents = [
+        [
+          "first.zip",
+          Buffer.from(
+            zipSync(
+              { "first.txt": Buffer.from("first PK\x07\x08 payload") },
+              { level: 0 },
+            ),
+          ),
+        ],
+        [
+          "second.zip",
+          Buffer.from(zipSync({ "second.txt": Buffer.from("second payload") })),
+        ],
+        ["1_first.zip", Buffer.alloc(0)],
+        ["1_second.zip", Buffer.alloc(0)],
+      ];
+      const id = await upload(service, store, contents);
+      await service.tick();
+      await service.tick();
+      const original = service.get(id);
+      const { id: child } = service.removeFiles(
+        id,
+        [removed],
+        revision(original),
+      );
+      await service.tick();
+      assert.equal(service.get(child).state, "merged");
+      const updated = service.get(id);
+      assert.equal(updated.token, original.token);
+      const files = unzipSync(store.objects.get(updated.output.key));
+      const kept = contents.filter((_, index) => index !== removed);
+      assert.deepEqual(
+        Object.keys(files),
+        kept.map(([name]) => name),
+      );
+      for (const [name, bytes] of kept)
+        assert.deepEqual(Buffer.from(files[name]), bytes);
+    },
+  );
+}
+
+test("a failed ZIP removal can be repeated without reuploading or changing the original link", async () => {
+  const { service, store, agent } = await setup();
+  const id = await upload(service, store, [
+    [
+      "first.zip",
+      Buffer.from(
+        zipSync(
+          { payload: Buffer.from("PK\x07\x08 nested descriptor") },
+          { level: 0 },
+        ),
+      ),
+    ],
+    ["second.zip", Buffer.from(zipSync({ payload: Buffer.from("second") }))],
+    ["empty.zip", Buffer.alloc(0)],
+    ["other-empty.zip", Buffer.alloc(0)],
+  ]);
+  await service.tick();
+  await service.tick();
+  const original = service.get(id);
+  const { id: failed } = service.removeFiles(id, [2], revision(original));
+  store.failGet = true;
+  for (let attempt = 0; attempt < 3; attempt++) await service.tick();
+  assert.equal(service.get(failed).state, "failed");
+  assert.equal(service.get(id).output.key, original.output.key);
+  store.failGet = false;
+  await agent
+    .delete("/api/transfers/" + id + "/files")
+    .set("Origin", env.PUBLIC_URL)
+    .send({ indices: [2], revision: revision(original) })
+    .expect(200);
+  await service.tick();
+  const updated = service.get(id);
+  assert.equal(updated.token, original.token);
+  assert.equal(updated.password, original.password);
+  assert.equal(updated.expires, original.expires);
+  assert.deepEqual(
+    updated.files.map((file) => file.name),
+    ["first.zip", "second.zip", "other-empty.zip"],
+  );
+  const listed = (await agent.get("/api/transfers")).body.find(
+    (item) => item.id === id,
+  );
+  assert.equal(listed.appendState, null);
+  assert.equal(listed.appendError, null);
+  assert.deepEqual(
+    Object.keys(unzipSync(store.objects.get(updated.output.key))),
+    updated.files.map((file) => file.name),
+  );
 });

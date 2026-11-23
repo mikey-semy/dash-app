@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { zipSync, unzipSync } from "fflate";
 async function login(page) {
   await page.goto("/");
   await page.getByLabel("Password", { exact: true }).fill("123456");
@@ -112,7 +113,7 @@ test("unknown Markdown links and other page errors show only a centered cross an
   ).toBeVisible();
   expect((await page.locator("body").innerText()).trim()).toBe("");
   await expect
-    .poll(() => errors.some((message) => message.includes("[DU]")))
+    .poll(() => errors.some((message) => message.includes("[dash-app]")))
     .toBe(true);
   await page.getByRole("link", { name: "Back to upload", exact: true }).click();
   await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
@@ -150,4 +151,54 @@ test("gallery retains a small image intrinsic dimensions", async ({ page }) => {
     width: 1,
     height: 1,
   });
+});
+
+test("history removes an empty file beside nested ZIPs without a ZIP error", async ({
+  page,
+  request,
+}) => {
+  const nested = Buffer.from(
+    zipSync(
+      { "payload.bin": Buffer.from("nested PK\x07\x08 payload") },
+      { level: 0 },
+    ),
+  );
+  await login(page);
+  await page.locator("input[type=file]").setInputFiles([
+    { name: "first.zip", mimeType: "application/zip", buffer: nested },
+    { name: "second.zip", mimeType: "application/zip", buffer: nested },
+    {
+      name: "1_first.zip",
+      mimeType: "application/zip",
+      buffer: Buffer.alloc(0),
+    },
+    {
+      name: "1_second.zip",
+      mimeType: "application/zip",
+      buffer: Buffer.alloc(0),
+    },
+  ]);
+  await expect(page.locator(".share-ready")).toBeVisible();
+  const original = await record(page);
+  await page.getByLabel("Settings", { exact: true }).click();
+  await page.getByRole("button", { name: "History", exact: true }).click();
+  const item = page.locator(".history-item").first();
+  await item.locator(".history-toggle").click();
+  await confirm(
+    item.getByRole("button", { name: "Delete 1_first.zip", exact: true }),
+  );
+  await expect
+    .poll(async () => (await record(page)).files.map((file) => file.name))
+    .toEqual(["first.zip", "second.zip", "1_second.zip"]);
+  const updated = await record(page);
+  expect(updated.url).toBe(original.url);
+  expect(updated.appendError).toBeNull();
+  const download = await request.get(
+    new URL(original.url).pathname.replace(/^\//, "/public/") + "/download",
+  );
+  expect(download.ok()).toBe(true);
+  const entries = unzipSync(await download.body());
+  expect(Buffer.from(entries["first.zip"])).toEqual(nested);
+  expect(Buffer.from(entries["second.zip"])).toEqual(nested);
+  expect(entries["1_second.zip"].length).toBe(0);
 });

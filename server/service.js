@@ -1,6 +1,6 @@
 import { copy } from "#common/copy.js";
 import { ZipArchive } from "archiver";
-import { Parse } from "unzipper";
+import { archiveDirectory, archiveEntryObject } from "./archive-text.js";
 import { Readable, PassThrough } from "node:stream";
 import {
   PART,
@@ -232,16 +232,18 @@ export class Service {
       throw Object.assign(new Error(copy.invalidFileSelection), {
         status: 400,
       });
-    if (
-      this.db
-        .prepare(
-          "SELECT 1 FROM transfers WHERE parent=? AND state NOT IN ('deleted','merged','deleting')",
-        )
-        .get(id)
-    )
-      throw Object.assign(new Error(copy.waitForTheTransferUpdateToFinish), {
-        status: 409,
-      });
+    const pending = this.db
+      .prepare(
+        "SELECT id,state FROM transfers WHERE parent=? AND state NOT IN ('deleted','merged','deleting')",
+      )
+      .get(id);
+    if (pending) {
+      if (pending.state === "failed") this.delete(pending.id);
+      else
+        throw Object.assign(new Error(copy.waitForTheTransferUpdateToFinish), {
+          status: 409,
+        });
+    }
     const kept = parent.files.filter((f, i) => !indices.includes(i));
     if (!kept.length) {
       const output = {
@@ -281,62 +283,57 @@ export class Service {
   async *sources(t, marker) {
     const emitted = new Set();
     if (t.base?.files.length) {
-      const source = await this.store.get(t.base.output.key);
-      const stop = () => source.Body.destroy(new Error("Cancelled"));
+      const singleSource =
+        t.base.files.length === 1 && !t.base.files[0].directory;
+      const source = singleSource
+        ? await this.store.get(t.base.output.key)
+        : null;
+      const stop = () => source?.Body.destroy(new Error("Cancelled"));
       marker.once("close", stop);
       try {
         if (marker.destroyed) throw new Error("Cancelled");
-        if (t.base.files.length === 1 && !t.base.files[0].directory) {
+        if (singleSource) {
           const file = t.files.find(
             (f) => f.reused && f.key === t.base.files[0].key,
           );
           if (file) yield { body: source.Body, file };
         } else {
-          const parser = source.Body.pipe(Parse({ forceStream: true }));
-          source.Body.once("error", (e) => parser.destroy(e));
-          try {
-            let index = 0;
-            for await (const entry of parser) {
-              const original = t.base.files[index++];
-              if (
-                !original ||
-                entry.type !== (original.directory ? "Directory" : "File") ||
-                entry.path !== original.name
-              ) {
-                entry.autodrain();
-                throw new Error("Stored ZIP composition mismatch");
-              }
-              const file = t.files.find(
-                (f) => f.reused && f.key === original.key,
-              );
-              if (file) yield { body: entry, file };
-              else {
-                await entry.autodrain().promise();
-                const replacement = t.files[index - 1];
-                if (
-                  replacement &&
-                  !replacement.reused &&
-                  t.files.length === t.base.files.length
-                ) {
-                  const object = await this.store.get(replacement.key);
-                  try {
-                    emitted.add(replacement.key);
-                    yield { body: object.Body, file: replacement };
-                  } finally {
-                    object.Body.destroy();
-                  }
-                }
-              }
+          // Stored entries may contain ZIP signatures themselves. Read exact
+          // central-directory ranges instead of scanning payload for descriptors.
+          const entries = await archiveDirectory(this.store, t.base);
+          for (let index = 0; index < t.base.files.length; index++) {
+            if (marker.destroyed) throw new Error("Cancelled");
+            const original = t.base.files[index];
+            const file = t.files.find(
+              (f) => f.reused && f.key === original.key,
+            );
+            const replacement = t.files[index];
+            const selected =
+              file ||
+              (replacement &&
+              !replacement.reused &&
+              t.files.length === t.base.files.length
+                ? replacement
+                : null);
+            if (!selected) continue;
+            const object = file
+              ? await archiveEntryObject(this.store, t.base, entries[index])
+              : await this.store.get(selected.key);
+            const stopEntry = () => object.Body.destroy(new Error("Cancelled"));
+            marker.once("close", stopEntry);
+            try {
+              if (marker.destroyed) throw new Error("Cancelled");
+              emitted.add(selected.key);
+              yield { body: object.Body, file: selected };
+            } finally {
+              marker.off("close", stopEntry);
+              object.Body.destroy();
             }
-            if (index !== t.base.files.length)
-              throw new Error("Stored ZIP incomplete");
-          } finally {
-            parser.destroy();
           }
         }
       } finally {
         marker.off("close", stop);
-        source.Body.destroy();
+        source?.Body.destroy();
       }
     }
     for (const file of t.files.filter(
@@ -830,7 +827,8 @@ export class Service {
       if (job.parent && job.files.length === 1 && !job.files[0].directory)
         await this.single(job);
       else await this.zip(job);
-    } catch {
+    } catch (error) {
+      console.error("[dash-app] ZIP", job.id, error);
       this.db
         .prepare(
           "UPDATE transfers SET state=CASE WHEN attempts>=3 THEN 'failed' ELSE 'queued' END,error=? WHERE id=? AND state='archiving'",

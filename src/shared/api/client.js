@@ -52,7 +52,7 @@ export function createApi({
           continue;
         }
         console.error(
-          "[DU] request",
+          "[dash-app] request",
           method,
           path,
           error.status || "network",

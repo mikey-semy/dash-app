@@ -314,7 +314,9 @@ export function createOwnerApi({
           t.id,
         );
     });
-    hosting.refresh().catch((error) => console.error("[DU] domains", error));
+    hosting
+      .refresh()
+      .catch((error) => console.error("[dash-app] domains", error));
     res.json(publicOwner(service.get(req.params.id)));
   });
   api.post("/transfers/:id/domain-check", async (req, res) => {

@@ -60,7 +60,7 @@ export default function TextPreview({
       .then(async (response) => {
         if (!active) return;
         if (!response.ok) {
-          console.error("[DU] text preview", response.status, rawPath);
+          console.error("[dash-app] text preview", response.status, rawPath);
           if (response.status === 404) onUnavailable();
           else if (response.status === 412 || response.status === 401)
             onUnavailable(true);

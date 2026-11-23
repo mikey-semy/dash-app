@@ -45,6 +45,8 @@ export function CurrentTransferDetails({
   onGenerateTitle,
   onRemoveFiles,
   onPreview,
+  onEdit,
+  editBusy,
 }) {
   return (
     <AnimatedDetails
@@ -70,6 +72,8 @@ export function CurrentTransferDetails({
       <div className="transfer-information">
         <FileList
           files={transfer.files}
+          onEdit={(index) => onEdit(transfer, index)}
+          editBusy={editBusy}
           onRemove={(index) => onRemoveFiles(transfer, [index])}
           confirmationKey={transfer.revision}
           onRename={(index, value) => onRenameFile(transfer, index, value)}

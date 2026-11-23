@@ -65,18 +65,19 @@ export function OwnerView(p) {
     if (config && !p.history.some((t) => t.id === config && t.url))
       setConfig(null);
   }, [config, p.history]);
-  const editText = async (transfer) => {
+  const editText = async (transfer, index = 0) => {
     if (opening) return;
     setOpening(true);
     setEditorError("");
     clearTimeout(editorTimer.current);
     try {
-      const text = await p.readText(transfer);
+      const text = await p.readText(transfer, index);
       setDraft({
         text,
         id: transfer.id,
         revision: transfer.revision,
-        filename: transfer.files[0].name,
+        filename: transfer.files[index].name,
+        index,
       });
     } catch (error) {
       console.error("[DU] text editor", error);
@@ -295,6 +296,8 @@ export function OwnerView(p) {
               onRenameFile={commands.renameFile}
               onGenerateTitle={commands.suggestTitle}
               onRemoveFiles={commands.removeFiles}
+              onEdit={editText}
+              editBusy={opening}
               onPreview={(record, index) => setViewing({ record, index })}
             />
           )}
@@ -357,11 +360,11 @@ export function OwnerView(p) {
               }}
               onUnsupported={() => setViewing(null)}
               onEdit={
-                viewing.record.preview
+                viewing.record.files[viewing.index].preview
                   ? () => {
                       const record = viewing.record;
                       setViewing(null);
-                      editText(record);
+                      editText(record, viewing.index);
                     }
                   : undefined
               }

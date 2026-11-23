@@ -10,7 +10,7 @@ import {
   revision,
   safeNames,
 } from "./core.js";
-import { textCandidate, TEXT_LIMIT } from "./text.js";
+import { fileTextCandidate, TEXT_LIMIT } from "./text.js";
 import { assignSiteTitle } from "./site-names.js";
 import { uploadMultipartStream } from "./multipart-stream.js";
 import { UPLOAD_TRANSFER } from "#common/config.js";
@@ -105,12 +105,15 @@ export class Service {
     );
     return { id: next, offset: parent.files.length };
   }
-  replaceText(id, file, expectedRevision) {
+  replaceText(id, file, expectedRevision, index = 0) {
     const parent = this.get(id);
     if (
       !parent ||
       parent.state !== "ready" ||
-      !textCandidate(parent) ||
+      parent.parent ||
+      !Number.isSafeInteger(index) ||
+      index < 0 ||
+      !fileTextCandidate(parent.files[index]) ||
       (parent.expires !== null && parent.expires <= Date.now())
     )
       throw Object.assign(new Error(copy.editingUnavailable), {
@@ -138,14 +141,20 @@ export class Service {
         status: 409,
       });
     }
+    const kept = parent.files.filter((_, i) => i !== index);
     const next = insertTransfer(
       this.db,
-      [{ name: parent.files[0].name, size: file.size }],
+      [...kept, { name: parent.files[index].name, size: file.size }],
       parent.ttl,
       "",
-      { ...parent, reuseFiles: [], baseFiles: parent.files },
+      { ...parent, reuseFiles: kept, baseFiles: parent.files },
     );
-    return { id: next, offset: 0 };
+    const files = this.get(next).files;
+    files.splice(index, 0, files.pop());
+    this.db
+      .prepare("UPDATE transfers SET files=? WHERE id=?")
+      .run(JSON.stringify(files), next);
+    return { id: next, offset: index };
   }
   rename(id, names, expectedRevision) {
     const parent = this.get(id);
@@ -270,6 +279,7 @@ export class Service {
     return { id: child };
   }
   async *sources(t, marker) {
+    const emitted = new Set();
     if (t.base?.files.length) {
       const source = await this.store.get(t.base.output.key);
       const stop = () => source.Body.destroy(new Error("Cancelled"));
@@ -300,7 +310,23 @@ export class Service {
                 (f) => f.reused && f.key === original.key,
               );
               if (file) yield { body: entry, file };
-              else await entry.autodrain().promise();
+              else {
+                await entry.autodrain().promise();
+                const replacement = t.files[index - 1];
+                if (
+                  replacement &&
+                  !replacement.reused &&
+                  t.files.length === t.base.files.length
+                ) {
+                  const object = await this.store.get(replacement.key);
+                  try {
+                    emitted.add(replacement.key);
+                    yield { body: object.Body, file: replacement };
+                  } finally {
+                    object.Body.destroy();
+                  }
+                }
+              }
             }
             if (index !== t.base.files.length)
               throw new Error("Stored ZIP incomplete");
@@ -313,7 +339,9 @@ export class Service {
         source.Body.destroy();
       }
     }
-    for (const file of t.files.filter((f) => !f.reused)) {
+    for (const file of t.files.filter(
+      (f) => !f.reused && !emitted.has(f.key),
+    )) {
       if (marker.destroyed) throw new Error("Cancelled");
       const object = await this.store.get(file.key);
       try {

@@ -15,6 +15,8 @@ export function FileList({
   downloadPath,
   onRename,
   onRemove,
+  onEdit,
+  editBusy,
   confirmationKey,
   disabled = false,
   highlight,
@@ -85,6 +87,16 @@ export function FileList({
                   onClick={() => onPreview(i)}
                 >
                   <Icon name="eye" />
+                </IconButton>
+              )}
+              {onEdit && f.preview && (
+                <IconButton
+                  aria-label={copy.editTextPrefix + f.name}
+                  title={copy.editText}
+                  disabled={disabled || editBusy}
+                  onClick={() => onEdit(i)}
+                >
+                  <Icon name="edit" />
                 </IconButton>
               )}
               {downloadPath && !f.name.endsWith("/") && (

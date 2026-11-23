@@ -677,3 +677,135 @@ test("text can be added repeatedly and clipboard destinations preserve the curre
     .toBe("copied.ps1");
   await expect(page.locator(".share-ready")).toBeVisible();
 });
+
+for (const width of [390, 1280]) {
+  test(`each text file can be edited in a multi-file transfer at ${width}px`, async ({
+    page,
+    context,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await login(page);
+    await page.locator('input[type="file"]').setInputFiles([
+      {
+        name: "first.txt",
+        mimeType: "text/plain",
+        buffer: Buffer.from("first original"),
+      },
+      {
+        name: "second.txt",
+        mimeType: "text/plain",
+        buffer: Buffer.from("second original"),
+      },
+      {
+        name: "image.png",
+        mimeType: "image/png",
+        buffer: Buffer.from([0, 1, 255]),
+      },
+    ]);
+    await expect(page.locator(".share-ready")).toBeVisible();
+    await expect(
+      page
+        .locator(".share-ready")
+        .getByRole("button", { name: "Edit text", exact: true }),
+    ).toHaveCount(0);
+    await page
+      .getByRole("button", { name: "Transfer details", exact: true })
+      .click();
+    await expect(
+      page.getByRole("button", { name: "Edit text: image.png", exact: true }),
+    ).toHaveCount(0);
+    for (const filename of ["first.txt", "second.txt"]) {
+      const details = page.getByRole("button", {
+        name: "Transfer details",
+        exact: true,
+      });
+      if ((await details.getAttribute("aria-expanded")) === "false")
+        await details.click();
+      const row = page
+        .locator(".files li")
+        .filter({ has: page.getByText(filename, { exact: true }) });
+      const more = row.getByRole("button", { name: "Actions", exact: true });
+      if (await more.isVisible()) await more.click();
+      await row
+        .getByRole("button", { name: "Edit text: " + filename, exact: true })
+        .click();
+      const editor = page.getByRole("dialog", {
+        name: "Edit text",
+        exact: true,
+      });
+      await expect(editor.locator(".cm-content")).toHaveText(
+        filename === "first.txt" ? "first original" : "second original",
+      );
+      await editor.locator(".cm-content").fill("updated " + filename);
+      await editor
+        .getByRole("button", { name: "Save text", exact: true })
+        .click();
+      await expect(editor).toHaveCount(0);
+      await expect
+        .poll(async () => {
+          const transfers = await (
+            await context.request.get("/api/transfers")
+          ).json();
+          const transfer = transfers.find((t) =>
+            t.files.some((f) => f.name === "first.txt"),
+          );
+          const index = transfer.files.findIndex((f) => f.name === filename);
+          return (
+            await context.request.get(
+              `/api/transfers/${transfer.id}/text/${index}`,
+            )
+          ).text();
+        })
+        .toBe("updated " + filename);
+      await expect(page.locator(".share-ready")).toBeVisible();
+    }
+    const details = page.getByRole("button", {
+      name: "Transfer details",
+      exact: true,
+    });
+    if ((await details.getAttribute("aria-expanded")) === "false")
+      await details.click();
+    const second = page
+      .locator(".files li")
+      .filter({ has: page.getByText("second.txt", { exact: true }) });
+    const more = second.getByRole("button", { name: "Actions", exact: true });
+    if (await more.isVisible()) await more.click();
+    await second
+      .getByRole("button", { name: "Preview second.txt", exact: true })
+      .click();
+    const preview = page.getByRole("dialog", {
+      name: "Text preview",
+      exact: true,
+    });
+    await preview
+      .getByRole("button", { name: "Edit text", exact: true })
+      .click();
+    const editor = page.getByRole("dialog", { name: "Edit text", exact: true });
+    await expect(editor.locator(".cm-content")).toHaveText(
+      "updated second.txt",
+    );
+    await expect(editor.getByText("second.txt", { exact: true })).toBeVisible();
+    await editor
+      .getByRole("button", { name: "Close editor", exact: true })
+      .click();
+    const transfers = await (
+      await context.request.get("/api/transfers")
+    ).json();
+    const transfer = transfers.find((t) =>
+      t.files.some((f) => f.name === "first.txt"),
+    );
+    expect(transfer.files.map((f) => f.name)).toEqual([
+      "first.txt",
+      "second.txt",
+      "image.png",
+    ]);
+    for (const index of [0, 1]) {
+      const response = await context.request.get(
+        `/api/transfers/${transfer.id}/text/${index}`,
+      );
+      expect(await response.text()).toBe(
+        "updated " + transfer.files[index].name,
+      );
+    }
+  });
+}

@@ -2011,3 +2011,83 @@ test("an empty folder remains a directory through append, rename and file remova
   t = service.get(id);
   assert.ok(unzipSync(store.objects.get(t.output.key))["project/empty/"]);
 });
+
+test("editing individual text files preserves archive order and other bytes", async () => {
+  const { db, agent, service, store } = await setup();
+  const contents = [
+    ["first.txt", Buffer.from("first")],
+    ["middle.txt", Buffer.from("middle")],
+    ["last.txt", Buffer.from("last")],
+    ["image.png", Buffer.from([0, 1, 255])],
+  ];
+  const id = await upload(service, store, contents, "123456");
+  await service.tick();
+  const original = service.get(id);
+  for (const index of [0, 1, 2]) {
+    const owner = (await agent.get("/api/transfers")).body.find(
+      (t) => t.id === id,
+    );
+    for (const invalid of [-1, 4, 3, "0", null]) {
+      await post(agent, `/api/transfers/${id}/replace`, {
+        files: [{ name: "ignored.txt", size: 3 }],
+        revision: owner.revision,
+        index: invalid,
+      }).expect(409);
+    }
+    const bytes = Buffer.from("edited " + index);
+    const draft = (
+      await post(agent, `/api/transfers/${id}/replace`, {
+        files: [{ name: "ignored.txt", size: bytes.length }],
+        revision: owner.revision,
+        index,
+      }).expect(201)
+    ).body;
+    assert.equal(draft.offset, index);
+    const recovered = (await agent.get(`/api/uploads/${draft.id}`).expect(200))
+      .body;
+    assert.equal(recovered.offset, index);
+    assert.deepEqual(recovered.files, [
+      { name: contents[index][0], size: bytes.length },
+    ]);
+    await service.init(draft.id, index);
+    const file = service.get(draft.id).files[index];
+    await store.send("UploadPart", {
+      Key: file.key,
+      UploadId: file.upload,
+      PartNumber: 1,
+      Body: bytes,
+    });
+    await service.finishFile(draft.id, index);
+    await service.finish(draft.id);
+    await service.tick();
+    contents[index][1] = bytes;
+    const current = service.get(id);
+    assert.equal(current.state, "ready");
+    for (const key of ["token", "password", "expires", "created"])
+      assert.equal(current[key], original[key]);
+    assert.deepEqual(
+      current.files.map((f) => f.name),
+      contents.map(([name]) => name),
+    );
+    const object = await store.get(current.output.key);
+    const chunks = [];
+    for await (const chunk of object.Body) chunks.push(chunk);
+    const archive = unzipSync(Buffer.concat(chunks));
+    assert.deepEqual(
+      Object.keys(archive),
+      contents.map(([name]) => name),
+    );
+    for (const [name, expected] of contents)
+      assert.deepEqual(Buffer.from(archive[name]), expected);
+    assert.equal(
+      (await agent.get(`/api/transfers/${id}/text/${index}`).expect(200)).text,
+      bytes.toString(),
+    );
+    await post(agent, `/api/transfers/${id}/replace`, {
+      files: [{ name: "ignored.txt", size: 3 }],
+      revision: owner.revision,
+      index,
+    }).expect(409);
+  }
+  db.close();
+});

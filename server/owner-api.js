@@ -91,7 +91,7 @@ export function createOwnerApi({
     res.json({
       id: t.id,
       parentId: t.parent || null,
-      offset: t.files.filter((file) => file.reused).length,
+      offset: t.files.findIndex((file) => !file.reused),
       files: t.files
         .filter((file) => !file.reused)
         .map(({ name, size }) => ({ name, size })),
@@ -399,6 +399,7 @@ export function createOwnerApi({
             req.params.id,
             req.body.files[0],
             req.body.revision,
+            req.body.index,
           ),
         ),
       );

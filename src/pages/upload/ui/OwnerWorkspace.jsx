@@ -80,7 +80,7 @@ export function OwnerView(p) {
         index,
       });
     } catch (error) {
-      console.error("[dash-app] text editor", error);
+      console.error("[app] text editor", error);
       setEditorError(transfer.id);
       editorTimer.current = setTimeout(() => setEditorError(""), 2400);
       p.refresh();

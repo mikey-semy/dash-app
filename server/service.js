@@ -828,7 +828,7 @@ export class Service {
         await this.single(job);
       else await this.zip(job);
     } catch (error) {
-      console.error("[dash-app] ZIP", job.id, error);
+      console.error("[app] ZIP", job.id, error);
       this.db
         .prepare(
           "UPDATE transfers SET state=CASE WHEN attempts>=3 THEN 'failed' ELSE 'queued' END,error=? WHERE id=? AND state='archiving'",

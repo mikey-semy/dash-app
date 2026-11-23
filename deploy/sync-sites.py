@@ -90,7 +90,7 @@ if __name__=='__main__':
                     reserved=reserved_hosts();refresh=time.monotonic()+30
                 synchronize(reserved)
             except Exception as error:
-                print('[dash-app] domain routing:',str(error),file=sys.stderr,flush=True)
+                print('[app] domain routing:',str(error),file=sys.stderr,flush=True)
             time.sleep(2)
     else:
         synchronize(disable='--disable' in sys.argv)

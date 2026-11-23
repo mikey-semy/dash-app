@@ -113,7 +113,7 @@ test("unknown Markdown links and other page errors show only a centered cross an
   ).toBeVisible();
   expect((await page.locator("body").innerText()).trim()).toBe("");
   await expect
-    .poll(() => errors.some((message) => message.includes("[dash-app]")))
+    .poll(() => errors.some((message) => message.includes("[app]")))
     .toBe(true);
   await page.getByRole("link", { name: "Back to upload", exact: true }).click();
   await expect(page.getByLabel("Password", { exact: true })).toBeVisible();

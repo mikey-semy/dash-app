@@ -109,7 +109,7 @@ export function CopyButton({ value, label = copy.copyLink }) {
           setCopied(true);
           setFailed(false);
         } catch (error) {
-          console.error("[dash-app] clipboard", label, error);
+          console.error("[app] clipboard", label, error);
           setFailed(true);
           setCopied(false);
         }

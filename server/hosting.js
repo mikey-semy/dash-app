@@ -229,7 +229,7 @@ export function hosting(service, env, options = {}) {
               return;
             }
             if (next.error && states.get(t.id)?.error !== next.error)
-              console.error("[dash-app] domain", t.site_domain, next.error);
+              console.error("[app] domain", t.site_domain, next.error);
             states.set(t.id, next);
           }),
         );
@@ -251,7 +251,7 @@ export function hosting(service, env, options = {}) {
         dirty = false;
         queueMicrotask(() =>
           refresh().catch((error) =>
-            console.error("[dash-app] domain refresh", error),
+            console.error("[app] domain refresh", error),
           ),
         );
       }
@@ -278,9 +278,9 @@ export function hosting(service, env, options = {}) {
       ? `<form method="post" action="/.du/unlock"><input type="hidden" name="next" value="${escape(req.originalUrl || "/")}"><input name="password" id="password" aria-label="${copy.password}" type="password" maxlength="256" inputmode="numeric" autocomplete="current-password" autofocus><span id="error" role="img" aria-label="${copy.incorrectPassword}" ${error ? "" : "hidden"}>${cross}</span><button type="button" id="reveal" aria-label="${copy.showPassword}">${eye}</button><button type="submit" aria-label="${copy.signIn}">${enter}</button></form>`
       : `<a class="unavailable" aria-label="${copy.backToUpload}" href="${canonical.origin}/">${cross}</a>`;
     const script = password
-      ? `const p=document.getElementById('password');p.addEventListener('input',()=>document.getElementById('error').hidden=true);document.getElementById('reveal').onclick=()=>{p.type=p.type==='password'?'text':'password';document.getElementById('slash').setAttribute('visibility',p.type==='text'?'visible':'hidden')};${error ? "console.error(" + JSON.stringify("[dash-app] " + copy.incorrectSitePassword) + ");" : ""}`
+      ? `const p=document.getElementById('password');p.addEventListener('input',()=>document.getElementById('error').hidden=true);document.getElementById('reveal').onclick=()=>{p.type=p.type==='password'?'text':'password';document.getElementById('slash').setAttribute('visibility',p.type==='text'?'visible':'hidden')};${error ? "console.error(" + JSON.stringify("[app] " + copy.incorrectSitePassword) + ");" : ""}`
       : "console.error(" +
-        JSON.stringify("[dash-app] " + copy.siteUnavailable) +
+        JSON.stringify("[app] " + copy.siteUnavailable) +
         ");";
     res.send(
       statusPage({

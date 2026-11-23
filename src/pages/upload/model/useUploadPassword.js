@@ -33,7 +33,7 @@ export function useUploadPassword({ upload, setSecret }) {
       setSecret(pin);
       setPasswordState("copied");
     } catch (error) {
-      console.error("[dash-app] password clipboard", error);
+      console.error("[app] password clipboard", error);
       if (version === passwordVersion.current) setPasswordState("failed");
     }
   };

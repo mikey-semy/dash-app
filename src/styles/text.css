@@ -46,6 +46,15 @@
 }
 .code-editor .cm-line {
   padding: 0 var(--size-16);
+  line-height: var(--line-height-1-6);
+  min-height: 1lh;
+}
+.code-editor .cm-line-stripe {
+  background: var(--color-code-stripe);
+}
+.code-editor .cm-line.cm-activeLine,
+.code-editor .cm-gutterElement.cm-activeLineGutter {
+  background: var(--color-code-active-line);
 }
 .code-editor .cm-gutters {
   background: var(--color-surface);
@@ -56,6 +65,7 @@
 }
 .code-editor .cm-lineNumbers .cm-gutterElement {
   padding: 0 var(--size-8) 0 var(--size-16);
+  line-height: var(--line-height-1-6);
 }
 .code-editor .cm-editor.cm-focused,
 .code-editor .cm-content:focus {

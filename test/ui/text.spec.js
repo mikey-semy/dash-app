@@ -513,6 +513,9 @@ test("owner reopens uploaded text full screen, cancels or saves to the same link
   await recipient
     .getByRole("button", { name: "Open preview", exact: true })
     .click();
+  await expect(
+    recipient.getByRole("button", { name: "Edit text", exact: true }),
+  ).toHaveCount(0);
   await expect(recipient.locator(".viewer-dialog .cm-content")).toHaveText(
     "print('new')",
   );
@@ -777,6 +780,9 @@ for (const width of [390, 1280]) {
       name: "Text preview",
       exact: true,
     });
+    await expect(
+      preview.getByRole("button", { name: "Edit text", exact: true }),
+    ).toHaveCount(1);
     await preview
       .getByRole("button", { name: "Edit text", exact: true })
       .click();
@@ -807,5 +813,46 @@ for (const width of [390, 1280]) {
         "updated " + transfer.files[index].name,
       );
     }
+  });
+}
+
+for (const width of [390, 1280]) {
+  test(`line numbers follow empty lines while typing at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await login(page);
+    await paste(page, "first\n\nthird\n\n");
+    const editor = page.locator(".text-dialog .code-editor");
+    const checkAlignment = async () => {
+      await expect
+        .poll(async () =>
+          editor.evaluate((host) => {
+            const lines = [...host.querySelectorAll(".cm-line")];
+            const numbers = [
+              ...host.querySelectorAll(".cm-lineNumbers .cm-gutterElement"),
+            ].filter((el) => el.style.visibility !== "hidden");
+            return (
+              lines.length === numbers.length &&
+              lines.every((line, index) => {
+                const a = line.getBoundingClientRect(),
+                  b = numbers[index].getBoundingClientRect();
+                return (
+                  Math.abs(a.y - b.y) < 1 && Math.abs(a.height - b.height) < 1
+                );
+              })
+            );
+          }),
+        )
+        .toBe(true);
+    };
+    await checkAlignment();
+    await editor.locator(".cm-content").press("Control+Home");
+    await editor.locator(".cm-content").press("ArrowDown");
+    await page.keyboard.type("filled");
+    await page.keyboard.press("Enter");
+    await checkAlignment();
+    await expect(editor.locator(".cm-activeLine")).toHaveCount(1);
+    await expect(editor.locator(".cm-line-stripe")).toHaveCount(3);
   });
 }

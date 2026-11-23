@@ -40,6 +40,22 @@ export function OwnerView(p) {
     appendTarget = useRef(null),
     settings = useRef(),
     editorTimer = useRef();
+  const previewRename = useRef(false);
+  const renamePreview = async (name) => {
+    const { record, index } = viewing;
+    previewRename.current = true;
+    try {
+      await commands.renameFile(record, index, name);
+      const updated = await p.waitForUpdates(record.id);
+      setViewing((current) =>
+        current?.record.id === record.id && current.index === index
+          ? { ...current, record: updated }
+          : current,
+      );
+    } finally {
+      previewRename.current = false;
+    }
+  };
   useEffect(() => () => clearTimeout(editorTimer.current), []);
   useEffect(() => {
     const reset = () => window.scrollTo(0, 0);
@@ -91,6 +107,7 @@ export function OwnerView(p) {
   useEffect(() => {
     if (
       viewing &&
+      !previewRename.current &&
       !p.history.some(
         (t) =>
           t.id === viewing.record.id &&
@@ -115,6 +132,7 @@ export function OwnerView(p) {
     dropHandlers,
     pendingPaste,
     canAppendPaste,
+    canNew,
     choosePaste,
     cancelPaste,
   } = useFileIntake({
@@ -151,10 +169,16 @@ export function OwnerView(p) {
   );
   return (
     <main {...dropHandlers} className={p.drag ? "owner dragging" : "owner"}>
-      <DropZones active={p.drag} zone={dropZone} canAppend={!!completed} />
+      <DropZones
+        active={p.drag}
+        zone={dropZone}
+        canAppend={!!completed}
+        canNew={canNew}
+      />
       {pendingPaste && (
         <PasteDestinations
           canAppend={canAppendPaste}
+          canNew={canNew}
           onChoose={choosePaste}
           onClose={cancelPaste}
         />
@@ -321,6 +345,9 @@ export function OwnerView(p) {
         <Suspense fallback={null}>
           {viewing.record.files[viewing.index].media ? (
             <MediaViewer
+              onRename={renamePreview}
+              renaming={p.renaming}
+              index={viewing.index}
               token=""
               info={{
                 ...viewing.record,
@@ -344,6 +371,8 @@ export function OwnerView(p) {
             />
           ) : (
             <TextViewer
+              onRename={renamePreview}
+              renaming={p.renaming}
               token={new URL(viewing.record.url).pathname.split("/").pop()}
               shareUrl={viewing.record.shareUrl || viewing.record.url}
               index={viewing.index}
@@ -371,6 +400,7 @@ export function OwnerView(p) {
               onEdit={
                 viewing.record.files[viewing.index].preview
                   ? () => {
+                      if (previewRename.current) return;
                       const record = viewing.record;
                       setViewing(null);
                       editText(record, viewing.index);

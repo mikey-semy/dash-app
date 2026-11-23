@@ -762,6 +762,9 @@ for (const width of [390, 1280]) {
           ).text();
         })
         .toBe("updated " + filename);
+      await expect(
+        page.getByRole("status", { name: "Pending changes", exact: true }),
+      ).toHaveCount(0);
       await expect(page.locator(".share-ready")).toBeVisible();
     }
     const details = page.getByRole("button", {

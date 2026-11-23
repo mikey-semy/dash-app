@@ -282,6 +282,11 @@ for (const width of [390, 1280]) {
         page.getByRole("textbox", { name: "Filename 3", exact: true }),
       ).toHaveText("pipeline-next.txt");
       await paste(page, "pasted during upload");
+      await expect(
+        page
+          .getByRole("dialog", { name: "Where to paste", exact: true })
+          .getByRole("button", { name: "New transfer", exact: true }),
+      ).toBeDisabled();
       await page
         .getByRole("dialog", { name: "Where to paste", exact: true })
         .getByRole("button", { name: "Add to current transfer", exact: true })
@@ -372,4 +377,89 @@ test("an append request failure keeps the queue and its retry controls available
     "append-retry-original.txt",
     "append-retry-new.txt",
   ]);
+});
+
+test("history confirms a lost completion response and releases the upload queue", async ({
+  page,
+  context,
+}) => {
+  await login(page);
+  await page
+    .locator('input[type="file"]')
+    .setInputFiles([fixtureFile("lost-original.txt")]);
+  await expect(page.locator(".share-ready")).toBeVisible();
+  let lost = false;
+  await page.route("**/api/transfers/*/complete", async (route) => {
+    if (lost) return route.continue();
+    lost = true;
+    await route.fetch();
+    await route.abort("failed");
+  });
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await page
+    .locator('input[type="file"]')
+    .setInputFiles([fixtureFile("lost-accepted.txt")]);
+  await expect.poll(() => lost).toBe(true);
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await page
+    .locator('input[type="file"]')
+    .setInputFiles([fixtureFile("lost-next.txt")]);
+  await expect(
+    page.getByRole("status", { name: "Pending changes", exact: true }),
+  ).toHaveCount(0, { timeout: 20000 });
+  const records = await (await context.request.get("/api/transfers")).json();
+  const record = records.find((t) =>
+    t.files.some((f) => f.name === "lost-original.txt"),
+  );
+  expect(record.files.map((f) => f.name)).toEqual([
+    "lost-original.txt",
+    "lost-accepted.txt",
+    "lost-next.txt",
+  ]);
+});
+
+test("renaming during a text replacement targets the confirmed replacement", async ({
+  page,
+  context,
+}) => {
+  await login(page);
+  await page
+    .locator('input[type="file"]')
+    .setInputFiles([fixtureFile("replace-original.txt")]);
+  await expect(page.locator(".share-ready")).toBeVisible();
+  let release,
+    sending = false;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/fake/**", async (route) => {
+    sending = true;
+    await gate;
+    await route.continue();
+  });
+  try {
+    await page.getByRole("button", { name: "Edit text", exact: true }).click();
+    const editor = page.getByRole("dialog", { name: "Edit text", exact: true });
+    await editor.locator(".cm-content").fill("replacement bytes");
+    await editor
+      .getByRole("button", { name: "Save text", exact: true })
+      .click();
+    await expect.poll(() => sending).toBe(true);
+    await rename(page, 1, "replacement-renamed.txt");
+    release();
+    await expect(
+      page.getByRole("status", { name: "Pending changes", exact: true }),
+    ).toHaveCount(0, { timeout: 20000 });
+    const records = await (await context.request.get("/api/transfers")).json();
+    const record = records.find((t) =>
+      t.files.some((f) => f.name === "replacement-renamed.txt"),
+    );
+    expect(
+      await (
+        await context.request.get(`/api/transfers/${record.id}/text/0`)
+      ).text(),
+    ).toBe("replacement bytes");
+  } finally {
+    release();
+  }
 });

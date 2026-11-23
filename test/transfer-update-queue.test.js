@@ -326,3 +326,51 @@ test("renaming a file during its upload resolves its temporary identity after th
   assert.deepEqual(jobs[1].names, { "uploaded-id": "during-upload.txt" });
   assert.equal(current.files.at(-1).name, "during-upload.txt");
 });
+
+test("replacement identities follow repeated replacements before queued renames", async (t) => {
+  let current = record();
+  let release,
+    started = false;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  const jobs = [];
+  const { queue } = harness(t, {
+    read: async () => structuredClone(current),
+    apply: async (before, job) => {
+      jobs.push(job);
+      if (job.type === "replace") {
+        if (jobs.length === 1) {
+          started = true;
+          await gate;
+        }
+        assert.equal(job.fileId, current.files[0].id);
+        current.files[0] = {
+          ...current.files[0],
+          id: "replacement/" + jobs.length,
+        };
+      } else {
+        assert.deepEqual(Object.keys(job.names), [current.files[0].id]);
+        current.files[0].name = job.names[current.files[0].id];
+      }
+      current.revision = "r" + jobs.length;
+    },
+  });
+  t.after(() => release());
+  queue.enqueue(current, {
+    type: "replace",
+    fileId: "one/0",
+    files: [{ name: "first.txt", size: 1 }],
+  });
+  await until(() => started);
+  queue.enqueue(current, {
+    type: "replace",
+    fileId: "one/0",
+    files: [{ name: "first.txt", size: 1 }],
+  });
+  queue.enqueue(current, { type: "rename", names: { "one/0": "renamed.txt" } });
+  release();
+  await until(() => !queue.hasPending());
+  assert.equal(current.files[0].name, "renamed.txt");
+  assert.equal(jobs.length, 3);
+});

@@ -206,6 +206,8 @@ export function useOwnerWorkspace() {
             : ["queued", "archiving", "ready"].includes(t.state)),
       )
     ) {
+      if (completion.current?.id === upload.id)
+        completion.current.resolve(true);
       forgetUpload(upload.id);
       updateUpload(null);
       setError("");
@@ -254,6 +256,7 @@ export function useOwnerWorkspace() {
       if (!current) throw new Error(copy.transferDeleted);
     }
     if (current?.appendState) throw new Error(copy.updateIsStillInProgress);
+    return current;
   }
   async function choose(
     list,
@@ -320,7 +323,8 @@ export function useOwnerWorkspace() {
         parentId,
         created: Date.now(),
         baseRevision: parentId
-          ? history.find((t) => t.id === parentId)?.revision
+          ? (expectedRevision ??
+            history.find((t) => t.id === parentId)?.revision)
           : null,
         offset,
         files,
@@ -641,6 +645,23 @@ export function useOwnerWorkspace() {
           await reload();
         }
         return result;
+      },
+      waitForUpdates: async (id) => {
+        setRenaming(true);
+        try {
+          while (updates.current.hasPending(id)) {
+            const list = await readHistory();
+            const record = updates.current
+              .project(list)
+              .find((item) => item.id === id);
+            if (record?.updates?.error) throw new Error(record.updates.error);
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+          const list = await readHistory();
+          return list.find((record) => record.id === id);
+        } finally {
+          setRenaming(false);
+        }
       },
       refresh: reload,
       logout: async () => {

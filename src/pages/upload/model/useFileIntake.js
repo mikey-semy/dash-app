@@ -18,6 +18,7 @@ export function useFileIntake({
   receiveFiles,
   onText,
 }) {
+  const canNew = !upload && !preparingUpload;
   const blockedUpload = !!upload && !upload.parentId;
   const blockedPreparation = preparingUpload && !completed;
   const [dropZone, setDropZone] = useState("new");
@@ -103,11 +104,12 @@ export function useFileIntake({
 
   return {
     dropZone,
+    canNew,
     pendingPaste,
     canAppendPaste,
     cancelPaste: () => setPendingPaste(null),
     choosePaste: (append) => {
-      if (!pendingPaste || (append && !canAppendPaste)) return;
+      if (!pendingPaste || (append ? !canAppendPaste : !canNew)) return;
       const parentId = append ? pendingPaste.parentId : null;
       setPendingPaste(null);
       if (pendingPaste.source) receiveFiles(pendingPaste.source, parentId);
@@ -176,6 +178,8 @@ export function useFileIntake({
       onDrop: (e) => {
         e.preventDefault();
         setDrag(false);
+        if (!viewing && !canNew && (!completed || e.clientY < innerHeight / 2))
+          return;
         if (
           viewing &&
           !blockedUpload &&

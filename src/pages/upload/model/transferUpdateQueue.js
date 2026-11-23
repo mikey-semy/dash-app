@@ -46,15 +46,31 @@ export function createTransferUpdateQueue({
   let uploadTail = Promise.resolve();
   const notify = () => changed();
   const pending = (entry) => [entry.active, ...entry.jobs].filter(Boolean);
-  const resolveId = (entry, id) => entry.aliases.get(String(id)) ?? id;
+  const resolveId = (entry, id) => {
+    const seen = new Set();
+    while (entry.aliases.has(String(id)) && !seen.has(String(id))) {
+      seen.add(String(id));
+      id = entry.aliases.get(String(id));
+    }
+    return id;
+  };
   function linkAppend(entry, record) {
     if (
-      entry.active?.type !== "append" ||
+      !["append", "replace"].includes(entry.active?.type) ||
       !entry.submitted ||
       !entry.activeRevision ||
       entry.activeRevision === record.revision
     )
       return;
+    if (entry.active.type === "replace") {
+      const file = record.files[entry.activeFileIndex];
+      if (file)
+        entry.aliases.set(
+          String(entry.activeFileId),
+          fileIdentity(file, entry.activeFileIndex),
+        );
+      return;
+    }
     entry.active.fileIds.forEach((id, index) => {
       const file = record.files[entry.activeFileCount + index];
       if (file)
@@ -153,6 +169,12 @@ export function createTransferUpdateQueue({
             throw new Error(copy.transferChangedReopenSettings);
           entry.activeRevision = current.revision;
           entry.activeFileCount = current.files.length;
+          if (entry.active.type === "replace") {
+            entry.activeFileId = resolveId(entry, entry.active.fileId);
+            entry.activeFileIndex = current.files.findIndex(
+              (file, index) => fileIdentity(file, index) === entry.activeFileId,
+            );
+          }
           await execute(entry, current);
         }
         const confirmed = await ready(entry);
@@ -313,7 +335,7 @@ export function createTransferUpdateQueue({
         };
       });
     },
-    hasPending: () => entries.size > 0,
+    hasPending: (id) => (id === undefined ? entries.size > 0 : entries.has(id)),
     retry(id) {
       const entry = entries.get(id);
       if (!entry || entry.worker) return;

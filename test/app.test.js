@@ -1084,7 +1084,7 @@ test("archive text preview reads only directory and selected member ranges with 
   db.close();
 });
 
-test("owner text replacement preserves link, password, name and expiry; stale saves and cancelled drafts keep originals", async () => {
+test("owner text replacement can rename while preserving link, password and expiry; stale saves and cancelled drafts keep originals", async () => {
   const { app, agent, service, store } = await setup();
   const id = await upload(
     service,
@@ -1111,7 +1111,7 @@ test("owner text replacement preserves link, password, name and expiry; stale sa
   );
   const create = () =>
     post(agent, path + "/replace", {
-      files: [{ name: "ignored.txt", size: 13 }],
+      files: [{ name: "renamed.py", size: 13 }],
       revision: owner.revision,
     });
   const draft = (await create().expect(201)).body;
@@ -1135,7 +1135,7 @@ test("owner text replacement preserves link, password, name and expiry; stale sa
   const updated = service.get(id);
   for (const key of ["token", "password", "expires", "created"])
     assert.equal(updated[key], original[key]);
-  assert.equal(updated.files[0].name, "source.py");
+  assert.equal(updated.files[0].name, "renamed.py");
   assert.equal(
     (await agent.get(path + "/text").expect(200)).text,
     bytes.toString(),
@@ -2037,7 +2037,7 @@ test("editing individual text files preserves archive order and other bytes", as
     const bytes = Buffer.from("edited " + index);
     const draft = (
       await post(agent, `/api/transfers/${id}/replace`, {
-        files: [{ name: "ignored.txt", size: bytes.length }],
+        files: [{ name: contents[index][0], size: bytes.length }],
         revision: owner.revision,
         index,
       }).expect(201)

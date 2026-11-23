@@ -148,7 +148,10 @@ export class Service {
     const kept = parent.files.filter((_, i) => i !== index);
     const next = insertTransfer(
       this.db,
-      [...kept, { name: parent.files[index].name, size: file.size }],
+      [
+        ...kept,
+        { name: file.name ?? parent.files[index].name, size: file.size },
+      ],
       parent.ttl,
       "",
       { ...parent, reuseFiles: kept, baseFiles: parent.files },

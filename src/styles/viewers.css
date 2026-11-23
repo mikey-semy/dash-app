@@ -471,3 +471,12 @@ summary * {
     opacity: var(--opacity-0-7);
   }
 }
+
+.text-preview-header > .media-name {
+  margin-right: auto;
+}
+.editor-context > .media-name[contenteditable="true"],
+.text-preview-header > .media-name[contenteditable="true"] {
+  white-space: pre-wrap;
+  overflow: visible;
+}

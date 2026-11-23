@@ -9,7 +9,10 @@ import { ErrorNotice } from "#src/shared/ui/Errors.jsx";
 import { Disclosure } from "#src/shared/ui/Disclosure.jsx";
 import { Icon, DeleteButton } from "#src/shared/ui/Icons.jsx";
 import { Expiry, FileList } from "#src/entities/transfer/index.js";
-import { TransferActions as Share } from "#src/features/manage-transfer/actions.js";
+import {
+  TransferActions as Share,
+  TransferUpdateStatus,
+} from "#src/features/manage-transfer/actions.js";
 import EditableName from "#src/shared/ui/EditableName.jsx";
 import PublicationButton from "#src/features/manage-transfer/publication.js";
 import { bytes, date } from "#src/shared/lib/format.js";
@@ -43,6 +46,8 @@ function HistoryItem({
   onRenameFile,
   onRenameTitle,
   onGenerateTitle,
+  onRetryUpdates,
+  onDiscardUpdates,
   onView,
   renaming,
   selected,
@@ -54,7 +59,7 @@ function HistoryItem({
 }) {
   const row = useRef();
   const signature = JSON.stringify([t.revision, t.files]),
-    busy = renaming || (t.appendState && t.appendState !== "failed");
+    busy = renaming;
   const { selection, toggle, toggleAll, clear, allSelected } = useSelection({
     keys: t.files.map((file, index) => index),
     resetKey: signature,
@@ -141,6 +146,11 @@ function HistoryItem({
         </div>
         <small className="history-size file-size">{bytes(t.size)}</small>
         <div className="history-actions">
+          <TransferUpdateStatus
+            value={t.updates}
+            onRetry={() => onRetryUpdates(t.id)}
+            onDiscard={() => onDiscardUpdates(t.id)}
+          />
           <Share
             url={t.shareUrl || t.url}
             compact
@@ -228,7 +238,7 @@ function HistoryItem({
           />
           {!t.files.length && <p className="muted">{copy.noFilesYet}</p>}
           <p className="muted">{bytes(t.size)}</p>
-          {(t.error || t.appendError) && (
+          {!t.updates && (t.error || t.appendError) && (
             <ErrorNotice error={t.error || t.appendError} />
           )}
           {["ready", "empty"].includes(t.state) && (
@@ -260,6 +270,8 @@ export default function History({
   onRenameFile,
   onRenameTitle,
   onGenerateTitle,
+  onRetryUpdates,
+  onDiscardUpdates,
   onView,
   renaming,
   suspended,
@@ -452,6 +464,8 @@ export default function History({
                 onRenameTitle={onRenameTitle}
                 onGenerateTitle={onGenerateTitle}
                 renaming={renaming}
+                onRetryUpdates={onRetryUpdates}
+                onDiscardUpdates={onDiscardUpdates}
                 onView={(record, index) => {
                   onView(record, index);
                 }}

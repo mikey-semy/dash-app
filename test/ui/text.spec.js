@@ -5,6 +5,14 @@ async function login(page) {
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.locator(".owner")).toBeVisible();
 }
+async function openDetails(page) {
+  const toggle = page.getByRole("button", {
+    name: "Transfer details",
+    exact: true,
+  });
+  if ((await toggle.getAttribute("aria-expanded")) === "false")
+    await toggle.click();
+}
 async function paste(page, text, target = "main") {
   await page.evaluate(
     ({ text, target }) => {
@@ -496,9 +504,7 @@ test("owner reopens uploaded text full screen, cancels or saves to the same link
   await expect(dialog).toHaveCount(0);
   await expect(page.locator(".share-ready")).toBeVisible();
   expect(await currentURL()).toBe(url);
-  await page
-    .getByRole("button", { name: "Transfer details", exact: true })
-    .click();
+  await openDetails(page);
   await page
     .getByRole("button", { name: "Preview edit.py", exact: true })
     .click();
@@ -591,9 +597,7 @@ test("text can be added repeatedly and clipboard destinations preserve the curre
     .poll(async () => (await transferById(original.id)).files.length)
     .toBe(2);
   await expect(page.locator(".share-ready")).toBeVisible();
-  await page
-    .getByRole("button", { name: "Transfer details", exact: true })
-    .click();
+  await openDetails(page);
   const filename = page.getByRole("textbox", {
     name: "Filename 2",
     exact: true,
@@ -711,9 +715,7 @@ for (const width of [390, 1280]) {
         .locator(".share-ready")
         .getByRole("button", { name: "Edit text", exact: true }),
     ).toHaveCount(0);
-    await page
-      .getByRole("button", { name: "Transfer details", exact: true })
-      .click();
+    await openDetails(page);
     await expect(
       page.getByRole("button", { name: "Edit text: image.png", exact: true }),
     ).toHaveCount(0);

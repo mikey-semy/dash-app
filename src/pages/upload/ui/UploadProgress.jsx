@@ -13,12 +13,13 @@ export function UploadProgress({
   onPause,
   onCancel,
   onSelectFiles,
+  showFiles = true,
 }) {
   const speed = elapsed ? progress / elapsed : 0,
     eta = speed ? Math.max(0, (upload.total - progress) / speed) : 0;
   return (
     <>
-      <FileList files={upload.files} />
+      {showFiles && <FileList files={upload.files} />}
       <div className="upload-times">
         <time title={copy.elapsed}>
           {Math.round(elapsed)}

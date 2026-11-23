@@ -103,11 +103,11 @@ export function OwnerView(p) {
   const latest = p.history.find((t) => t.id === p.selected);
   const busyAppend = latest?.appendState && latest.appendState !== "failed";
   const completed =
-    !p.upload &&
-    (!busyAppend || p.renaming) &&
+    (!p.upload || !!p.upload.parentId) &&
     ["ready", "empty"].includes(latest?.state) &&
     latest.url;
   const preparing =
+    !completed &&
     !p.upload &&
     (["queued", "archiving"].includes(latest?.state) || busyAppend);
   const {
@@ -135,6 +135,20 @@ export function OwnerView(p) {
     receiveFiles,
     onText: openText,
   });
+  const uploadProgress = p.upload && (
+    <UploadProgress
+      upload={p.upload}
+      showFiles={!completed}
+      elapsed={p.elapsed}
+      progress={p.progress}
+      paused={p.paused}
+      running={p.running}
+      onResume={p.run}
+      onPause={p.pause}
+      onCancel={p.cancel}
+      onSelectFiles={() => input.current.click()}
+    />
+  );
   return (
     <main {...dropHandlers} className={p.drag ? "owner dragging" : "owner"}>
       <DropZones active={p.drag} zone={dropZone} canAppend={!!completed} />
@@ -216,9 +230,9 @@ export function OwnerView(p) {
       />
       <section className="center">
         <div className="content">
-          {connectionError(p.error) && !p.upload ? (
+          {connectionError(p.error) && !p.upload && !latest?.updates ? (
             <ErrorNotice error={p.error} />
-          ) : p.preparingUpload ? (
+          ) : p.preparingUpload && !completed ? (
             <div
               className="archive-status"
               role="status"
@@ -226,20 +240,8 @@ export function OwnerView(p) {
             >
               <Icon name="archive" />
             </div>
-          ) : p.upload ? (
-            <>
-              <UploadProgress
-                upload={p.upload}
-                elapsed={p.elapsed}
-                progress={p.progress}
-                paused={p.paused}
-                running={p.running}
-                onResume={p.run}
-                onPause={p.pause}
-                onCancel={p.cancel}
-                onSelectFiles={() => input.current.click()}
-              />
-            </>
+          ) : p.upload && !completed ? (
+            uploadProgress
           ) : completed ? (
             <>
               <CurrentTransferActions
@@ -288,7 +290,7 @@ export function OwnerView(p) {
               </button>
             </div>
           )}
-          {completed && !connectionError(p.error) && (
+          {completed && (!connectionError(p.error) || latest?.updates) && (
             <CurrentTransferDetails
               transfer={latest}
               renaming={p.renaming}
@@ -298,10 +300,17 @@ export function OwnerView(p) {
               onRemoveFiles={commands.removeFiles}
               onEdit={editText}
               editBusy={opening}
+              onRetryUpdates={p.retryUpdates}
+              onDiscardUpdates={p.discardUpdates}
+              uploadProgress={
+                p.upload?.parentId === latest.id ? uploadProgress : null
+              }
+              uploadId={p.upload?.parentId === latest.id ? p.upload.id : null}
               onPreview={(record, index) => setViewing({ record, index })}
             />
           )}
-          {(p.error || latest?.appendError) &&
+          {!latest?.updates?.error &&
+            (p.error || (!latest?.updates && latest?.appendError)) &&
             !(connectionError(p.error) && !p.upload) && (
               <ErrorNotice error={p.error || latest?.appendError} />
             )}
@@ -387,7 +396,12 @@ export function OwnerView(p) {
           onRenameTitle={commands.renameTitle}
           onGenerateTitle={commands.suggestTitle}
           onView={(record, index) => setViewing({ record, index })}
-          uploading={!!p.upload || p.preparingUpload}
+          uploading={
+            (!!p.upload && !p.upload.parentId) ||
+            (p.preparingUpload && !completed)
+          }
+          onRetryUpdates={p.retryUpdates}
+          onDiscardUpdates={p.discardUpdates}
           onOpen={(item) => p.setSelected(item.id)}
           onSettings={(item) => setConfig(item.id)}
           onPublish={commands.setPublished}

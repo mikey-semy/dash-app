@@ -56,6 +56,10 @@ export default function TextComposer({
         if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
           e.preventDefault();
           e.stopPropagation();
+          if (e.target.closest(".editable-name")) {
+            e.target.blur();
+            return;
+          }
           if (!sending && (editing || text.length)) send();
         }
       }}

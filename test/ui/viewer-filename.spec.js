@@ -44,13 +44,44 @@ test("owner renames preview files and editor drafts without changing the share l
     name: "Text preview",
     exact: true,
   });
-  await rename(viewer, "Filename 1", "preview.md");
+  let releaseRename;
+  const renameGate = new Promise((resolve) => {
+    releaseRename = resolve;
+  });
+  await page.route("**/api/transfers/*/settings", async (route) => {
+    if (route.request().method() === "PATCH") await renameGate;
+    await route.continue();
+  });
+  const previewName = viewer.getByRole("textbox", {
+    name: "Filename 1",
+    exact: true,
+  });
+  await previewName.click();
+  await previewName.fill("preview.md");
+  await viewer.getByRole("button", { name: "Edit text", exact: true }).click();
+  await expect(
+    viewer.getByRole("button", { name: "Edit text", exact: true }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("dialog", { name: "Edit text", exact: true }),
+  ).toHaveCount(0);
+  releaseRename();
+  await expect(previewName).toHaveAttribute("aria-busy", "false");
+  await page.unroute("**/api/transfers/*/settings");
   await expect(viewer).toBeVisible();
   await expect(viewer.locator(".markdown-preview")).toBeVisible();
   expect((await current()).files[0].name).toBe("preview.md");
   await viewer.getByRole("button", { name: "Edit text", exact: true }).click();
   const editor = page.getByRole("dialog", { name: "Edit text", exact: true });
-  await rename(editor, "Filename 1", "edited.txt");
+  const editorName = editor.getByRole("textbox", {
+    name: "Filename 1",
+    exact: true,
+  });
+  await editorName.click();
+  await editorName.fill("edited.txt");
+  await editorName.press("Control+Enter");
+  await expect(editor).toBeVisible();
+  await expect(editorName).toHaveText("edited.txt");
   await editor.locator(".cm-content").fill("edited content");
   await editor.getByRole("button", { name: "Save text", exact: true }).click();
   await expect(editor).toHaveCount(0);
@@ -81,7 +112,15 @@ test("owner renames preview files and editor drafts without changing the share l
     name: "Text transfer",
     exact: true,
   });
-  await rename(draft, "Filename 1", "new.txt");
+  const draftName = draft.getByRole("textbox", {
+    name: "Filename 1",
+    exact: true,
+  });
+  await draftName.click();
+  await draftName.fill("new.txt");
+  await draftName.press("Meta+Enter");
+  await expect(draft).toBeVisible();
+  await expect(draftName).toHaveText("new.txt");
   await draft.locator(".cm-content").fill("new content");
   await draft.getByRole("button", { name: "Send text", exact: true }).click();
   await expect(draft).toHaveCount(0);

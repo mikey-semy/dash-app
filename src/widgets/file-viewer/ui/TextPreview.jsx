@@ -128,6 +128,7 @@ export default function TextPreview({
               <IconButton
                 aria-label={copy.editText}
                 title={copy.editText}
+                disabled={renaming}
                 onClick={onEdit}
               >
                 <Icon name="edit" />

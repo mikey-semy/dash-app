@@ -383,6 +383,7 @@ export function OwnerView(p) {
               onEdit={
                 viewing.record.files[viewing.index].preview
                   ? () => {
+                      if (previewRename.current) return;
                       const record = viewing.record;
                       setViewing(null);
                       editText(record, viewing.index);

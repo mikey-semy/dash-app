@@ -17,6 +17,11 @@ import {
   createUploadTransport,
 } from "#src/features/upload-files/index.js";
 
+import {
+  createTransferUpdateQueue,
+  fileIdentity,
+} from "./transferUpdateQueue.js";
+
 function measureUpload(phase, start, end = performance.now()) {
   const name = "dash.upload." + phase;
   performance.clearMeasures(name);
@@ -49,6 +54,24 @@ export function useOwnerWorkspace() {
     [selected, setSelected] = useState(null),
     [preparingUpload, setPreparingUpload] = useState(false),
     [renaming, setRenaming] = useState(false);
+  const [, redrawUpdates] = useState(0);
+  const queueActions = useRef(),
+    updates = useRef(),
+    currentUpload = useRef(null),
+    completion = useRef(null),
+    historyRead = useRef(null),
+    historyGeneration = useRef(0);
+  if (!updates.current)
+    updates.current = createTransferUpdateQueue({
+      read: (...args) => queueActions.current.read(...args),
+      apply: (...args) => queueActions.current.apply(...args),
+      retryFailed: (...args) => queueActions.current.retryFailed(...args),
+      changed: () => redrawUpdates((value) => value + 1),
+    });
+  function updateUpload(value) {
+    currentUpload.current = value;
+    setUpload(value);
+  }
   const control = useRef({ paused: false, cancel: false, requests: new Set() }),
     start = useRef(0),
     uploadTiming = useRef(null),
@@ -68,12 +91,28 @@ export function useOwnerWorkspace() {
       localStorage.setItem("du.ttl", String(ttl));
     } catch {}
   }, [ttl]);
-  const reload = () =>
-    api("/api/transfers")
-      .then(setHistory)
-      .catch((e) => {
-        if (e.status === 401) setLogged(false);
+  function invalidateHistory() {
+    historyGeneration.current++;
+    historyRead.current = null;
+  }
+  function readHistory() {
+    if (historyRead.current) return historyRead.current;
+    const generation = historyGeneration.current;
+    const request = api("/api/transfers")
+      .then((list) => {
+        if (generation === historyGeneration.current) setHistory(list);
+        return list;
+      })
+      .finally(() => {
+        if (historyRead.current === request) historyRead.current = null;
       });
+    historyRead.current = request;
+    return request;
+  }
+  const reload = () =>
+    readHistory().catch((error) => {
+      if (error.status === 401) setLogged(false);
+    });
   function applyUploadConfig(session) {
     const value = session?.uploadConcurrency;
     if (
@@ -117,7 +156,7 @@ export function useOwnerWorkspace() {
             throw Object.assign(new Error(copy.uploadContentsChanged), {
               status: 409,
             });
-          setUpload(value);
+          updateUpload(value);
           setSelected(value.parentId || value.id);
           setPaused(true);
           control.current = {
@@ -137,7 +176,7 @@ export function useOwnerWorkspace() {
             setLogged(false);
             return;
           }
-          setUpload(value);
+          updateUpload(value);
           setSelected(value.parentId || value.id);
           setPaused(true);
           control.current = {
@@ -167,8 +206,10 @@ export function useOwnerWorkspace() {
             : ["queued", "archiving", "ready"].includes(t.state)),
       )
     ) {
+      if (completion.current?.id === upload.id)
+        completion.current.resolve(true);
       forgetUpload(upload.id);
-      setUpload(null);
+      updateUpload(null);
       setError("");
     }
   }, [history, upload, running]);
@@ -197,7 +238,7 @@ export function useOwnerWorkspace() {
   }, [running]);
   useEffect(() => {
     const fn = (e) => {
-      if (active.current) {
+      if (active.current || updates.current.hasPending()) {
         e.preventDefault();
         e.returnValue = "";
       }
@@ -210,8 +251,7 @@ export function useOwnerWorkspace() {
       if (current.appendState === "failed")
         throw new Error(current.appendError || copy.couldNotUpdateTheTransfer);
       await new Promise((resolve) => setTimeout(resolve, 500));
-      const list = await api("/api/transfers");
-      setHistory(list);
+      const list = await readHistory();
       current = list.find((t) => t.id === id);
       if (!current) throw new Error(copy.transferDeleted);
     }
@@ -223,14 +263,16 @@ export function useOwnerWorkspace() {
     parentId = null,
     replacement = null,
     index = undefined,
+    expectedRevision = undefined,
   ) {
     const started = performance.now();
     if ((active.current && !active.current.cancel) || choosing.current)
       return false;
-    if (upload?.missing) {
+    const pendingUpload = currentUpload.current;
+    if (pendingUpload?.missing) {
       try {
-        const restored = await matchUpload(upload, Array.from(list));
-        setUpload(restored);
+        const restored = await matchUpload(pendingUpload, Array.from(list));
+        updateUpload(restored);
         await rememberUpload(restored);
         run(restored);
         return true;
@@ -239,7 +281,7 @@ export function useOwnerWorkspace() {
         return false;
       }
     }
-    if (upload) return false;
+    if (pendingUpload) return false;
     const files = Array.from(list);
     if (!files.length) return false;
     if (
@@ -271,7 +313,9 @@ export function useOwnerWorkspace() {
           ttl: ttl === -1 ? 0 : ttl,
           oneTime: ttl === -1,
           password: secret,
-          ...(replacement === null ? {} : { revision: replacement, index }),
+          ...(replacement === null
+            ? { revision: expectedRevision }
+            : { revision: replacement, index }),
         },
       );
       const u = {
@@ -279,7 +323,8 @@ export function useOwnerWorkspace() {
         parentId,
         created: Date.now(),
         baseRevision: parentId
-          ? history.find((t) => t.id === parentId)?.revision
+          ? (expectedRevision ??
+            history.find((t) => t.id === parentId)?.revision)
           : null,
         offset,
         files,
@@ -298,7 +343,15 @@ export function useOwnerWorkspace() {
             measureUpload("recovery-preparation", started);
         })
         .catch(() => {});
-      setUpload(u);
+      let resolve;
+      completion.current = {
+        id,
+        promise: new Promise((done) => {
+          resolve = done;
+        }),
+        resolve: (value) => resolve(value),
+      };
+      updateUpload(u);
       setSelected(parentId || id);
       setProgress(0);
       setElapsed(0);
@@ -308,7 +361,7 @@ export function useOwnerWorkspace() {
       return true;
     } catch (e) {
       setError(e.message);
-      if (replacement !== null) {
+      if (parentId !== null) {
         await reload();
         throw e;
       }
@@ -346,8 +399,10 @@ export function useOwnerWorkspace() {
         if (control.current !== state || state.cancel) return;
         await forgetUpload(u.id);
         if (control.current !== state) return;
-        setUpload(null);
+        updateUpload(null);
+        invalidateHistory();
         await reload();
+        state.completed = true;
       }
     } catch (e) {
       if (control.current !== state) return;
@@ -355,8 +410,10 @@ export function useOwnerWorkspace() {
         if ([404, 409].includes(e.status)) {
           await forgetUpload(u.id);
           if (control.current !== state) return;
-          setUpload(null);
+          updateUpload(null);
           setError(e.message);
+          if (completion.current?.id === u.id)
+            completion.current.resolve(false);
           return;
         }
         setError(e.message + copy.canBeResumedSuffix);
@@ -368,6 +425,8 @@ export function useOwnerWorkspace() {
         active.current = null;
         setRunning(false);
       }
+      if (state.completed && completion.current?.id === u.id)
+        completion.current.resolve(true);
     }
   }
   function pause() {
@@ -376,13 +435,16 @@ export function useOwnerWorkspace() {
     setPaused(true);
   }
   async function cancel() {
+    if (upload?.parentId) updates.current.discard(upload.parentId);
+    completion.current?.resolve(false);
     uploadTiming.current = null;
     control.current.cancel = true;
     transport.abort();
     try {
       await api("/api/transfers/" + upload.id, undefined, "DELETE");
       await forgetUpload(upload.id);
-      setUpload(null);
+      updateUpload(null);
+      invalidateHistory();
       reload();
     } catch (e) {
       setError(e.message);
@@ -406,6 +468,106 @@ export function useOwnerWorkspace() {
       return false;
     }
   }
+  queueActions.current = {
+    retryFailed: async (record, signal) => {
+      await api(
+        "/api/transfers/" + record.id + "/retry-update",
+        { revision: record.revision },
+        "POST",
+        { signal },
+      );
+      invalidateHistory();
+    },
+    read: async (id, signal) => {
+      signal.throwIfAborted();
+      const list = await readHistory();
+      signal.throwIfAborted();
+      return list.find((record) => record.id === id);
+    },
+    apply: async (record, job, signal) => {
+      signal.throwIfAborted();
+      if (job.type === "rename") {
+        const known = new Set(record.files.map(fileIdentity));
+        if (
+          Object.keys(job.names).some(
+            (id) => ![...known].some((value) => String(value) === id),
+          )
+        )
+          throw new Error(copy.fileSelectionStale);
+        await api(
+          "/api/transfers/" + record.id + "/settings",
+          {
+            ...(Object.keys(job.names).length
+              ? {
+                  names: record.files.map(
+                    (file, index) =>
+                      job.names[fileIdentity(file, index)] ?? file.name,
+                  ),
+                }
+              : {}),
+            ...("title" in job ? { title: job.title } : {}),
+            revision: record.revision,
+          },
+          "PATCH",
+          { signal },
+        );
+        invalidateHistory();
+      } else {
+        while (
+          currentUpload.current ||
+          choosing.current ||
+          (active.current && !active.current.cancel)
+        ) {
+          signal.throwIfAborted();
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        signal.throwIfAborted();
+        const index =
+          job.type === "replace"
+            ? record.files.findIndex(
+                (file, position) => fileIdentity(file, position) === job.fileId,
+              )
+            : undefined;
+        if (index === -1) throw new Error(copy.fileSelectionStale);
+        const accepted = await choose(
+          job.files,
+          record.id,
+          job.type === "replace" ? record.revision : null,
+          index,
+          record.revision,
+        );
+        if (!accepted) throw new Error(copy.updateIsStillInProgress);
+        if (!(await completion.current.promise))
+          throw new Error(copy.couldNotUpdateTheTransfer);
+        invalidateHistory();
+      }
+    },
+  };
+  function queueFiles(source, parentId, replacement = null, index = 0) {
+    if (!parentId) return choose(source);
+    try {
+      const record = history.find((record) => record.id === parentId);
+      if (!record) throw new Error(copy.transferUnavailable);
+      if (replacement !== null && record.revision !== replacement)
+        throw new Error(copy.transferChangedReopenTheEditor);
+      const files = Array.from(source);
+      if (!files.length) return false;
+      return updates.current.enqueue(
+        record,
+        replacement === null
+          ? { type: "append", files }
+          : {
+              type: "replace",
+              files,
+              fileId: fileIdentity(record.files[index], index),
+            },
+      );
+    } catch (error) {
+      setError(error.message);
+      if (replacement !== null) throw error;
+      return false;
+    }
+  }
   return {
     logged,
     checking,
@@ -413,7 +575,15 @@ export function useOwnerWorkspace() {
     signIn,
     clearError: () => setError(""),
     ownerProps: {
-      history,
+      history: updates.current.project(history),
+      retryUpdates: (id) => {
+        setError("");
+        updates.current.retry(id);
+      },
+      discardUpdates: (id) => {
+        setError("");
+        updates.current.discard(id);
+      },
       preparingUpload,
       renaming,
       ttl,
@@ -434,7 +604,7 @@ export function useOwnerWorkspace() {
         setError("");
       },
       error,
-      choose,
+      choose: (files, parentId = null) => queueFiles(files, parentId),
       run,
       pause,
       cancel,
@@ -453,29 +623,45 @@ export function useOwnerWorkspace() {
         }).decode(await response.arrayBuffer());
       },
       replaceText: (files, transfer) =>
-        choose(files, transfer.id, transfer.revision, transfer.index),
-      rename: async (record, patch) => {
-        setRenaming(true);
+        queueFiles(files, transfer.id, transfer.revision, transfer.index),
+      rename: (record, patch) => {
         setError("");
-        try {
-          let current = await api(
-            "/api/transfers/" + record.id + "/settings",
-            { ...patch, revision: record.revision },
-            "PATCH",
-          );
-          await reload();
-          return await waitForChange(record.id, current);
-        } catch (error) {
-          setError(error.message);
-          throw error;
-        } finally {
-          setRenaming(false);
-        }
+        const names = {};
+        patch.names?.forEach((name, index) => {
+          if (name !== record.files[index].name)
+            names[fileIdentity(record.files[index], index)] = name;
+        });
+        if (!Object.keys(names).length && !("title" in patch)) return true;
+        return updates.current.enqueue(record, {
+          type: "rename",
+          names,
+          ...("title" in patch ? { title: patch.title } : {}),
+        });
       },
       settingsApi: async (path, body, method) => {
         const result = await api(path, body, method);
-        if (method) await reload();
+        if (method) {
+          invalidateHistory();
+          await reload();
+        }
         return result;
+      },
+      waitForUpdates: async (id) => {
+        setRenaming(true);
+        try {
+          while (updates.current.hasPending(id)) {
+            const list = await readHistory();
+            const record = updates.current
+              .project(list)
+              .find((item) => item.id === id);
+            if (record?.updates?.error) throw new Error(record.updates.error);
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+          const list = await readHistory();
+          return list.find((record) => record.id === id);
+        } finally {
+          setRenaming(false);
+        }
       },
       refresh: reload,
       logout: async () => {
@@ -483,6 +669,13 @@ export function useOwnerWorkspace() {
         setLogged(false);
       },
       removeFiles: async (id, indices, revision) => {
+        if (
+          updates.current.project(history).find((record) => record.id === id)
+            ?.updates
+        ) {
+          setError(copy.waitForTheTransferUpdateToFinish);
+          return false;
+        }
         setRenaming(true);
         setError("");
         try {
@@ -491,8 +684,8 @@ export function useOwnerWorkspace() {
             { indices, revision },
             "DELETE",
           );
-          const list = await api("/api/transfers");
-          setHistory(list);
+          invalidateHistory();
+          const list = await readHistory();
           await waitForChange(
             id,
             list.find((t) => t.id === id),
@@ -519,10 +712,18 @@ export function useOwnerWorkspace() {
         }
       },
       remove: async (id) => {
+        updates.current.discard(id);
+        if (upload?.parentId === id) {
+          completion.current?.resolve(false);
+          control.current.cancel = true;
+          transport.abort();
+          updateUpload(null);
+        }
         setError("");
         try {
           await api("/api/transfers/" + id, undefined, "DELETE");
           if (selected === id) setSelected(null);
+          invalidateHistory();
           await reload();
         } catch (e) {
           setError(e.message);

@@ -58,6 +58,9 @@ test("a single-file site can be named in history and current view without renami
   await expect(title).toHaveText("Another website");
   await rename(file, "index.html");
   await expect(title).toHaveText("Another website");
+  await expect(
+    page.getByRole("status", { name: "Pending changes", exact: true }),
+  ).toHaveCount(0);
   const updated = await record();
   expect(updated.id).toBe(original.id);
   expect(updated.url).toBe(original.url);

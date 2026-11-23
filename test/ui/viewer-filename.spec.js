@@ -89,9 +89,15 @@ test("owner renames preview files and editor drafts without changing the share l
     .poll(async () => (await current()).files[0].name)
     .toBe("edited.txt");
   expect((await current()).url).toBe(original.url);
-  await page
-    .getByRole("button", { name: "Transfer details", exact: true })
-    .click();
+  await expect(
+    page.getByRole("status", { name: "Pending changes", exact: true }),
+  ).toHaveCount(0);
+  const details = page.getByRole("button", {
+    name: "Transfer details",
+    exact: true,
+  });
+  if ((await details.getAttribute("aria-expanded")) === "false")
+    await details.click();
   await page
     .getByRole("button", { name: "Preview image.svg", exact: true })
     .click();

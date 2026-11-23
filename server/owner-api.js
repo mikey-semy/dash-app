@@ -55,7 +55,8 @@ export function createOwnerApi({
       domainState: hosting.status(t),
       oneTime: !!t.one_time,
       consumed: !!t.consumed,
-      files: t.files.map(({ name, size }) => ({
+      files: t.files.map(({ key, name, size }) => ({
+        id: key,
         name,
         size,
         preview: fileTextCandidate({ name, size }),
@@ -326,7 +327,7 @@ export function createOwnerApi({
   });
   api.post("/transfers/:id/append", async (req, res) => {
     const result = await service.locked(() =>
-      service.append(req.params.id, req.body.files),
+      service.append(req.params.id, req.body.files, req.body.revision),
     );
     res.status(201).json(result);
   });
@@ -403,6 +404,12 @@ export function createOwnerApi({
           ),
         ),
       );
+  });
+  api.post("/transfers/:id/retry-update", async (req, res) => {
+    await service.locked(() =>
+      service.retryUpdate(req.params.id, req.body.revision),
+    );
+    res.json(publicOwner(service.get(req.params.id)));
   });
   api.delete("/transfers/:id/files", async (req, res) => {
     if (typeof req.body.revision !== "string")

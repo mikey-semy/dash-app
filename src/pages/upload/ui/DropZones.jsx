@@ -9,23 +9,43 @@ const destinations = [
   { zone: "append", label: copy.addToCurrentTransfer, icon: "add" },
 ];
 
-export function DropZones({ active, zone, canAppend }) {
+function DestinationZones({ zone, canAppend, canNew = true, onChoose }) {
+  const Zone = onChoose ? "button" : "div";
+  return (canAppend || onChoose ? destinations : destinations.slice(0, 1)).map(
+    ({ zone: value, label, icon }) => (
+      <Zone
+        key={value}
+        className={
+          zone === value && (value !== "new" || canNew)
+            ? "drop-zone active"
+            : "drop-zone"
+        }
+        aria-label={label}
+        title={label}
+        aria-disabled={value === "new" && !canNew}
+        {...(onChoose
+          ? {
+              type: "button",
+              disabled: value === "append" ? !canAppend : !canNew,
+              onClick: () => onChoose(value === "append"),
+            }
+          : {})}
+      >
+        <Icon name={icon} size={UI.dropIconSize} />
+      </Zone>
+    ),
+  );
+}
+
+export function DropZones({ active, ...props }) {
   return active ? (
     <div className="drop-zones" aria-label={copy.whereToUploadFiles}>
-      {(canAppend ? destinations : destinations.slice(0, 1)).map((item) => (
-        <div
-          key={item.zone}
-          className={zone === item.zone ? "drop-zone active" : "drop-zone"}
-          aria-label={item.label}
-        >
-          <Icon name={item.icon} size={UI.dropIconSize} />
-        </div>
-      ))}
+      <DestinationZones {...props} />
     </div>
   ) : null;
 }
 
-export function PasteDestinations({ canAppend, onChoose, onClose }) {
+export function PasteDestinations({ canAppend, canNew, onChoose, onClose }) {
   return (
     <Modal
       className="paste-destinations"
@@ -35,18 +55,11 @@ export function PasteDestinations({ canAppend, onChoose, onClose }) {
     >
       {({ close }) => (
         <>
-          {destinations.map(({ zone, label, icon }) => (
-            <button
-              key={zone}
-              type="button"
-              className="drop-zone"
-              disabled={zone === "append" && !canAppend}
-              onClick={() => onChoose(zone === "append")}
-            >
-              <Icon name={icon} size={UI.dropIconSize} />
-              {label}
-            </button>
-          ))}
+          <DestinationZones
+            canAppend={canAppend}
+            canNew={canNew}
+            onChoose={onChoose}
+          />
           <IconButton
             className="icon-button current-close"
             aria-label={copy.cancel}

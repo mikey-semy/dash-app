@@ -2189,3 +2189,68 @@ test("a failed ZIP removal can be repeated without reuploading or changing the o
     updated.files.map((file) => file.name),
   );
 });
+
+test("owner retries a failed archive update without uploading its files again", async () => {
+  const { app, agent, service, store, db } = await setup();
+  const id = await upload(service, store, [
+    ["a.txt", Buffer.from("first")],
+    ["b.txt", Buffer.from("second")],
+  ]);
+  await service.tick();
+  const original = service.get(id);
+  const child = service.rename(
+    id,
+    ["renamed.txt", "b.txt"],
+    revision(original),
+  );
+  db.prepare(
+    "UPDATE transfers SET state='failed',attempts=3,error='temporary storage failure' WHERE id=?",
+  ).run(child);
+  const path = `/api/transfers/${id}/retry-update`;
+  await request(app)
+    .post(path)
+    .set("Origin", env.PUBLIC_URL)
+    .send({ revision: revision(original) })
+    .expect(401);
+  await post(agent, path, { revision: "stale" }).expect(409);
+  await post(agent, path, { revision: revision(original) }).expect(200);
+  assert.equal(service.get(child).state, "queued");
+  await service.tick();
+  assert.equal(service.get(id).token, original.token);
+  assert.deepEqual(
+    service.get(id).files.map((f) => f.name),
+    ["renamed.txt", "b.txt"],
+  );
+  assert.equal(
+    (await agent.get(`/api/transfers/${id}/text/0`).expect(200)).text,
+    "first",
+  );
+  await post(agent, path, { revision: revision(service.get(id)) }).expect(409);
+  db.close();
+});
+
+test("queued appends reject a changed base revision before creating another draft", async () => {
+  const { agent, service, store, db } = await setup();
+  const id = await upload(service, store, [
+    ["original.txt", Buffer.from("source")],
+  ]);
+  const before = revision(service.get(id));
+  const body = { files: [{ name: "queued.txt", size: 3 }], revision: before };
+  await post(agent, `/api/transfers/${id}/append`, {
+    ...body,
+    revision: "stale",
+  }).expect(409);
+  assert.equal(
+    db.prepare("SELECT count(*) n FROM transfers WHERE parent=?").get(id).n,
+    0,
+  );
+  const created = (
+    await post(agent, `/api/transfers/${id}/append`, body).expect(201)
+  ).body;
+  assert.equal(created.offset, 1);
+  assert.equal(
+    service.get(created.id).base.output.key,
+    service.get(id).output.key,
+  );
+  db.close();
+});

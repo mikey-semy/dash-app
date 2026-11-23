@@ -61,7 +61,7 @@ export class Service {
     assignSiteTitle(this.db, this.get(id));
     return id;
   }
-  append(id, files) {
+  append(id, files, expectedRevision) {
     const parent = this.get(id);
     if (
       !parent ||
@@ -69,6 +69,10 @@ export class Service {
       (parent.expires !== null && parent.expires <= Date.now())
     )
       throw Object.assign(new Error(copy.transferUnavailableForAppending), {
+        status: 409,
+      });
+    if (expectedRevision !== undefined && expectedRevision !== revision(parent))
+      throw Object.assign(new Error(copy.transferChangedReopenSettings), {
         status: 409,
       });
     const pending = this.db
@@ -158,6 +162,40 @@ export class Service {
       .prepare("UPDATE transfers SET files=? WHERE id=?")
       .run(JSON.stringify(files), next);
     return { id: next, offset: index };
+  }
+  retryUpdate(id, expectedRevision) {
+    const parent = this.get(id);
+    if (
+      !parent ||
+      parent.parent ||
+      !["ready", "empty"].includes(parent.state) ||
+      (parent.expires !== null && parent.expires <= Date.now())
+    )
+      throw Object.assign(new Error(copy.transferUnavailable), { status: 404 });
+    if (expectedRevision !== revision(parent))
+      throw Object.assign(new Error(copy.transferChangedReopenSettings), {
+        status: 409,
+      });
+    const pending = this.db
+      .prepare("SELECT id FROM transfers WHERE parent=? AND state='failed'")
+      .get(id);
+    if (!pending)
+      throw Object.assign(new Error(copy.updateIsStillInProgress), {
+        status: 409,
+      });
+    const child = this.get(pending.id);
+    if (
+      child.files.some((file) => !file.done) ||
+      child.base.output?.key !== parent.output?.key
+    )
+      throw Object.assign(new Error(copy.transferChangedReopenSettings), {
+        status: 409,
+      });
+    this.db
+      .prepare(
+        "UPDATE transfers SET state='queued',attempts=0,error=NULL WHERE id=?",
+      )
+      .run(child.id);
   }
   rename(id, names, expectedRevision) {
     const parent = this.get(id);

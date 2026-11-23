@@ -18,6 +18,9 @@ export function useFileIntake({
   receiveFiles,
   onText,
 }) {
+  const canNew = !upload && !preparingUpload;
+  const blockedUpload = !!upload && !upload.parentId;
+  const blockedPreparation = preparingUpload && !completed;
   const [dropZone, setDropZone] = useState("new");
   const [pendingPaste, setPendingPaste] = useState(null);
   const canAppendPaste = !!completed && pendingPaste?.parentId === latest.id;
@@ -29,8 +32,8 @@ export function useFileIntake({
         event.preventDefault();
         event.stopPropagation();
         if (
-          upload ||
-          preparingUpload ||
+          blockedUpload ||
+          blockedPreparation ||
           pendingPaste ||
           draft !== null ||
           folders !== null ||
@@ -55,8 +58,8 @@ export function useFileIntake({
       }
       if (
         event.defaultPrevented ||
-        upload ||
-        preparingUpload ||
+        blockedUpload ||
+        blockedPreparation ||
         preparing ||
         pendingPaste ||
         historyOpen ||
@@ -80,8 +83,8 @@ export function useFileIntake({
     document.addEventListener("paste", paste, true);
     return () => document.removeEventListener("paste", paste, true);
   }, [
-    upload,
-    preparingUpload,
+    blockedUpload,
+    blockedPreparation,
     preparing,
     pendingPaste,
     completed,
@@ -101,11 +104,12 @@ export function useFileIntake({
 
   return {
     dropZone,
+    canNew,
     pendingPaste,
     canAppendPaste,
     cancelPaste: () => setPendingPaste(null),
     choosePaste: (append) => {
-      if (!pendingPaste || (append && !canAppendPaste)) return;
+      if (!pendingPaste || (append ? !canAppendPaste : !canNew)) return;
       const parentId = append ? pendingPaste.parentId : null;
       setPendingPaste(null);
       if (pendingPaste.source) receiveFiles(pendingPaste.source, parentId);
@@ -116,8 +120,8 @@ export function useFileIntake({
         if (!Array.from(e.dataTransfer.types).includes("Files")) return;
         e.preventDefault();
         if (
-          !upload &&
-          !preparingUpload &&
+          !blockedUpload &&
+          !blockedPreparation &&
           !preparing &&
           !pendingPaste &&
           !folders &&
@@ -154,8 +158,8 @@ export function useFileIntake({
           folders ||
           config ||
           (historyOpen && !viewing) ||
-          upload ||
-          preparingUpload
+          blockedUpload ||
+          blockedPreparation
         ) {
           e.preventDefault();
           e.stopPropagation();
@@ -174,10 +178,12 @@ export function useFileIntake({
       onDrop: (e) => {
         e.preventDefault();
         setDrag(false);
+        if (!viewing && !canNew && (!completed || e.clientY < innerHeight / 2))
+          return;
         if (
           viewing &&
-          !upload &&
-          !preparingUpload &&
+          !blockedUpload &&
+          !blockedPreparation &&
           !draft &&
           !folders &&
           !config
@@ -195,8 +201,8 @@ export function useFileIntake({
         )
           return;
         if (
-          !upload &&
-          !preparingUpload &&
+          !blockedUpload &&
+          !blockedPreparation &&
           !preparing &&
           !folders &&
           !historyOpen &&

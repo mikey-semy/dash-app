@@ -44,7 +44,7 @@ test("current details stay expanded during append preparation and keep the same 
   });
   await expect.poll(() => requested).toBe(true);
   await expect(
-    page.getByRole("status", { name: "Preparing upload", exact: true }),
+    page.getByRole("status", { name: "Pending changes", exact: true }),
   ).toBeVisible();
   await expect(filename).toBeVisible();
   await expect(filename).toHaveText("original.txt");

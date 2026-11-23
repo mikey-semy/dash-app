@@ -1,10 +1,14 @@
+import { useEffect, useRef } from "react";
 import { copy } from "#common/copy.js";
 import { AnimatedDetails } from "#src/shared/ui/Disclosure.jsx";
 import EditableName from "#src/shared/ui/EditableName.jsx";
 import { Icon } from "#src/shared/ui/Icons.jsx";
 import { FileList } from "#src/entities/transfer/index.js";
 import { bytes, date } from "#src/shared/lib/format.js";
-import { TransferActions as Share } from "#src/features/manage-transfer/actions.js";
+import {
+  TransferActions as Share,
+  TransferUpdateStatus,
+} from "#src/features/manage-transfer/actions.js";
 export function CurrentTransferActions({
   transfer,
   opening,
@@ -32,7 +36,7 @@ export function CurrentTransferActions({
       onDelete={() => onDelete(transfer.id)}
       onSettings={() => onSettings(transfer.id)}
       editFailed={editFailed}
-      editBusy={opening}
+      editBusy={opening || transfer.files.some((file) => file.contentPending)}
       onEdit={transfer.preview ? () => onEdit(transfer) : undefined}
     />
   );
@@ -47,9 +51,18 @@ export function CurrentTransferDetails({
   onPreview,
   onEdit,
   editBusy,
+  onRetryUpdates,
+  onDiscardUpdates,
+  uploadProgress,
+  uploadId,
 }) {
+  const details = useRef();
+  useEffect(() => {
+    if (uploadId) details.current.open = true;
+  }, [uploadId]);
   return (
     <AnimatedDetails
+      ref={details}
       className="transfer-details owner-details"
       label={copy.transferDetails}
       summary={<Icon name="chevron" />}
@@ -66,6 +79,11 @@ export function CurrentTransferDetails({
                 : undefined
             }
           />
+          <TransferUpdateStatus
+            value={transfer.updates}
+            onRetry={() => onRetryUpdates(transfer.id)}
+            onDiscard={() => onDiscardUpdates(transfer.id)}
+          />
         </div>
       }
     >
@@ -80,6 +98,7 @@ export function CurrentTransferDetails({
           disabled={renaming}
           onPreview={(index) => onPreview(transfer, index)}
         />
+        {uploadProgress}
         <p className="muted">{bytes(transfer.size)}</p>
         <p className="muted">
           {transfer.oneTime

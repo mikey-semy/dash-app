@@ -272,7 +272,8 @@
 .drop-zone + .drop-zone {
   border-top: var(--size-1) solid var(--color-divider);
 }
-.drop-zone.active {
+.drop-zone.active,
+.paste-destinations > .drop-zone:not(:disabled):is(:hover, :focus-visible) {
   opacity: 1;
   background: var(--color-fafafa);
 }
@@ -288,15 +289,7 @@
   display: flex;
   flex-direction: column;
 }
-.paste-destinations > .drop-zone {
-  flex-direction: column;
-  gap: var(--size-12);
-}
-.paste-destinations > .drop-zone:not(:disabled) {
-  opacity: 1;
-}
 .paste-destinations > .drop-zone:not(:disabled):is(:hover, :focus-visible) {
-  background: var(--color-fafafa);
   outline-offset: var(--size-minus-1);
 }
 .current-close {
@@ -502,4 +495,18 @@ button.unavailable {
   .recipient .transfer-information .file-size {
     padding-block: var(--size-6);
   }
+}
+
+.transfer-updates,
+.transfer-updates > [role="status"] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--size-8);
+}
+
+.transfer-heading .transfer-updates {
+  flex-shrink: 0;
+  margin-left: var(--size-8);
+  font-size: var(--font-size-caption);
 }

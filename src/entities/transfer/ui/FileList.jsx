@@ -84,6 +84,7 @@ export function FileList({
               {onRename && onPreview && (f.preview || f.media) && (
                 <IconButton
                   aria-label={copy.previewPrefix + f.name}
+                  disabled={disabled || f.contentPending}
                   onClick={() => onPreview(i)}
                 >
                   <Icon name="eye" />
@@ -93,7 +94,7 @@ export function FileList({
                 <IconButton
                   aria-label={copy.editTextPrefix + f.name}
                   title={copy.editText}
-                  disabled={disabled || editBusy}
+                  disabled={disabled || editBusy || f.contentPending}
                   onClick={() => onEdit(i)}
                 >
                   <Icon name="edit" />
@@ -112,7 +113,7 @@ export function FileList({
                 <DeleteButton
                   icon="cancel"
                   label={copy.deletePrefix + f.name}
-                  disabled={disabled}
+                  disabled={disabled || f.pending}
                   confirmationKey={confirmationKey || f.name}
                   onDelete={() => onRemove(i)}
                 />

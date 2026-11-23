@@ -33,6 +33,7 @@ export const UI = Object.freeze({
   dropIconSize: 28,
 });
 export const TIMING = Object.freeze({
+  transferUpdateBatch: 250,
   feedback: 1500,
   multiClick: 350,
   confirmation: 4000,

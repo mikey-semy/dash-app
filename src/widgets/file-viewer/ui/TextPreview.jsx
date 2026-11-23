@@ -1,3 +1,4 @@
+import EditableName from "#src/shared/ui/EditableName.jsx";
 import { IconButton } from "#src/shared/ui/IconButton.jsx";
 import { copy } from "#common/copy.js";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
@@ -21,6 +22,8 @@ export default function TextPreview({
   downloadPath: downloadOverride,
   onEdit,
   shareUrl,
+  onRename,
+  renaming = false,
   bare = false,
 }) {
   const rawPath =
@@ -104,8 +107,19 @@ export default function TextPreview({
     <section className="text-preview" aria-label={copy.transferText}>
       {!bare && (
         <header className="text-preview-header">
-          <span className="language-label">{language}</span>
+          {onRename ? (
+            <EditableName
+              value={info.name}
+              label={copy.filenamePrefix + ((index ?? 0) + 1)}
+              onSave={onRename}
+              disabled={renaming}
+              className="media-name"
+            />
+          ) : (
+            <span className="media-name">{info.name}</span>
+          )}
           <div className="text-actions">
+            <span className="language-label">{language}</span>
             <CopyButton value={source} label={copy.copyText} />
             <QRButton
               url={shareUrl || new URL(location.pathname, location.origin).href}

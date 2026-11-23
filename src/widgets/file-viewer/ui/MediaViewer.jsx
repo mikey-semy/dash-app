@@ -1,3 +1,4 @@
+import EditableName from "#src/shared/ui/EditableName.jsx";
 import { Modal } from "#src/shared/ui/Modal.jsx";
 import { IconButton } from "#src/shared/ui/IconButton.jsx";
 import { copy } from "#common/copy.js";
@@ -13,6 +14,8 @@ export default function MediaViewer({
   source,
   download,
   shareUrl,
+  onRename,
+  renaming = false,
 }) {
   const [error, setError] = useState("");
   const failure = (event) =>
@@ -28,7 +31,17 @@ export default function MediaViewer({
       {({ close }) => (
         <>
           <header className="text-preview-header">
-            <span className="media-name">{info.name}</span>
+            {onRename ? (
+              <EditableName
+                value={info.name}
+                label={copy.filenamePrefix + ((index ?? 0) + 1)}
+                onSave={onRename}
+                disabled={renaming}
+                className="media-name"
+              />
+            ) : (
+              <span className="media-name">{info.name}</span>
+            )}
             <div className="text-actions">
               <CopyButton value={shareUrl || location.href} />
               <QRButton url={shareUrl || location.href} />

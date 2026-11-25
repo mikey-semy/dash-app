@@ -18,9 +18,9 @@ test("Markdown renders Mermaid as an image and keeps wide tables locally scrolla
     '    B --> C["Шесть IGBT"]',
     "```",
     "",
-    "| Условие | Приоритетные направления | Что отличает ветвь |",
-    "| --- | --- | --- |",
-    "| До RUN, питание подано | Вспомогательные источники и токовые измерители | Проверяется отсутствие реальной команды запуска |",
+    "| Условие | Приоритетные направления | Что отличает ветвь | Когда проверять | Результат проверки | Следующий шаг |",
+    "| --- | --- | --- | --- | --- | --- |",
+    "| До RUN, питание подано | Вспомогательные источники и токовые измерители | Проверяется отсутствие реальной команды запуска | После измерения входных сигналов управления | Записать состояние всех контрольных точек | Повторить измерение при включённой нагрузке |",
     "",
     "```mermaid",
     "not a valid diagram",
@@ -80,7 +80,7 @@ test("Markdown renders Mermaid as an image and keeps wide tables locally scrolla
   ).toBe(true);
   const table = page.getByRole("region", { name: "Markdown table" });
   await expect(table.getByRole("table")).toBeVisible();
-  await expect(table.getByRole("columnheader")).toHaveCount(3);
+  await expect(table.getByRole("columnheader")).toHaveCount(6);
   expect(
     await table.evaluate(
       (element) => element.scrollWidth > element.clientWidth,
@@ -121,6 +121,16 @@ test("Markdown renders Mermaid as an image and keeps wide tables locally scrolla
   ).toBe(true);
   await expect(page.locator(".markdown-document pre")).toHaveText(
     "not a valid diagram",
+  );
+  await page.setViewportSize({ width: 1440, height: 900 });
+  expect(
+    await page.locator(".markdown-document").evaluate((article) => ({
+      width: article.clientWidth,
+      available: article.parentElement.clientWidth,
+    })),
+  ).toEqual({ width: 1440, available: 1440 });
+  expect(await table.evaluate((el) => el.scrollWidth)).toBe(
+    await table.evaluate((el) => el.clientWidth),
   );
   expect(violations).toEqual([]);
 });

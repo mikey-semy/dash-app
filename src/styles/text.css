@@ -144,8 +144,6 @@
   overscroll-behavior: contain;
 }
 .markdown-document {
-  max-width: var(--size-1000);
-  margin: 0 auto;
   padding: var(--size-16);
   font-size: var(--font-size-body);
   line-height: var(--line-height-1-65);
@@ -205,6 +203,7 @@
 }
 .markdown-document table {
   width: max-content;
+  max-width: 100%;
   border-collapse: collapse;
 }
 .markdown-document th,
@@ -268,5 +267,8 @@
 @media (--mobile) {
   .markdown-document {
     padding: var(--size-12);
+  }
+  .markdown-document table {
+    max-width: none;
   }
 }

@@ -67,19 +67,19 @@ async function draw(source, signal) {
   });
 }
 
-export default function MermaidDiagram({ source, fallback }) {
+export default function MermaidDiagram({ source, pending, fallback }) {
   const [rendered, setRendered] = useState(null);
   useEffect(() => {
     const controller = new AbortController();
     draw(source, controller.signal)
+      .catch(() => null)
       .then((result) => {
-        if (result && !controller.signal.aborted)
-          setRendered({ source, ...result });
-      })
-      .catch(() => {});
+        if (!controller.signal.aborted) setRendered({ source, ...result });
+      });
     return () => controller.abort();
   }, [source]);
-  if (rendered?.source !== source) return fallback;
+  if (rendered?.source !== source) return pending;
+  if (!rendered.png) return fallback;
   return (
     <div className="markdown-diagram">
       <img

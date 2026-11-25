@@ -1,0 +1,78 @@
+@page markdown-document {
+  margin: 14mm;
+}
+
+@media print {
+  body.markdown-export,
+  body:has(:is(.viewer-dialog[open], .demo-view) .markdown-document) {
+    page: markdown-document;
+  }
+  html:has(:is(.viewer-dialog[open], .demo-view) .markdown-document),
+  body:has(:is(.viewer-dialog[open], .demo-view) .markdown-document),
+  #root:has(:is(.viewer-dialog[open], .demo-view) .markdown-document),
+  main:has(> .viewer-dialog[open] .markdown-document),
+  :is(.viewer-dialog[open], .demo-view):has(.markdown-document),
+  :is(.viewer-dialog[open], .demo-view):has(.markdown-document)
+    :is(.text-preview, .text-preview-body, .markdown-preview) {
+    position: static;
+    display: block;
+    width: auto;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+  }
+  main:has(> .viewer-dialog[open] .markdown-document)
+    > :not(.viewer-dialog[open]:has(.markdown-document)),
+  .demo-view:has(.markdown-document) > :not(.text-preview),
+  .viewer-dialog[open]:has(.markdown-document)
+    :is(.text-preview-header, .viewer-footer),
+  .viewer-dialog[open]:has(.markdown-document)::backdrop {
+    display: none;
+  }
+  .markdown-document {
+    padding: 0;
+    font-size: var(--font-size-detail);
+    orphans: 3;
+    widows: 3;
+  }
+  .markdown-document :is(h1, h2, h3, h4, h5, h6) {
+    break-inside: avoid;
+    break-after: avoid;
+  }
+  .markdown-document :is(p, li, blockquote, pre, tr, thead, .markdown-diagram) {
+    break-inside: avoid;
+  }
+  .markdown-document img {
+    max-height: 75vh;
+    object-fit: contain;
+    break-inside: avoid;
+  }
+  .markdown-document pre {
+    overflow: visible;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .markdown-overflow {
+    overflow: visible;
+  }
+  .markdown-document table {
+    width: 100%;
+  }
+  .markdown-document thead {
+    display: table-header-group;
+  }
+  .markdown-document :is(th, td) {
+    min-width: 0;
+    max-width: none;
+    padding-inline: var(--size-4);
+    overflow-wrap: break-word;
+    line-height: var(--line-height-1-5);
+    vertical-align: top;
+  }
+  .markdown-document table:has(tr > :nth-child(8)) :is(th, td) {
+    overflow-wrap: anywhere;
+  }
+}

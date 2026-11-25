@@ -199,6 +199,13 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  .markdown-preview-header,
+  .markdown-preview-header > .text-actions {
+    flex-wrap: wrap;
+  }
+  .markdown-preview-header > .text-actions {
+    max-width: 100%;
+  }
 }
 
 [hidden] {

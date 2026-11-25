@@ -5,6 +5,8 @@
 @import "./dialogs.css";
 @import "./upload.css";
 @import "./text.css";
+@import "./markdown.css";
 @import "./viewers.css";
 @import "./components.css";
 @import "./history.css";
+@import "./markdown-print.css";

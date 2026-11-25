@@ -4,6 +4,7 @@ import { copy } from "#common/copy.js";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import QRButton from "#src/shared/ui/QRButton.jsx";
 import { CopyButton, Icon } from "#src/shared/ui/Icons.jsx";
+import { MarkdownExportActions } from "./MarkdownExportActions.jsx";
 const CodeEditor = lazy(
   () => import("#src/shared/ui/code-editor/CodeEditor.jsx"),
 );
@@ -37,7 +38,8 @@ export default function TextPreview({
     [language, setLanguage] = useState(
       markdownFile(info.name) ? "Markdown" : "?",
     ),
-    [preview, setPreview] = useState(markdownFile(info.name));
+    [preview, setPreview] = useState(markdownFile(info.name)),
+    [exportDocument, setExportDocument] = useState(null);
   const automatic = useRef(true);
   useEffect(() => {
     const known = markdownFile(info.name);
@@ -52,6 +54,7 @@ export default function TextPreview({
     }
   }, [language]);
   const markdown = markdownFile(info.name) || /^Markdown\??$/.test(language);
+  const showMarkdown = markdown && preview;
   useEffect(() => {
     const control = new AbortController();
     let active = true;
@@ -106,7 +109,13 @@ export default function TextPreview({
   return (
     <section className="text-preview" aria-label={copy.transferText}>
       {!bare && (
-        <header className="text-preview-header">
+        <header
+          className={
+            showMarkdown
+              ? "text-preview-header markdown-preview-header"
+              : "text-preview-header"
+          }
+        >
           {onRename ? (
             <EditableName
               value={info.name}
@@ -155,6 +164,12 @@ export default function TextPreview({
                 <Icon name={preview ? "code" : "eye"} />
               </IconButton>
             )}
+            {showMarkdown && (
+              <MarkdownExportActions
+                article={exportDocument}
+                filename={info.name}
+              />
+            )}
             <a
               className="icon-button"
               aria-label={copy.downloadAction}
@@ -192,11 +207,12 @@ export default function TextPreview({
               </div>
             }
           >
-            {markdown && preview ? (
+            {showMarkdown ? (
               <MarkdownPreview
                 source={source}
                 filename={info.name}
                 files={info.files}
+                onExportDocument={bare ? undefined : setExportDocument}
                 token={
                   token ||
                   (shareUrl ? new URL(shareUrl).pathname.split("/").pop() : "")

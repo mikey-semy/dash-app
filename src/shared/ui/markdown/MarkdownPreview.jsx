@@ -5,6 +5,8 @@ import {
   lazy,
   Suspense,
   useContext,
+  useEffect,
+  useRef,
 } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -31,14 +33,15 @@ const components = {
     )
       return <pre>{children}</pre>;
     const diagram = String(children.props.children);
-    const fallback = (
-      <pre>
-        <code>{diagram}</code>
-      </pre>
-    );
+    const code = <code>{diagram}</code>;
+    const pending = <pre data-markdown-pending>{code}</pre>;
     return (
-      <Suspense fallback={fallback}>
-        <MermaidDiagram source={diagram} fallback={fallback} />
+      <Suspense fallback={pending}>
+        <MermaidDiagram
+          source={diagram}
+          pending={pending}
+          fallback={<pre>{code}</pre>}
+        />
       </Suspense>
     );
   },
@@ -81,7 +84,29 @@ export default function MarkdownPreview({
   filename = "",
   files = [],
   token = "",
+  onExportDocument,
 }) {
+  const article = useRef(null);
+  useEffect(() => {
+    if (!onExportDocument) return;
+    const element = article.current;
+    const update = () =>
+      onExportDocument(
+        element.querySelector("[data-markdown-pending]") ? null : element,
+      );
+    const observer = new MutationObserver(update);
+    observer.observe(element, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["data-markdown-pending"],
+    });
+    update();
+    return () => {
+      observer.disconnect();
+      onExportDocument(null);
+    };
+  }, [onExportDocument]);
   const resolve = (href, image = false) => {
     if (!href || !token || /^(?:[a-z][a-z0-9+.-]*:|#|\/\/)/i.test(href))
       return null;
@@ -108,7 +133,7 @@ export default function MarkdownPreview({
   };
   return (
     <div className="markdown-preview" aria-label={copy.markdownPreview}>
-      <article className="markdown-document">
+      <article ref={article} className="markdown-document">
         <LinkContext.Provider value={resolve}>
           <Markdown
             remarkPlugins={[remarkGfm]}
